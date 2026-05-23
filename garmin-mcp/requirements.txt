@@ -1,0 +1,4 @@
+mcp>=1.2.0
+garminconnect>=0.2.20
+python-dotenv>=1.0.0
+supabase>=2.8.0
