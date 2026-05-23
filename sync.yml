@@ -56,15 +56,32 @@ jobs:
             echo "::error::GARMIN_TOKENS_JSON saknas. Kor scripts/setup_github_secrets.ps1 lokalt."
             exit 1
           fi
-          printf '%s' "$GARMIN_TOKENS_JSON" > ~/.garminconnect/garmin_tokens.json
-          # Validera JSON och att forvantade nycklar finns
-          python -c "
-          import json
-          d = json.load(open('$HOME/.garminconnect/garmin_tokens.json'))
-          assert d.get('di_token'), 'di_token saknas'
-          assert d.get('di_refresh_token'), 'di_refresh_token saknas'
-          print(f'Tokens OK: di_token={len(d[\"di_token\"])} chars, di_refresh_token={len(d[\"di_refresh_token\"])} chars')
-          "
+          # Skriv tokens via Python - undviker shell-quoting och printf-quirks
+          python <<'PY'
+          import json, os, sys
+          raw = os.environ["GARMIN_TOKENS_JSON"]
+          print(f"Raw secret length: {len(raw)} chars", file=sys.stderr)
+          if not raw.strip():
+              print("::error::GARMIN_TOKENS_JSON ar tom efter strip", file=sys.stderr)
+              sys.exit(1)
+          try:
+              data = json.loads(raw)
+          except json.JSONDecodeError as e:
+              print(f"::error::Secret ar inte giltig JSON: {e}", file=sys.stderr)
+              print(f"First 80 chars: {raw[:80]!r}", file=sys.stderr)
+              sys.exit(1)
+          if not data.get("di_token") or not data.get("di_refresh_token"):
+              print("::error::di_token eller di_refresh_token saknas i JSON", file=sys.stderr)
+              print(f"Keys: {list(data.keys())}", file=sys.stderr)
+              sys.exit(1)
+          path = os.path.expanduser("~/.garminconnect/garmin_tokens.json")
+          with open(path, "w", encoding="utf-8") as f:
+              json.dump(data, f)
+          size = os.path.getsize(path)
+          print(f"Tokens skrivna till {path}: {size} bytes")
+          print(f"  di_token: {len(data['di_token'])} chars")
+          print(f"  di_refresh_token: {len(data['di_refresh_token'])} chars")
+          PY
 
       - name: Run scheduled sync (cron)
         if: github.event_name == 'schedule'
