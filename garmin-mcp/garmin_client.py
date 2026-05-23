@@ -11,6 +11,8 @@ from __future__ import annotations
 
 import json
 import logging
+import os
+import sys
 from pathlib import Path
 
 from garminconnect import (
@@ -21,6 +23,14 @@ from garminconnect import (
 logger = logging.getLogger("garmin-mcp.client")
 
 TOKEN_FILE = "garmin_tokens.json"
+
+# I CI (GitHub Actions) finns ingen TTY for MFA-prompt.
+# Da maste vi misslyckas tydligt istallet for att hanga pa input().
+IS_NON_INTERACTIVE = (
+    not sys.stdin.isatty()
+    or os.environ.get("CI") == "true"
+    or os.environ.get("GITHUB_ACTIONS") == "true"
+)
 
 
 class GarminClient:
@@ -47,7 +57,14 @@ class GarminClient:
         if api is not None:
             return api
 
-        # 2. Full login via email + losen (+ MFA)
+        # 2. Full login - krar TTY for MFA, sa misslyckas tydligt i CI
+        if IS_NON_INTERACTIVE:
+            raise RuntimeError(
+                "Cachade tokens funkar inte och vi ar i CI utan TTY. "
+                "Kor 'python test_connection.py' lokalt for att skapa nya tokens, "
+                "kor sedan setup_github_secrets.ps1 for att uppdatera GARMIN_TOKENS_JSON."
+            )
+
         logger.info("Kor full inloggning mot Garmin")
         api = Garmin(email=self._email, password=self._password, return_on_mfa=True)
         result1, result2 = api.login()
@@ -71,19 +88,28 @@ class GarminClient:
             if not di_token or not di_refresh:
                 logger.warning("Cachad tokens-fil saknar di_token/di_refresh_token")
                 return None
+        except json.JSONDecodeError as e:
+            logger.warning("Cachad tokens-fil ar inte giltig JSON: %s", e)
+            return None
 
+        # Initiera Garmin-objektet utan att direkt logga in.
+        # api.client skapas i __init__, sa vi kan stoppa in tokens dar.
+        try:
             api = Garmin(email=self._email, password=self._password)
-            # Stoppa in tokens direkt - hoppa over inloggning
-            api.client.di_token = di_token
-            api.client.di_refresh_token = di_refresh
-            api.client.is_authenticated = True
+            # api.client ar en garminconnect.Client som har di_token-attributen.
+            # is_authenticated ar en read-only property som hardleds fran di_token,
+            # sa den blir True automatiskt nar vi satter tokens.
+            client = api.client
+            client.di_token = di_token
+            client.di_refresh_token = di_refresh
 
-            # Verifiera med ett latt API-anrop
+            # Verifiera tokens med ett latt API-anrop
             api.get_user_profile()
             logger.info("Inloggad via cachade tokens")
             return api
-        except (GarminConnectAuthenticationError, json.JSONDecodeError, Exception) as e:
-            logger.info("Cachade tokens ogiltiga (%s) - kor full login", type(e).__name__)
+        except Exception as e:
+            logger.info("Cachade tokens ogiltiga (%s: %s) - kor full login",
+                        type(e).__name__, e)
             return None
 
     def _dump_tokens(self, api: Garmin) -> None:
@@ -95,14 +121,11 @@ class GarminClient:
         if not di_token or not di_refresh:
             raise RuntimeError(
                 "api.client saknar di_token/di_refresh_token efter login - "
-                "garminconnect-API:t kan ha andrats. Kor diagnose_tokens.py."
+                "garminconnect-API:t kan ha andrats."
             )
 
         self._token_dir.mkdir(parents=True, exist_ok=True)
-        payload = {
-            "di_token": di_token,
-            "di_refresh_token": di_refresh,
-        }
+        payload = {"di_token": di_token, "di_refresh_token": di_refresh}
         self._token_path.write_text(json.dumps(payload), encoding="utf-8")
         size = self._token_path.stat().st_size
         logger.info("Tokens sparade till %s (%d bytes)", self._token_path, size)
