@@ -13,6 +13,7 @@ from garminconnect import (
     GarminConnectConnectionError,
     GarminConnectTooManyRequestsError,
 )
+import garth
 from garth.exc import GarthHTTPError
 
 logger = logging.getLogger("garmin-mcp.client")
@@ -62,7 +63,7 @@ class GarminClient:
             api.resume_login(result2, mfa_code)
 
         self._token_dir.mkdir(parents=True, exist_ok=True)
-        api.garth.dump(token_dir)
+        garth.client.dump(token_dir)
         logger.info("Tokens sparade till %s", token_dir)
         return api
 

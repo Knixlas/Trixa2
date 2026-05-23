@@ -53,11 +53,31 @@ jobs:
           GARMIN_OAUTH1_TOKEN: ${{ secrets.GARMIN_OAUTH1_TOKEN }}
           GARMIN_OAUTH2_TOKEN: ${{ secrets.GARMIN_OAUTH2_TOKEN }}
         run: |
+          set -e
           mkdir -p ~/.garminconnect
-          echo "$GARMIN_OAUTH1_TOKEN" | base64 -d > ~/.garminconnect/oauth1_token.json
-          echo "$GARMIN_OAUTH2_TOKEN" | base64 -d > ~/.garminconnect/oauth2_token.json
+
+          if [ -z "$GARMIN_OAUTH1_TOKEN" ]; then
+            echo "::error::GARMIN_OAUTH1_TOKEN saknas eller är tom"
+            exit 1
+          fi
+          if [ -z "$GARMIN_OAUTH2_TOKEN" ]; then
+            echo "::error::GARMIN_OAUTH2_TOKEN saknas eller är tom"
+            exit 1
+          fi
+
+          # printf '%s' undviker echo:s trailing newline; tr rensar CR/LF/space
+          # som kan ha smugit in från Windows-encodad secret
+          printf '%s' "$GARMIN_OAUTH1_TOKEN" | tr -d '[:space:]' | base64 -d > ~/.garminconnect/oauth1_token.json
+          printf '%s' "$GARMIN_OAUTH2_TOKEN" | tr -d '[:space:]' | base64 -d > ~/.garminconnect/oauth2_token.json
           chmod 600 ~/.garminconnect/oauth*.json
-          echo "Tokens återställda."
+
+          # Validera att decoden gav giltig JSON
+          python -c "import json; json.load(open('$HOME/.garminconnect/oauth1_token.json'))" \
+            || { echo "::error::oauth1_token.json är inte giltig JSON efter decode"; exit 1; }
+          python -c "import json; json.load(open('$HOME/.garminconnect/oauth2_token.json'))" \
+            || { echo "::error::oauth2_token.json är inte giltig JSON efter decode"; exit 1; }
+
+          echo "Tokens återställda och validerade."
 
       - name: Run scheduled sync (cron)
         if: github.event_name == 'schedule'
