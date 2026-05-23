@@ -325,8 +325,17 @@ class SyncEngine:
         try:
             today = date.today().isoformat()
             profile = self.garmin.api.get_user_profile() or {}
-            hr_zones = self.garmin.api.get_heart_rates(today)
-            max_metrics = self.garmin.api.get_max_metrics(today)
+            
+            # get_heart_rates och get_max_metrics ger ibland 403/None - best effort
+            def _try(label, fn):
+                try:
+                    return fn()
+                except Exception as e:
+                    logger.warning("%s fallerade (icke-kritiskt): %s", label, e)
+                    return None
+            
+            hr_zones    = _try("get_heart_rates",  lambda: self.garmin.api.get_heart_rates(today))
+            max_metrics = _try("get_max_metrics",  lambda: self.garmin.api.get_max_metrics(today))
             
             vo2_run = vo2_cycle = None
             if max_metrics:
