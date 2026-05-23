@@ -1,0 +1,113 @@
+name: Garmin Sync
+
+on:
+  workflow_dispatch:
+    inputs:
+      sync_type:
+        description: 'Vad ska synkas'
+        type: choice
+        required: true
+        default: 'daily'
+        options:
+          - daily
+          - activities
+          - profile
+          - full
+      days:
+        description: 'Antal dagar bakat (for daily/full)'
+        required: false
+        default: '1'
+      activities_limit:
+        description: 'Antal aktiviteter (for activities/full)'
+        required: false
+        default: '20'
+
+  schedule:
+    - cron: '30 5 * * *'
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: garmin-mcp
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: garmin-mcp/requirements.txt
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Restore Garmin tokens
+        env:
+          GARMIN_TOKENS_JSON: ${{ secrets.GARMIN_TOKENS_JSON }}
+        run: |
+          set -e
+          mkdir -p ~/.garminconnect
+          if [ -z "$GARMIN_TOKENS_JSON" ]; then
+            echo "::error::GARMIN_TOKENS_JSON saknas. Kor scripts/setup_github_secrets.ps1 lokalt."
+            exit 1
+          fi
+          printf '%s' "$GARMIN_TOKENS_JSON" > ~/.garminconnect/garmin_tokens.json
+          # Validera JSON och att forvantade nycklar finns
+          python -c "
+          import json
+          d = json.load(open('$HOME/.garminconnect/garmin_tokens.json'))
+          assert d.get('di_token'), 'di_token saknas'
+          assert d.get('di_refresh_token'), 'di_refresh_token saknas'
+          print(f'Tokens OK: di_token={len(d[\"di_token\"])} chars, di_refresh_token={len(d[\"di_refresh_token\"])} chars')
+          "
+
+      - name: Run scheduled sync (cron)
+        if: github.event_name == 'schedule'
+        env:
+          GARMIN_EMAIL: ${{ secrets.GARMIN_EMAIL }}
+          GARMIN_PASSWORD: ${{ secrets.GARMIN_PASSWORD }}
+          GARMIN_TOKEN_DIR: ~/.garminconnect
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          SUPABASE_USER_ID: ${{ secrets.SUPABASE_USER_ID }}
+        run: |
+          YESTERDAY=$(date -u -d 'yesterday' +%Y-%m-%d)
+          TODAY=$(date -u +%Y-%m-%d)
+          python sync.py activities --limit 10
+          python sync.py daily --from "$YESTERDAY" --to "$TODAY"
+
+      - name: Run manual sync (workflow_dispatch)
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          GARMIN_EMAIL: ${{ secrets.GARMIN_EMAIL }}
+          GARMIN_PASSWORD: ${{ secrets.GARMIN_PASSWORD }}
+          GARMIN_TOKEN_DIR: ~/.garminconnect
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          SUPABASE_USER_ID: ${{ secrets.SUPABASE_USER_ID }}
+        run: |
+          SYNC_TYPE="${{ inputs.sync_type }}"
+          DAYS="${{ inputs.days }}"
+          LIMIT="${{ inputs.activities_limit }}"
+
+          case "$SYNC_TYPE" in
+            profile)
+              python sync.py profile
+              ;;
+            activities)
+              python sync.py activities --limit "$LIMIT"
+              ;;
+            daily)
+              FROM=$(date -u -d "$DAYS days ago" +%Y-%m-%d)
+              TO=$(date -u +%Y-%m-%d)
+              python sync.py daily --from "$FROM" --to "$TO"
+              ;;
+            full)
+              python sync.py full --activities "$LIMIT" --days "$DAYS"
+              ;;
+          esac
