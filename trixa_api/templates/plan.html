@@ -43,9 +43,14 @@
     <div class="workout-meta">
       <code>{{ w.code }}</code> · {{ w.duration_minutes }} min · {{ w.intensity }}
     </div>
-    {% if w.notes %}
+    {% if w.details_markdown %}
+    <details open>
+      <summary>Upplägg, zoner och utförande</summary>
+      <pre style="white-space: pre-wrap; font-family: inherit; font-size: 0.875rem; background: var(--pico-card-background-color); padding: 0.75rem; border-radius: 4px;">{{ w.details_markdown | trim }}</pre>
+    </details>
+    {% elif w.notes %}
     <details>
-      <summary>Syfte och utförande</summary>
+      <summary>Syfte</summary>
       <pre style="white-space: pre-wrap; font-family: inherit;">{{ w.notes | trim }}</pre>
     </details>
     {% endif %}

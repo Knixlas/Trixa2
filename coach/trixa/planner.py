@@ -61,6 +61,7 @@ class ScheduledWorkout:
     intensity: str  # text-beskrivning för UI: "Z2", "Z4 tröskel", etc.
     workout_data: dict | None = None  # hela passet från passbanken, resolved
     notes: str = ""
+    details_markdown: str = ""  # fullständig pass-rendering (intent + main_set + zoner)
 
     def to_db_row(self, athlete_id: str, week_id: str | None) -> dict:
         return {
@@ -834,6 +835,19 @@ def generate_week(
         rest_days=rest_days,
         strength_code=decisions["strength_protocol"],
     )
+
+    # 5b. Rendera fullständig pass-text per pass (intent + main_set + zoner)
+    zones_profile = _build_athlete_profile_for_zones(athlete)
+    drill_map = {d["code"]: d for d in drills}
+    for sw in scheduled:
+        if sw.workout_data and sw.sport not in ("rest", "strength"):
+            try:
+                sw.details_markdown = render_workout(
+                    sw.workout_data, zones_profile, drill_map
+                )
+            except Exception:  # noqa: BLE001
+                # Render-fel ska inte krascha hela planen — fall back till notes
+                sw.details_markdown = sw.notes
 
     plan = WeekPlan(
         athlete_id=athlete_id,
