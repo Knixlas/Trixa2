@@ -334,6 +334,51 @@ _SPORT_OPTIONS = [
 ]
 
 
+_BODY_LOCATIONS = [
+    ("lower_back", "Korsrygg"),
+    ("upper_back", "Övre rygg"),
+    ("neck", "Nacke"),
+    ("shoulder_left", "Axel vänster"),
+    ("shoulder_right", "Axel höger"),
+    ("elbow_left", "Armbåge vänster"),
+    ("elbow_right", "Armbåge höger"),
+    ("wrist_left", "Handled vänster"),
+    ("wrist_right", "Handled höger"),
+    ("biceps_left", "Biceps vänster"),
+    ("biceps_right", "Biceps höger"),
+    ("chest", "Bröst"),
+    ("abs", "Mage"),
+    ("hip_left", "Höft vänster"),
+    ("hip_right", "Höft höger"),
+    ("glute_left", "Säte vänster"),
+    ("glute_right", "Säte höger"),
+    ("quad_left", "Lår framsida vänster"),
+    ("quad_right", "Lår framsida höger"),
+    ("hamstring_left", "Lår baksida vänster"),
+    ("hamstring_right", "Lår baksida höger"),
+    ("knee_left", "Knä vänster"),
+    ("knee_right", "Knä höger"),
+    ("calf_left", "Vad vänster"),
+    ("calf_right", "Vad höger"),
+    ("achilles_left", "Hälsena vänster"),
+    ("achilles_right", "Hälsena höger"),
+    ("ankle_left", "Fotled vänster"),
+    ("ankle_right", "Fotled höger"),
+    ("foot_left", "Fot vänster"),
+    ("foot_right", "Fot höger"),
+    ("systemic", "Systemisk (stress, sjukdom, allmäntillstånd)"),
+    ("other", "Annat"),
+]
+
+
+_DISCIPLINES_FOR_IMPACT = [
+    ("swim", "Simning"),
+    ("bike", "Cykel"),
+    ("run", "Löpning"),
+    ("strength", "Styrka"),
+]
+
+
 @router.get("/settings", response_class=HTMLResponse)
 def settings_view(request: Request, saved: bool = False) -> HTMLResponse:
     user_id = _current_user_id(request)
@@ -395,6 +440,113 @@ def settings_submit(
     client.table("athlete_profiles").update(update).eq("id", athlete_id).execute()
 
     return settings_view(request, saved=True)
+
+
+# ---------- Hälsa (strukturerad skaderapport) ----------
+
+
+@router.get("/health", response_class=HTMLResponse)
+def health_view(request: Request, added: bool = False) -> HTMLResponse:
+    user_id = _current_user_id(request)
+    client = get_postgrest()
+    a_res = (
+        client.table("athlete_profiles")
+        .select("id, active_concerns")
+        .eq("user_id", user_id)
+        .execute()
+    )
+    if not a_res.data:
+        raise HTTPException(404, "Athlete saknas")
+    athlete = a_res.data[0]
+    concerns = athlete.get("active_concerns") or []
+    return _render(
+        "health.html",
+        {
+            "request": request,
+            "concerns": concerns,
+            "locations": _BODY_LOCATIONS,
+            "disciplines": _DISCIPLINES_FOR_IMPACT,
+            "added": added,
+        },
+    )
+
+
+@router.post("/health/add", response_class=HTMLResponse)
+def health_add(
+    request: Request,
+    name: str = Form(...),
+    location: str = Form(""),
+    severity: int = Form(2),
+    since_date: str = Form(""),
+    impact_swim: str = Form("none"),
+    impact_bike: str = Form("none"),
+    impact_run: str = Form("none"),
+    impact_strength: str = Form("none"),
+    needs_followup: str | None = Form(None),
+    follow_up_by: str = Form(""),
+    notes: str = Form(""),
+) -> Any:
+    user_id = _current_user_id(request)
+    client = get_postgrest()
+    a_res = (
+        client.table("athlete_profiles")
+        .select("id, active_concerns")
+        .eq("user_id", user_id)
+        .execute()
+    )
+    if not a_res.data:
+        raise HTTPException(404, "Athlete saknas")
+    athlete_id = a_res.data[0]["id"]
+    concerns = a_res.data[0].get("active_concerns") or []
+
+    new_concern = {
+        "name": name,
+        "location": location or None,
+        "severity": severity,
+        "since_date": since_date or None,
+        "needs_followup": needs_followup == "1",
+        "follow_up_by": follow_up_by or None,
+        "notes": notes or None,
+        "impact_per_discipline": {
+            "swim": impact_swim,
+            "bike": impact_bike,
+            "run": impact_run,
+            "strength": impact_strength,
+        },
+    }
+    concerns.append(new_concern)
+    client.table("athlete_profiles").update(
+        {"active_concerns": concerns}
+    ).eq("id", athlete_id).execute()
+
+    return RedirectResponse(url="/ui/health?added=true", status_code=303)
+
+
+@router.post("/health/remove", response_class=HTMLResponse)
+def health_remove(
+    request: Request,
+    index: int = Form(...),
+) -> Any:
+    user_id = _current_user_id(request)
+    client = get_postgrest()
+    a_res = (
+        client.table("athlete_profiles")
+        .select("id, active_concerns")
+        .eq("user_id", user_id)
+        .execute()
+    )
+    if not a_res.data:
+        raise HTTPException(404, "Athlete saknas")
+    athlete_id = a_res.data[0]["id"]
+    concerns = a_res.data[0].get("active_concerns") or []
+
+    if 0 <= index < len(concerns):
+        concerns.pop(index)
+        client.table("athlete_profiles").update(
+            {"active_concerns": concerns}
+        ).eq("id", athlete_id).execute()
+
+    return RedirectResponse(url="/ui/health", status_code=303)
 
 
 # ---------- Adept-actions: regenerera vecka, byt pass, byt gren ----------

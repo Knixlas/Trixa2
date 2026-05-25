@@ -170,13 +170,36 @@ def _fetch_latest_weekly_report(client, athlete_id: str) -> dict | None:
 
 
 def _has_significant_injury(athlete: dict) -> bool:
-    """Aktiv concern med severity ≥ 3 eller needs_followup → injury."""
+    """Aktiv concern med severity ≥ 3 eller needs_followup → injury.
+
+    Används som "any injury at all"-flagga för engine (påverkar fas-beslut).
+    För disciplin-specifik impact, se _injury_impacts_per_discipline.
+    """
     for concern in athlete.get("active_concerns") or []:
         if concern.get("severity", 0) >= 3:
             return True
         if concern.get("needs_followup"):
             return True
     return False
+
+
+def _injury_impacts_per_discipline(athlete: dict) -> dict[str, str]:
+    """Aggregera impact_per_discipline över alla active_concerns.
+
+    Returns:
+        Dict {swim/bike/run/strength: full/partial/none}.
+        "full" vinner över "partial" som vinner över "none".
+        Concerns utan impact_per_discipline-fält → 'none' för alla (backward compat).
+    """
+    rank = {"none": 0, "partial": 1, "full": 2}
+    result: dict[str, str] = {"swim": "none", "bike": "none", "run": "none", "strength": "none"}
+    for concern in athlete.get("active_concerns") or []:
+        impacts = concern.get("impact_per_discipline") or {}
+        for sport, level in impacts.items():
+            if sport in result and level in rank:
+                if rank[level] > rank[result[sport]]:
+                    result[sport] = level
+    return result
 
 
 def _weeks_until_race(athlete: dict, today: date) -> int | None:
@@ -877,8 +900,16 @@ def generate_week(
         # Säkerhetsnät — om listan är tom: fall tillbaka till alla tre
         active_sports = ["swim", "bike", "run"]
 
+    # Filtrera bort discipliner som blockeras av skada (impact=full)
+    impacts = _injury_impacts_per_discipline(athlete)
+    blocked_by_injury = [s for s in active_sports if impacts.get(s) == "full"]
+    partial_disciplines = {s for s in active_sports if impacts.get(s) == "partial"}
+    if blocked_by_injury:
+        active_sports = [s for s in active_sports if s not in blocked_by_injury]
+
     # Re-normalisera discipline_hours: om bike inte är aktivt → ta dess
-    # andel och fördela på resterande proportionellt.
+    # andel och fördela på resterande proportionellt. Gäller även efter
+    # att skada blockerat en disciplin.
     discipline_hours = _renormalize_hours(discipline_hours, active_sports)
     decisions["discipline_hours"] = discipline_hours
     decisions["_active_sports"] = active_sports
@@ -892,8 +923,20 @@ def generate_week(
 
     selected: list[dict] = []
     warnings: list[str] = []
+    for disc in blocked_by_injury:
+        warnings.append(
+            f"{disc} skippad denna vecka — skada med impact=full"
+        )
     for cat in categories:
-        for disc in active_sports:
+        # I disciplin med partial impact: skippa hårda kategorier, behåll bara AE
+        effective_cats_per_disc = {disc: cat for disc in active_sports}
+        for disc, effective_cat in effective_cats_per_disc.items():
+            if disc in partial_disciplines and cat in ("ME", "AC", "MF", "TE"):
+                # Hård träning i partial-disciplin → ersätt med AE-volym
+                if "AE" not in categories:
+                    # Lägg ändå till AE-pass — engine sa inte AE men skada kräver det
+                    pass
+                continue
             # BW (brick) finns bara som disciplin "brick" eller "bike"+"run"-kombination
             if cat == "BW" and disc != "bike":
                 continue
@@ -906,6 +949,21 @@ def generate_week(
                 )
                 continue
             selected.append(chosen)
+
+    # För partial-disciplin: säkerställ att det finns minst ett AE-pass
+    # (om engine inte sa AE explicit har vi nu inga pass alls för den disc)
+    for disc in partial_disciplines:
+        if disc in active_sports and not any(
+            w.get("discipline") == disc for w in selected
+        ):
+            ae_pass = _select_workout_for(
+                "AE", disc, phase_filter, workouts_pool, recent_codes, rng
+            )
+            if ae_pass:
+                selected.append(ae_pass)
+                warnings.append(
+                    f"{disc}: hårda pass utbytta mot AE pga partial skadeimpact"
+                )
 
     # 5. Schemalägg på dagar — läs adept-preferenser från athlete-row
     long_bike_day = athlete.get("long_bike_day")  # None = "spelar ingen roll"

@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+{% block title %}Hälsa — Trixa{% endblock %}
+{% block content %}
+
+<h1>Hälsotillstånd</h1>
+
+<p>Strukturerad skaderapport. Trixa läser detta deterministiskt — hård impact
+på en disciplin betyder att Trixa skippar den disciplinen helt denna vecka.
+Partial impact byter hårda pass mot lugna AE-pass i den disciplinen.</p>
+
+<h2>Aktiva concerns ({{ concerns | length }})</h2>
+
+{% if concerns %}
+{% for c in concerns %}
+<article style="margin-bottom: 1rem;">
+  <header>
+    <strong>{{ c.name or "(utan namn)" }}</strong>
+    <span class="badge {{ 'critical' if c.severity >= 4 else 'warning' if c.severity >= 2 else 'info' }}">
+      severity {{ c.severity or "—" }}/5
+    </span>
+    {% if c.needs_followup %}<span class="badge warning">behöver follow-up</span>{% endif %}
+  </header>
+
+  {% if c.location %}<p><strong>Kroppsdel:</strong> {{ c.location }}</p>{% endif %}
+  {% if c.since_date %}<p><strong>Sedan:</strong> {{ c.since_date }}</p>{% endif %}
+  {% if c.follow_up_by %}<p><strong>Följs upp av:</strong> {{ c.follow_up_by }}</p>{% endif %}
+
+  <p><strong>Impact per disciplin:</strong></p>
+  <ul style="font-size: 0.875rem;">
+    {% set impacts = c.impact_per_discipline or {} %}
+    <li>Simning: <code>{{ impacts.swim or "none" }}</code></li>
+    <li>Cykel: <code>{{ impacts.bike or "none" }}</code></li>
+    <li>Löpning: <code>{{ impacts.run or "none" }}</code></li>
+    <li>Styrka: <code>{{ impacts.strength or "none" }}</code></li>
+  </ul>
+
+  {% if c.notes %}<details><summary>Noter</summary><p>{{ c.notes }}</p></details>{% endif %}
+
+  <form method="post" action="/ui/health/remove" style="margin-top: 0.5rem;"
+        onsubmit="return confirm('Ta bort concern {{ c.name }}?');">
+    <input type="hidden" name="index" value="{{ loop.index0 }}">
+    <button type="submit" class="secondary outline" style="font-size: 0.75rem;">Ta bort</button>
+  </form>
+</article>
+{% endfor %}
+{% else %}
+<p><em>Inga aktiva concerns rapporterade.</em></p>
+{% endif %}
+
+<h2>Lägg till concern</h2>
+
+<form method="post" action="/ui/health/add">
+  <label for="name">Namn (kort beskrivning)
+    <input type="text" id="name" name="name" required
+           placeholder="T.ex. Hälsporre höger, IT-band vänster, ryggskott...">
+  </label>
+
+  <div class="grid">
+    <label for="location">Kroppsdel
+      <select id="location" name="location">
+        <option value="">— ej angiven —</option>
+        {% for loc, label in locations %}
+        <option value="{{ loc }}">{{ label }}</option>
+        {% endfor %}
+      </select>
+    </label>
+
+    <label for="severity">Severity (1-5)
+      <select id="severity" name="severity">
+        <option value="1">1 — knappt märkbar</option>
+        <option value="2" selected>2 — irriterande</option>
+        <option value="3">3 — påverkar träning</option>
+        <option value="4">4 — kraftigt begränsande</option>
+        <option value="5">5 — helt blockerande</option>
+      </select>
+    </label>
+  </div>
+
+  <label for="since_date">Sedan (datum)
+    <input type="date" id="since_date" name="since_date">
+  </label>
+
+  <fieldset>
+    <legend>Impact per disciplin</legend>
+    <p style="font-size: 0.875rem; color: var(--pico-muted-color);">
+      <code>full</code> = Trixa skippar disciplinen helt denna vecka.<br>
+      <code>partial</code> = Trixa byter hårda pass mot lugna AE-pass i den disciplinen.<br>
+      <code>none</code> = ingen påverkan på passval.
+    </p>
+    {% for disc, label in disciplines %}
+    <div class="grid" style="grid-template-columns: 1fr 1fr 1fr 1fr; gap: 0.5rem; align-items: center;">
+      <strong>{{ label }}</strong>
+      <label><input type="radio" name="impact_{{ disc }}" value="none" checked> none</label>
+      <label><input type="radio" name="impact_{{ disc }}" value="partial"> partial</label>
+      <label><input type="radio" name="impact_{{ disc }}" value="full"> full</label>
+    </div>
+    {% endfor %}
+  </fieldset>
+
+  <label>
+    <input type="checkbox" name="needs_followup" value="1">
+    Behöver follow-up med fysio / läkare / annan
+  </label>
+
+  <label for="follow_up_by">Följs upp av (om relevant)
+    <input type="text" id="follow_up_by" name="follow_up_by"
+           placeholder="T.ex. fysio, ortoped, naprapat...">
+  </label>
+
+  <label for="notes">Noter (kontext för coach)
+    <textarea id="notes" name="notes" rows="3"
+              placeholder="Hur kändes det när det började? Vad förvärrar/förbättrar?"></textarea>
+  </label>
+
+  <button type="submit">Lägg till concern</button>
+</form>
+
+{% if added %}
+<article style="background: #d1fae5; border-color: #059669; margin-top: 1rem;">
+  <p><strong>Concern tillagd.</strong> Påverkar nästa veckogenerering.</p>
+</article>
+{% endif %}
+
+{% endblock %}
