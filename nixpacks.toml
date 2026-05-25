@@ -4,10 +4,15 @@
 # pip install läses från requirements.txt automatiskt.
 
 [phases.setup]
-nixPkgs = ["python312", "gcc"]
+# python312Full inkluderar pip + venv. Bara "python312" tappar pip.
+nixPkgs = ["python312Full", "gcc"]
 
 [phases.install]
-cmds = ["python -m pip install --upgrade pip", "pip install -r requirements.txt"]
+cmds = [
+  "python -m venv /opt/venv",
+  ". /opt/venv/bin/activate && pip install --upgrade pip",
+  ". /opt/venv/bin/activate && pip install -r requirements.txt",
+]
 
 [start]
-cmd = "uvicorn trixa_api.main:app --host 0.0.0.0 --port $PORT"
+cmd = ". /opt/venv/bin/activate && uvicorn trixa_api.main:app --host 0.0.0.0 --port $PORT"
