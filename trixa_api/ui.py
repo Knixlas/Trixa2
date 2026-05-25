@@ -63,6 +63,24 @@ def _monday_of(d: date_type) -> date_type:
 # ---------- Dashboard ----------
 
 
+def _enrich_with_alternatives(week_data: dict | None, phase: str, period: str | None) -> None:
+    """Lägg till alternative-listor per pass för 'byt ut'-dropdown."""
+    if not week_data or not week_data.get("workouts"):
+        return
+    for w in week_data["workouts"]:
+        if w["category"] and w["sport"] in ("swim", "bike", "run"):
+            alts = list_workout_alternatives(
+                category=w["category"],
+                discipline=w["sport"],
+                phase=phase,
+                period=period,
+                exclude_code=w["code"],
+            )
+            w["alternatives"] = [{"code": a["code"], "name": a["name"]} for a in alts]
+        else:
+            w["alternatives"] = []
+
+
 @router.get("/", response_class=HTMLResponse)
 def dashboard(request: Request) -> HTMLResponse:
     user_id = _current_user_id(request)
@@ -72,12 +90,20 @@ def dashboard(request: Request) -> HTMLResponse:
     athlete = a_res.data[0] if a_res.data else None
 
     if not athlete:
-        return _render("dashboard.html", {"request": request, "athlete": None, "week": None, "alerts": []})
+        return _render("dashboard.html", {
+            "request": request, "athlete": None,
+            "this_week": None, "next_week": None, "alerts": [],
+        })
 
-    # Hämta veckans plan från DB
+    # Hämta båda veckorna från DB
     today = date_type.today()
-    iso_year, iso_week, _ = today.isocalendar()
-    week_data = _fetch_current_week_data(client, athlete["id"], iso_year, iso_week)
+    this_monday = _monday_of(today)
+    next_monday = this_monday + timedelta(days=7)
+    this_iso = this_monday.isocalendar()
+    next_iso = next_monday.isocalendar()
+
+    this_week = _fetch_current_week_data(client, athlete["id"], this_iso[0], this_iso[1])
+    next_week = _fetch_current_week_data(client, athlete["id"], next_iso[0], next_iso[1])
 
     # Hämta alerts
     alerts_res = (
@@ -95,39 +121,27 @@ def dashboard(request: Request) -> HTMLResponse:
     if name_res.data:
         athlete["name"] = name_res.data[0].get("name")
 
-    # Hämta engine-fas för att kunna lista alternativ
-    from coach.trixa.planner import _build_athlete_state, _build_ot_signals, _run_engine, _phase_filter_value
-    state = _build_athlete_state(athlete, None, date_type.today())
+    # Hämta engine-fas för alternative-uppslag
+    from coach.trixa.planner import _build_athlete_state, _build_ot_signals, _run_engine
+    state = _build_athlete_state(athlete, None, today)
     decisions = _run_engine(state, _build_ot_signals(athlete, None), 1, 6)
     phase = decisions["phase_recommendation"]["phase"]
     period = decisions["phase_recommendation"]["period"]
-    phase_filter = _phase_filter_value(phase, period)
 
-    # För varje pass: hämta alternativ för "byt ut"-dropdown
-    if week_data and week_data.get("workouts"):
-        for w in week_data["workouts"]:
-            if w["category"] and w["sport"] in ("swim", "bike", "run"):
-                alts = list_workout_alternatives(
-                    category=w["category"],
-                    discipline=w["sport"],
-                    phase=phase,
-                    period=period,
-                    exclude_code=w["code"],
-                )
-                w["alternatives"] = [
-                    {"code": a["code"], "name": a["name"]} for a in alts
-                ]
-            else:
-                w["alternatives"] = []
+    # Berika båda veckorna med alternativ-listor
+    _enrich_with_alternatives(this_week, phase, period)
+    _enrich_with_alternatives(next_week, phase, period)
 
     return _render("dashboard.html", {
-            "request": request,
-            "athlete": athlete,
-            "week": week_data,
-            "alerts": alerts_res.data or [],
-            "phase": phase,
-            "next_monday": _monday_of(date_type.today()).isoformat(),
-        })
+        "request": request,
+        "athlete": athlete,
+        "this_week": this_week,
+        "next_week": next_week,
+        "alerts": alerts_res.data or [],
+        "phase": phase,
+        "this_monday": this_monday.isoformat(),
+        "next_monday": next_monday.isoformat(),
+    })
 
 
 def _fetch_current_week_data(client, athlete_id: str, year: int, week_num: int) -> dict | None:
