@@ -428,6 +428,31 @@ _DAY_INDEX = {
 }
 
 
+def _renormalize_hours(
+    discipline_hours: dict[str, float], active_sports: list[str]
+) -> dict[str, float]:
+    """Behåll bara aktiva discipliner och fördela bortagna timmar proportionellt.
+
+    Ex: weekly_hours=12, default-split run=4.2/bike=5.4/swim=2.4.
+    Om bara run+swim är aktiva: skala så summan fortfarande är 12h, med
+    samma run:swim-ratio som ursprungligen (4.2 : 2.4 ≈ 64% : 36%).
+    """
+    total_original = sum(discipline_hours.values())
+    if total_original <= 0:
+        return {d: 0.0 for d in active_sports}
+
+    filtered = {d: h for d, h in discipline_hours.items() if d in active_sports}
+    if not filtered:
+        return {d: 0.0 for d in active_sports}
+
+    new_total = sum(filtered.values())
+    if new_total <= 0:
+        return {d: 0.0 for d in active_sports}
+
+    scale = total_original / new_total
+    return {d: round(h * scale, 2) for d, h in filtered.items()}
+
+
 def _estimated_duration_minutes(workout: dict) -> int:
     """Snabb upptäckt av defaultlängd, även för parameterized templates.
 
@@ -486,6 +511,7 @@ def _schedule_workouts(
     rest_days: list[str],
     strength_code: str,
     locked: list[ScheduledWorkout] | None = None,
+    include_strength: bool = True,
 ) -> list[ScheduledWorkout]:
     """Fördela utvalda pass över veckodagar.
 
@@ -614,8 +640,8 @@ def _schedule_workouts(
     place_with_neighbor_constraint(other)
     place_with_neighbor_constraint(brick_pool)  # om kvar (oplacerade brick)
 
-    # 7. Strength på en ledig kvalitetsdag
-    if strength_code and strength_code != "none":
+    # 7. Strength på en ledig kvalitetsdag (om aktiverad)
+    if include_strength and strength_code and strength_code != "none":
         for d in ("wednesday", "friday", "tuesday", "thursday"):
             if d not in schedule:
                 schedule[d] = ScheduledWorkout(
@@ -844,6 +870,19 @@ def generate_week(
     categories = decisions["categories"]
     discipline_hours = decisions["discipline_hours"]
 
+    # Filtrera till adeptens aktiva discipliner
+    raw_sports = athlete.get("sports") or ["swim", "bike", "run"]
+    active_sports = [s for s in raw_sports if s in ("swim", "bike", "run")]
+    if not active_sports:
+        # Säkerhetsnät — om listan är tom: fall tillbaka till alla tre
+        active_sports = ["swim", "bike", "run"]
+
+    # Re-normalisera discipline_hours: om bike inte är aktivt → ta dess
+    # andel och fördela på resterande proportionellt.
+    discipline_hours = _renormalize_hours(discipline_hours, active_sports)
+    decisions["discipline_hours"] = discipline_hours
+    decisions["_active_sports"] = active_sports
+
     # 4. Välj pass från passbanken
     workouts_pool = load_workouts()
     drills = load_drills()  # noqa: F841 — används av render om vi vill rendra här
@@ -854,7 +893,7 @@ def generate_week(
     selected: list[dict] = []
     warnings: list[str] = []
     for cat in categories:
-        for disc in ("swim", "bike", "run"):
+        for disc in active_sports:
             # BW (brick) finns bara som disciplin "brick" eller "bike"+"run"-kombination
             if cat == "BW" and disc != "bike":
                 continue
@@ -883,6 +922,7 @@ def generate_week(
         rest_days=rest_days,
         strength_code=decisions["strength_protocol"],
         locked=locked_workouts,
+        include_strength="strength" in raw_sports,
     )
 
     # 5b. Rendera fullständig pass-text per pass (intent + main_set + zoner)

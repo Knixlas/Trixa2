@@ -326,13 +326,21 @@ _DAY_LABELS = [
 # ---------- Settings (adept-prefs för veckans skelett) ----------
 
 
+_SPORT_OPTIONS = [
+    ("swim", "Simning"),
+    ("bike", "Cykel"),
+    ("run", "Löpning"),
+    ("strength", "Styrketräning"),
+]
+
+
 @router.get("/settings", response_class=HTMLResponse)
 def settings_view(request: Request, saved: bool = False) -> HTMLResponse:
     user_id = _current_user_id(request)
     client = get_postgrest()
     a_res = (
         client.table("athlete_profiles")
-        .select("long_bike_day, long_run_day, preferred_rest_days")
+        .select("sports, long_bike_day, long_run_day, preferred_rest_days")
         .eq("user_id", user_id)
         .execute()
     )
@@ -340,12 +348,14 @@ def settings_view(request: Request, saved: bool = False) -> HTMLResponse:
         raise HTTPException(404, "Athlete saknas")
     athlete = a_res.data[0]
     athlete["preferred_rest_days"] = athlete.get("preferred_rest_days") or []
+    athlete["sports"] = athlete.get("sports") or ["swim", "bike", "run"]
     return _render(
         "settings.html",
         {
             "request": request,
             "athlete": athlete,
             "days": _DAY_LABELS,
+            "sports_options": _SPORT_OPTIONS,
             "saved": saved,
         },
     )
@@ -354,6 +364,7 @@ def settings_view(request: Request, saved: bool = False) -> HTMLResponse:
 @router.post("/settings", response_class=HTMLResponse)
 def settings_submit(
     request: Request,
+    sports: list[str] = Form(default=[]),
     long_bike_day: str = Form(""),
     long_run_day: str = Form(""),
     rest_days: list[str] = Form(default=[]),
@@ -370,14 +381,19 @@ def settings_submit(
         raise HTTPException(404, "Athlete saknas")
     athlete_id = a_res.data[0]["id"]
 
+    # Validera sports — minst en disciplin måste vara aktiv
+    valid_sports = [s for s in sports if s in {"swim", "bike", "run", "strength"}]
+    if not valid_sports:
+        valid_sports = ["swim", "bike", "run"]
+
     update = {
+        "sports": valid_sports,
         "long_bike_day": long_bike_day or None,
         "long_run_day": long_run_day or None,
         "preferred_rest_days": rest_days,
     }
     client.table("athlete_profiles").update(update).eq("id", athlete_id).execute()
 
-    # Rendera om med saved-banner
     return settings_view(request, saved=True)
 
 
