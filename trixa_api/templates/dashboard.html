@@ -10,7 +10,8 @@
   <p>
     <strong>Mål:</strong> {{ athlete.goal }} ({{ athlete.time_goal or "ingen måltid satt" }})<br>
     <strong>Tävling:</strong> {{ athlete.race_date or "—" }} ({{ athlete.race_type or "—" }})<br>
-    <strong>Veckotimmar (mål):</strong> {{ athlete.weekly_hours }}h
+    <strong>Veckotimmar (mål):</strong> {{ athlete.weekly_hours }}h<br>
+    <strong>Aktuell fas:</strong> {{ phase }}
   </p>
 </section>
 {% endif %}
@@ -29,20 +30,113 @@
 
 <section>
   <h2>Veckans plan</h2>
+
   {% if week and week.workouts %}
     <p><strong>Fas:</strong> {{ week.phase }} | <strong>Pass:</strong> {{ week.workouts | length }}</p>
+
+    <details>
+      <summary>Regenerera hela veckan</summary>
+      <article style="margin-top: 0.5rem;">
+        <p style="font-size: 0.875rem;">
+          Detta skriver över befintlig plan baserat på aktuell engine-state,
+          inställningar och eventuella overrides. Kör om du har ändrat något
+          (skadestatus, dagar för långpass, träningsmål) och vill att Trixa
+          ska bygga om från grunden.
+        </p>
+        <form method="post" action="/ui/plan/regenerate"
+              onsubmit="return confirm('Skriv över hela veckans plan?');">
+          <input type="hidden" name="week_start" value="{{ week.week_start }}">
+          <button type="submit">Regenerera vecka</button>
+        </form>
+      </article>
+    </details>
+
     {% for w in week.workouts %}
     <div class="workout">
       <div class="workout-date">{{ w.date }} ({{ w.sport }})</div>
       <strong>{{ w.title }}</strong>
       <div class="workout-meta">
-        {{ w.code }} · {{ w.duration_minutes }} min · {{ w.intensity }}
+        <code>{{ w.code }}</code> · <span class="badge">{{ w.category or w.sport }}</span> ·
+        {{ w.duration_minutes }} min · {{ w.intensity }}
       </div>
-      {% if w.notes %}<details><summary>Syfte</summary><p>{{ w.notes | trim }}</p></details>{% endif %}
+
+      {% if w.notes %}
+      <details>
+        <summary>Syfte</summary>
+        <p>{{ w.notes | trim }}</p>
+      </details>
+      {% endif %}
+
+      {% if w.steps %}
+      <details>
+        <summary>Upplägg</summary>
+        <ol style="font-size: 0.875rem;">
+          {% for s in w.steps %}
+          <li>
+            <strong>{{ s.segment or "?" }}:</strong>
+            {% if s.sets and s.sets > 1 %}{{ s.sets }}×{% endif %}{{ s.distance_m or s.duration_min or "?" }}{% if s.distance_m %}m{% elif s.duration_min %} min{% endif %}
+            {% if s.zone %}— Z{{ s.zone }}{% endif %}
+            {% if s.rest_sec %}, {{ s.rest_sec }}s vila{% endif %}
+            {% if s.description %}<br><em>{{ s.description }}</em>{% endif %}
+          </li>
+          {% endfor %}
+        </ol>
+      </details>
+      {% endif %}
+
+      {% if w.sport in ("swim", "bike", "run") %}
+      <details>
+        <summary>Ändra detta pass</summary>
+        <article style="margin-top: 0.5rem; font-size: 0.875rem;">
+
+          {% if w.alternatives %}
+          <form method="post" action="/ui/workouts/{{ w.id }}/swap"
+                style="margin-bottom: 1rem;"
+                onsubmit="return confirm('Byt ut passet?');">
+            <label for="swap-{{ w.id }}">Byt till annat pass (samma kategori)</label>
+            <select id="swap-{{ w.id }}" name="new_code" required>
+              <option value="">— välj —</option>
+              {% for alt in w.alternatives %}
+              <option value="{{ alt.code }}">{{ alt.name }} ({{ alt.code }})</option>
+              {% endfor %}
+            </select>
+            <button type="submit">Byt ut pass</button>
+          </form>
+          {% else %}
+          <p><em>Inga alternativa pass i passbanken för denna kategori + fas.</em></p>
+          {% endif %}
+
+          <form method="post" action="/ui/workouts/{{ w.id }}/swap-discipline"
+                onsubmit="return confirm('Byt gren och planera om hela veckan?');">
+            <label for="swap-disc-{{ w.id }}">Byt till annan gren + planera om vecka</label>
+            <select id="swap-disc-{{ w.id }}" name="new_discipline" required>
+              <option value="">— välj gren —</option>
+              {% if w.sport != "swim" %}<option value="swim">Simning</option>{% endif %}
+              {% if w.sport != "bike" %}<option value="bike">Cykel</option>{% endif %}
+              {% if w.sport != "run" %}<option value="run">Löpning</option>{% endif %}
+            </select>
+            <button type="submit">Byt gren + replanera</button>
+          </form>
+
+        </article>
+      </details>
+      {% endif %}
+
+      {% if w.coach_notes %}
+      <details>
+        <summary>Coach-noter / audit</summary>
+        <pre style="white-space: pre-wrap; font-size: 0.75rem; color: var(--pico-muted-color);">{{ w.coach_notes | trim }}</pre>
+      </details>
+      {% endif %}
     </div>
     {% endfor %}
   {% else %}
-    <p><em>Ingen plan för aktuell vecka. <a href="/ui/admin">Generera en plan</a>.</em></p>
+    <p><em>Ingen plan för aktuell vecka.</em></p>
+    <form method="post" action="/ui/plan/regenerate"
+          onsubmit="return confirm('Generera plan för denna vecka?');">
+      <input type="hidden" name="week_start" value="{{ next_monday }}">
+      <button type="submit">Generera vecka {{ next_monday }}</button>
+    </form>
   {% endif %}
 </section>
 

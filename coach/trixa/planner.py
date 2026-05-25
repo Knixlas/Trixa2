@@ -485,6 +485,7 @@ def _schedule_workouts(
     long_run_day: str | None,
     rest_days: list[str],
     strength_code: str,
+    locked: list[ScheduledWorkout] | None = None,
 ) -> list[ScheduledWorkout]:
     """Fördela utvalda pass över veckodagar.
 
@@ -504,6 +505,11 @@ def _schedule_workouts(
     """
     day_dates = {day: week_start + timedelta(days=_DAY_INDEX[day]) for day in _DAYS}
     schedule: dict[str, ScheduledWorkout] = {}
+
+    # 0. Låsta pass — placera först, dessa rörs aldrig av algoritmen
+    for lock in locked or []:
+        day_name = _DAYS[lock.date.weekday()]
+        schedule[day_name] = lock
 
     # 1. Vilodagar
     for d in rest_days or []:
@@ -799,6 +805,7 @@ def generate_week(
     today: date | None = None,
     week_in_period: int = 1,
     weeks_in_period: int = 6,
+    locked_workouts: list[ScheduledWorkout] | None = None,
 ) -> WeekPlan:
     """Generera en veckoplan deterministiskt.
 
@@ -875,6 +882,7 @@ def generate_week(
         long_run_day=long_run_day,
         rest_days=rest_days,
         strength_code=decisions["strength_protocol"],
+        locked=locked_workouts,
     )
 
     # 5b. Rendera fullständig pass-text per pass (intent + main_set + zoner)
@@ -934,6 +942,192 @@ def generate_week(
             plan.engine_decisions["alerts_written"] = len(inserted)
 
     return plan
+
+
+def list_workout_alternatives(
+    category: str,
+    discipline: str,
+    phase: str,
+    period: str | None = None,
+    exclude_code: str | None = None,
+) -> list[dict]:
+    """Returnera alla pass i passbanken som matchar samma kategori/disciplin/fas.
+
+    Används för "byt ut passet"-UI:t. Filtrerar bort det aktuella passet
+    så adepten inte ser den de redan har.
+    """
+    phase_filter = _phase_filter_value(phase, period)
+    pool = load_workouts()
+    return [
+        w for w in pool
+        if w.get("category") == category
+        and w.get("discipline") == discipline
+        and phase_filter in (w.get("phase_appropriate") or [])
+        and w.get("code") != exclude_code
+    ]
+
+
+def swap_workout_code(
+    workout_db_id: str,
+    new_code: str,
+    note: str | None = None,
+) -> dict:
+    """Byt ut ett specifikt pass i workouts-tabellen mot ett annat från passbanken.
+
+    Behåller dag och vecka. Uppdaterar title, code, steps, intensity, notes.
+    Loggar substitutionen i coach_notes för spårbarhet.
+
+    Returns:
+        Den uppdaterade workout-raden.
+    """
+    client = get_supabase()
+    res = client.table("workouts").select("*").eq("id", workout_db_id).execute()
+    if not res.data:
+        raise ValueError(f"Workout saknas: {workout_db_id}")
+    old = res.data[0]
+
+    # Hitta nytt pass i passbanken
+    new_workout = next(
+        (w for w in load_workouts() if w.get("code") == new_code), None
+    )
+    if new_workout is None:
+        raise ValueError(f"Pass saknas i passbanken: {new_code}")
+
+    # Resolva ev. parameterized template
+    resolved = (
+        resolve_template(new_workout) if new_workout.get("parameterized") else new_workout
+    )
+
+    # Rendera fullständig text för audit
+    audit_line = (
+        f"[{date.today().isoformat()}] Substituerat från "
+        f"{old.get('title_simple', '?')} → {new_code} av adept."
+    )
+    existing_notes = (old.get("coach_notes") or "").strip()
+    new_coach_notes = (
+        f"{existing_notes}\n{audit_line}" if existing_notes else audit_line
+    )
+
+    td = resolved.get("total_duration_min") or {}
+    duration = int(td.get("estimated") or 60)
+    zones = resolved.get("zone_refs") or []
+    intensity = ", ".join(str(z) for z in zones) if zones else "Z2"
+
+    update = {
+        "title": resolved.get("name") or new_code,
+        "title_simple": new_code,
+        "duration_minutes": duration,
+        "intensity": intensity,
+        "steps": resolved.get("main_set") or [],
+        "notes": (resolved.get("intent") or "").strip(),
+        "coach_notes": new_coach_notes,
+    }
+    if note:
+        update["coach_notes"] = f"{new_coach_notes}\nNot: {note}"
+
+    upd = client.table("workouts").update(update).eq("id", workout_db_id).execute()
+    return upd.data[0] if upd.data else {}
+
+
+def swap_workout_discipline_and_replan(
+    workout_db_id: str,
+    new_discipline: str,
+    new_category: str | None = None,
+) -> WeekPlan:
+    """Byt en specifik dag till annan disciplin och planera om resten av veckan.
+
+    Steg:
+      1. Identifiera vecka och dag från workout_db_id
+      2. Välj nytt pass i ny disciplin (samma kategori om inte angiven, annars angiven)
+      3. Bygg ScheduledWorkout för den dagen — lås den
+      4. Re-kör generate_week med locked_workouts=[lock]
+
+    Returns:
+        Den uppdaterade veckoplanen.
+    """
+    client = get_supabase()
+    w_res = client.table("workouts").select("*").eq("id", workout_db_id).execute()
+    if not w_res.data:
+        raise ValueError(f"Workout saknas: {workout_db_id}")
+    old = w_res.data[0]
+
+    # Hämta vecka för att veta week_start och athlete
+    week_res = (
+        client.table("training_weeks")
+        .select("id, year, week_number")
+        .eq("id", old["week_id"])
+        .execute()
+    )
+    if not week_res.data:
+        raise ValueError("training_weeks-rad saknas för workout")
+    week = week_res.data[0]
+    week_start = date.fromisocalendar(week["year"], week["week_number"], 1)
+
+    # Hämta athlete user_id via athlete_id
+    a_res = (
+        client.table("athlete_profiles")
+        .select("user_id")
+        .eq("id", old["athlete_id"])
+        .execute()
+    )
+    if not a_res.data:
+        raise ValueError("athlete_profiles saknas")
+    athlete_user_id = a_res.data[0]["user_id"]
+
+    # Bestäm kategori — behåll om inte angiven
+    target_category = new_category
+    if target_category is None:
+        # Försök härleda från gamla passets title_simple
+        old_code = old.get("title_simple") or ""
+        # Format: AE2_swim_01 → AE
+        target_category = old_code.split("_")[0][:2] if "_" in old_code else "AE"
+
+    # Hämta engine-state för phase
+    athlete_full = _fetch_athlete(client, athlete_user_id)
+    state = _build_athlete_state(athlete_full, None, date.today())
+    decisions = _run_engine(state, _build_ot_signals(athlete_full, None), 1, 6)
+    phase = decisions["phase_recommendation"]["phase"]
+    period = decisions["phase_recommendation"]["period"]
+    phase_filter = _phase_filter_value(phase, period)
+
+    # Välj nytt pass — slumpvis från matching
+    rng = random.Random(_seed_for(athlete_full["id"], week_start))
+    candidates = [
+        w for w in load_workouts()
+        if w.get("category") == target_category
+        and w.get("discipline") == new_discipline
+        and phase_filter in (w.get("phase_appropriate") or [])
+    ]
+    if not candidates:
+        # Fall tillbaka till AE-kategori om target inte finns
+        candidates = [
+            w for w in load_workouts()
+            if w.get("category") == "AE"
+            and w.get("discipline") == new_discipline
+            and phase_filter in (w.get("phase_appropriate") or [])
+        ]
+    if not candidates:
+        raise ValueError(
+            f"Inget pass i passbanken matchar {target_category}/{new_discipline}/{phase_filter}"
+        )
+    new_workout = rng.choice(candidates)
+
+    # Bygg ScheduledWorkout för låsning
+    lock_date = date.fromisoformat(old["date"]) if isinstance(old["date"], str) else old["date"]
+    locked = _scheduled_from_workout(new_workout, lock_date)
+
+    # Markera audit-not på låst pass
+    locked.notes = (
+        f"{locked.notes}\n\n[Adept bytte disciplin från {old.get('sport')} → {new_discipline} {date.today().isoformat()}]"
+    ).strip()
+
+    # Re-generera veckan med detta som låst — apply=True skriver över allt
+    return generate_week(
+        athlete_user_id=athlete_user_id,
+        week_start=week_start,
+        dry_run=False,
+        locked_workouts=[locked],
+    )
 
 
 def _seed_for(athlete_id: str, week_start: date) -> int:

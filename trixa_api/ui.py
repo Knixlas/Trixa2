@@ -17,7 +17,12 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 from coach.trixa.db import get_postgrest
-from coach.trixa.planner import generate_week
+from coach.trixa.planner import (
+    generate_week,
+    list_workout_alternatives,
+    swap_workout_code,
+    swap_workout_discipline_and_replan,
+)
 
 
 router = APIRouter(prefix="/ui", tags=["ui"])
@@ -90,11 +95,38 @@ def dashboard(request: Request) -> HTMLResponse:
     if name_res.data:
         athlete["name"] = name_res.data[0].get("name")
 
+    # Hämta engine-fas för att kunna lista alternativ
+    from coach.trixa.planner import _build_athlete_state, _build_ot_signals, _run_engine, _phase_filter_value
+    state = _build_athlete_state(athlete, None, date_type.today())
+    decisions = _run_engine(state, _build_ot_signals(athlete, None), 1, 6)
+    phase = decisions["phase_recommendation"]["phase"]
+    period = decisions["phase_recommendation"]["period"]
+    phase_filter = _phase_filter_value(phase, period)
+
+    # För varje pass: hämta alternativ för "byt ut"-dropdown
+    if week_data and week_data.get("workouts"):
+        for w in week_data["workouts"]:
+            if w["category"] and w["sport"] in ("swim", "bike", "run"):
+                alts = list_workout_alternatives(
+                    category=w["category"],
+                    discipline=w["sport"],
+                    phase=phase,
+                    period=period,
+                    exclude_code=w["code"],
+                )
+                w["alternatives"] = [
+                    {"code": a["code"], "name": a["name"]} for a in alts
+                ]
+            else:
+                w["alternatives"] = []
+
     return _render("dashboard.html", {
             "request": request,
             "athlete": athlete,
             "week": week_data,
             "alerts": alerts_res.data or [],
+            "phase": phase,
+            "next_monday": _monday_of(date_type.today()).isoformat(),
         })
 
 
@@ -123,6 +155,8 @@ def _fetch_current_week_data(client, athlete_id: str, year: int, week_num: int) 
     if not week_res.data:
         return None
     week = week_res.data[0]
+    # Lägg på beräknat week_start (måndag i ISO-veckan) för UI-actions
+    week["week_start"] = date_type.fromisocalendar(year, week_num, 1).isoformat()
 
     workouts_res = (
         client.table("workouts")
@@ -132,19 +166,25 @@ def _fetch_current_week_data(client, athlete_id: str, year: int, week_num: int) 
         .execute()
     )
     workouts = workouts_res.data or []
-    # Mappa workouts till template-vänligt format
-    week["workouts"] = [
-        {
+    # Mappa workouts till template-vänligt format med DB-id för edit-actions
+    week["workouts"] = []
+    for w in workouts:
+        code = w.get("title_simple") or w["title"]
+        # Härled kategori från koden (format: <CAT><N>_<disc>_<NN> eller <CAT>_<disc>_template)
+        category = code.split("_")[0][:2] if "_" in code else ""
+        week["workouts"].append({
+            "id": w["id"],
             "date": w["date"],
             "sport": w["sport"],
             "title": w["title"],
-            "code": w.get("title_simple") or w["title"],
+            "code": code,
+            "category": category,
             "duration_minutes": w.get("duration_minutes") or 0,
             "intensity": w.get("intensity") or "",
             "notes": w.get("notes") or "",
-        }
-        for w in workouts
-    ]
+            "steps": w.get("steps") or [],
+            "coach_notes": w.get("coach_notes") or "",
+        })
     return week
 
 
@@ -339,6 +379,55 @@ def settings_submit(
 
     # Rendera om med saved-banner
     return settings_view(request, saved=True)
+
+
+# ---------- Adept-actions: regenerera vecka, byt pass, byt gren ----------
+
+
+@router.post("/plan/regenerate", response_class=HTMLResponse)
+def plan_regenerate(request: Request, week_start: str = Form(...)) -> Any:
+    """Regenerera hela veckan från engine + passbank. Skriver över befintlig plan."""
+    user_id = _current_user_id(request)
+    try:
+        ws = date_type.fromisoformat(week_start)
+        generate_week(
+            athlete_user_id=user_id,
+            week_start=ws,
+            dry_run=False,
+        )
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(500, f"Genereringsfel: {exc}")
+    return RedirectResponse(url="/ui/", status_code=303)
+
+
+@router.post("/workouts/{workout_id}/swap", response_class=HTMLResponse)
+def workout_swap(
+    request: Request,
+    workout_id: str,
+    new_code: str = Form(...),
+) -> Any:
+    """Byt ut ett pass mot ett annat från passbanken (samma kategori/disciplin)."""
+    try:
+        swap_workout_code(workout_id, new_code)
+    except ValueError as exc:
+        raise HTTPException(404, str(exc))
+    return RedirectResponse(url="/ui/", status_code=303)
+
+
+@router.post("/workouts/{workout_id}/swap-discipline", response_class=HTMLResponse)
+def workout_swap_discipline(
+    request: Request,
+    workout_id: str,
+    new_discipline: str = Form(...),
+) -> Any:
+    """Byt en specifik dag till annan disciplin och planera om resten av veckan."""
+    if new_discipline not in ("swim", "bike", "run"):
+        raise HTTPException(400, "new_discipline måste vara swim, bike eller run")
+    try:
+        swap_workout_discipline_and_replan(workout_id, new_discipline)
+    except ValueError as exc:
+        raise HTTPException(404, str(exc))
+    return RedirectResponse(url="/ui/", status_code=303)
 
 
 @router.post("/admin/generate", response_class=HTMLResponse)
