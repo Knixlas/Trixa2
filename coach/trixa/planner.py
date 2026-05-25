@@ -378,6 +378,60 @@ def _phase_filter_value(phase: str, period: str | None) -> str:
     return period or phase
 
 
+def _pass_requires_trainer(w: dict) -> bool:
+    """Detektera om passet kräver trainer / fast indoor-cykel."""
+    if w.get("requires_trainer"):
+        return True
+    equipment = w.get("equipment") or []
+    if "trainer" in equipment:
+        return True
+    if w.get("setting") == "indoor" and w.get("discipline") == "bike":
+        return True
+    return False
+
+
+def _pass_setting(w: dict) -> str:
+    """Returnera 'indoor', 'outdoor' eller 'either' baserat på pass-flaggor."""
+    if w.get("outdoor_only"):
+        return "outdoor"
+    if w.get("requires_trainer"):
+        return "indoor"
+    setting = w.get("setting")
+    if setting in ("indoor", "outdoor"):
+        return setting
+    if setting == "either":
+        return "either"
+    # Default
+    return "either"
+
+
+def _passes_equipment_filter(w: dict, equipment: dict) -> bool:
+    """True om adept har den utrustning passet kräver."""
+    disc = w.get("discipline")
+
+    # Pool-typ
+    if disc == "swim":
+        pool_type = equipment.get("pool_type", "25m")
+        if pool_type == "none":
+            return False
+        # Öppet vatten-pass kräver tillgång till öppet vatten
+        equip = w.get("equipment") or []
+        if "open_water" in equip and pool_type != "open_water":
+            return False
+
+    # Trainer
+    if disc == "bike" and _pass_requires_trainer(w):
+        if not equipment.get("has_trainer", True):
+            return False
+
+    # Löpband
+    if disc == "run" and w.get("setting") == "indoor":
+        if not equipment.get("has_treadmill", False):
+            return False
+
+    return True
+
+
 def _select_workout_for(
     category: str,
     discipline: str,
@@ -385,9 +439,17 @@ def _select_workout_for(
     workouts_pool: list[dict],
     recent_codes: set[str],
     rng: random.Random,
+    equipment: dict | None = None,
+    preferred_settings: dict | None = None,
 ) -> dict | None:
-    """Välj ett pass för given kategori + disciplin. Föredrar pass som inte
-    körts senaste 4 veckorna; faller tillbaka till hela poolen om alla har körts."""
+    """Välj ett pass för given kategori + disciplin.
+
+    Filtreringsordning:
+      1. Match category + discipline + phase_filter
+      2. Utrustnings-filter (hård — saknar utrustning = skippa)
+      3. Variation-filter (undvik pass kört de senaste 4 veckorna)
+      4. Setting-preferens (mjuk — föredra men fall tillbaka)
+    """
     candidates = [
         w
         for w in workouts_pool
@@ -398,9 +460,40 @@ def _select_workout_for(
     if not candidates:
         return None
 
+    # I AE-fallet: föredra AE2-pass (endurance) över AE1 (recovery) —
+    # adept får ett "richtigt" långpass på AE-veckorna istället för en
+    # kort recovery-tur när det egentligen ska byggas volym.
+    if category == "AE":
+        ae2 = [w for w in candidates if (w.get("type_code") or "").startswith("AE2")]
+        if ae2:
+            candidates = ae2
+
+    # 2. Utrustnings-filter (hård)
+    if equipment is not None:
+        equip_filtered = [w for w in candidates if _passes_equipment_filter(w, equipment)]
+        if equip_filtered:
+            candidates = equip_filtered
+        # Om alla föll bort: returnera None (saknar utrustning för denna kategori)
+        if not candidates:
+            return None
+
+    # 3. Variation (mjuk)
     fresh = [w for w in candidates if w.get("code") not in recent_codes]
-    pool = fresh or candidates
-    return rng.choice(pool)
+    candidates = fresh or candidates
+
+    # 4. Setting-preferens (mjuk)
+    if preferred_settings is not None:
+        pref = preferred_settings.get(discipline, "any")
+        if pref != "any":
+            preferred = [
+                w for w in candidates
+                if _pass_setting(w) in (pref, "either")
+            ]
+            if preferred:
+                candidates = preferred
+            # Om inga matchar pref: behåll fullständig pool (fallback)
+
+    return rng.choice(candidates)
 
 
 def _pick_long_workout_duration(
@@ -920,6 +1013,8 @@ def generate_week(
     recent_codes = {w.get("title_simple") for w in recent_workouts if w.get("title_simple")}
     rng = random.Random(_seed_for(athlete_id, week_start))
     phase_filter = _phase_filter_value(phase, period)
+    equipment = athlete.get("equipment") or {}
+    preferred_settings = athlete.get("preferred_settings") or {}
 
     selected: list[dict] = []
     warnings: list[str] = []
@@ -941,7 +1036,8 @@ def generate_week(
             if cat == "BW" and disc != "bike":
                 continue
             chosen = _select_workout_for(
-                cat, disc, phase_filter, workouts_pool, recent_codes, rng
+                cat, disc, phase_filter, workouts_pool, recent_codes, rng,
+                equipment=equipment, preferred_settings=preferred_settings,
             )
             if chosen is None:
                 warnings.append(
@@ -957,7 +1053,8 @@ def generate_week(
             w.get("discipline") == disc for w in selected
         ):
             ae_pass = _select_workout_for(
-                "AE", disc, phase_filter, workouts_pool, recent_codes, rng
+                "AE", disc, phase_filter, workouts_pool, recent_codes, rng,
+                equipment=equipment, preferred_settings=preferred_settings,
             )
             if ae_pass:
                 selected.append(ae_pass)

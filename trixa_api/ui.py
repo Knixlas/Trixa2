@@ -385,7 +385,10 @@ def settings_view(request: Request, saved: bool = False) -> HTMLResponse:
     client = get_postgrest()
     a_res = (
         client.table("athlete_profiles")
-        .select("sports, long_bike_day, long_run_day, preferred_rest_days")
+        .select(
+            "sports, long_bike_day, long_run_day, preferred_rest_days,"
+            " equipment, preferred_settings"
+        )
         .eq("user_id", user_id)
         .execute()
     )
@@ -394,6 +397,8 @@ def settings_view(request: Request, saved: bool = False) -> HTMLResponse:
     athlete = a_res.data[0]
     athlete["preferred_rest_days"] = athlete.get("preferred_rest_days") or []
     athlete["sports"] = athlete.get("sports") or ["swim", "bike", "run"]
+    athlete["equipment"] = athlete.get("equipment") or {}
+    athlete["preferred_settings"] = athlete.get("preferred_settings") or {}
     return _render(
         "settings.html",
         {
@@ -401,6 +406,11 @@ def settings_view(request: Request, saved: bool = False) -> HTMLResponse:
             "athlete": athlete,
             "days": _DAY_LABELS,
             "sports_options": _SPORT_OPTIONS,
+            "disciplines_for_setting": [
+                ("swim", "Simning"),
+                ("bike", "Cykel"),
+                ("run", "Löpning"),
+            ],
             "saved": saved,
         },
     )
@@ -413,6 +423,15 @@ def settings_submit(
     long_bike_day: str = Form(""),
     long_run_day: str = Form(""),
     rest_days: list[str] = Form(default=[]),
+    has_trainer: str | None = Form(None),
+    has_treadmill: str | None = Form(None),
+    has_power_meter_bike: str | None = Form(None),
+    has_power_meter_run: str | None = Form(None),
+    hr_strap: str | None = Form(None),
+    pool_type: str = Form("25m"),
+    setting_swim: str = Form("any"),
+    setting_bike: str = Form("any"),
+    setting_run: str = Form("any"),
 ) -> HTMLResponse:
     user_id = _current_user_id(request)
     client = get_postgrest()
@@ -436,6 +455,19 @@ def settings_submit(
         "long_bike_day": long_bike_day or None,
         "long_run_day": long_run_day or None,
         "preferred_rest_days": rest_days,
+        "equipment": {
+            "has_trainer": has_trainer == "1",
+            "has_treadmill": has_treadmill == "1",
+            "has_power_meter_bike": has_power_meter_bike == "1",
+            "has_power_meter_run": has_power_meter_run == "1",
+            "hr_strap": hr_strap == "1",
+            "pool_type": pool_type,
+        },
+        "preferred_settings": {
+            "swim": setting_swim if setting_swim in {"any", "indoor", "outdoor"} else "any",
+            "bike": setting_bike if setting_bike in {"any", "indoor", "outdoor"} else "any",
+            "run": setting_run if setting_run in {"any", "indoor", "outdoor"} else "any",
+        },
     }
     client.table("athlete_profiles").update(update).eq("id", athlete_id).execute()
 

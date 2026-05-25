@@ -49,6 +49,65 @@ Trixa väljer (default lör för cykel, sön för löpning, mån som vila).</p>
   </fieldset>
 
   <fieldset>
+    <legend>Utrustning</legend>
+    <p style="font-size: 0.875rem; color: var(--pico-muted-color);">
+      Vilken utrustning du HAR. Pass som kräver saknad utrustning filtreras bort.
+    </p>
+    <label>
+      <input type="checkbox" name="has_trainer" value="1"
+        {% if athlete.equipment.has_trainer %}checked{% endif %}>
+      Trainer (cykel inomhus)
+    </label>
+    <label>
+      <input type="checkbox" name="has_treadmill" value="1"
+        {% if athlete.equipment.has_treadmill %}checked{% endif %}>
+      Löpband
+    </label>
+    <label>
+      <input type="checkbox" name="has_power_meter_bike" value="1"
+        {% if athlete.equipment.has_power_meter_bike %}checked{% endif %}>
+      Effektmätare cykel
+    </label>
+    <label>
+      <input type="checkbox" name="has_power_meter_run" value="1"
+        {% if athlete.equipment.has_power_meter_run %}checked{% endif %}>
+      Effektmätare löpning
+    </label>
+    <label>
+      <input type="checkbox" name="hr_strap" value="1"
+        {% if athlete.equipment.hr_strap %}checked{% endif %}>
+      Pulsband (separat HR-rem, inte bara klockan)
+    </label>
+
+    <label for="pool_type">Pool-tillgång
+      <select id="pool_type" name="pool_type">
+        <option value="none" {% if athlete.equipment.pool_type == "none" %}selected{% endif %}>Ingen pool</option>
+        <option value="25m" {% if athlete.equipment.pool_type == "25m" %}selected{% endif %}>25-meter</option>
+        <option value="50m" {% if athlete.equipment.pool_type == "50m" %}selected{% endif %}>50-meter</option>
+        <option value="open_water" {% if athlete.equipment.pool_type == "open_water" %}selected{% endif %}>Öppet vatten</option>
+      </select>
+    </label>
+  </fieldset>
+
+  <fieldset>
+    <legend>Inomhus eller utomhus (per disciplin)</legend>
+    <p style="font-size: 0.875rem; color: var(--pico-muted-color);">
+      Säsongs-preferens. Trixa föredrar matchande pass men faller tillbaka
+      om inga finns. Skiljer sig från utrustning ovan — du KAN ha trainer
+      men föredra utomhus juni-september.
+    </p>
+    {% for disc, label in disciplines_for_setting %}
+    <div class="grid" style="grid-template-columns: 1fr 1fr 1fr 1fr; gap: 0.5rem; align-items: center;">
+      <strong>{{ label }}</strong>
+      {% set current = athlete.preferred_settings.get(disc, "any") %}
+      <label><input type="radio" name="setting_{{ disc }}" value="any" {% if current == "any" %}checked{% endif %}> Spelar ingen roll</label>
+      <label><input type="radio" name="setting_{{ disc }}" value="indoor" {% if current == "indoor" %}checked{% endif %}> Inomhus</label>
+      <label><input type="radio" name="setting_{{ disc }}" value="outdoor" {% if current == "outdoor" %}checked{% endif %}> Utomhus</label>
+    </div>
+    {% endfor %}
+  </fieldset>
+
+  <fieldset>
     <legend>Vilodagar</legend>
     <p style="font-size: 0.875rem; color: var(--pico-muted-color);">
       Markera dagar där du föredrar vila. Trixa låser dessa innan schemaläggning.
