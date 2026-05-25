@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block title %}Veckorapport — Trixa{% endblock %}
+{% block content %}
+
+<h1>Veckorapport</h1>
+
+<p>Vecka som börjar <strong>{{ week_start }}</strong>. Trixa läser detta som input
+till nästa planering. Strukturerad data — Trixa kan inte tolka fritext-prosa,
+så håll dig till skattningarna och checkboxarna.</p>
+
+{% if existing %}
+<article style="background: var(--pico-card-background-color);">
+  <p><em>Du har redan rapporterat för denna vecka ({{ existing.submitted_at[:10] }}). Submitten nedan skriver över befintliga värden.</em></p>
+</article>
+{% endif %}
+
+<form method="post" action="/ui/report">
+  <input type="hidden" name="week_start" value="{{ week_start }}">
+
+  <fieldset>
+    <legend>Skattningar (1 = sämst, 5 = bäst)</legend>
+
+    {% for field, label in [("sleep_quality", "Sömnkvalitet"), ("motivation", "Motivation"), ("soreness", "Återhämtning (5 = ingen ömhet)"), ("energy", "Energi"), ("stress", "Lugnt liv (5 = lågt stresstryck)")] %}
+    <div class="rating-row">
+      <strong>{{ label }}:</strong>
+      {% for v in [1, 2, 3, 4, 5] %}
+      <label>
+        <input type="radio" name="{{ field }}" value="{{ v }}"
+          {% if existing and existing[field] == v %}checked{% endif %}>
+        {{ v }}
+      </label>
+      {% endfor %}
+    </div>
+    {% endfor %}
+  </fieldset>
+
+  <fieldset>
+    <legend>Hur har veckan varit?</legend>
+    <label>
+      <input type="checkbox" name="pain_present" value="1"
+        {% if existing and existing.pain_present %}checked{% endif %}>
+      Smärta någonstans (svar: var?)
+    </label>
+    <label>
+      <input type="checkbox" name="injury_change" value="1"
+        {% if existing and existing.injury_change %}checked{% endif %}>
+      Skadestatus förändrad (uppdatera athlete_profiles senare)
+    </label>
+    <label>
+      <input type="checkbox" name="illness_present" value="1"
+        {% if existing and existing.illness_present %}checked{% endif %}>
+      Sjukdom (förkylning, magsjuka, feber)
+    </label>
+    <label>
+      <input type="checkbox" name="travel_planned" value="1"
+        {% if existing and existing.travel_planned %}checked{% endif %}>
+      Resa planerad nästa vecka
+    </label>
+  </fieldset>
+
+  <label for="notes">
+    Övrigt (fri text, läses av Nils — Trixa ignorerar)
+    <textarea id="notes" name="notes" rows="3" placeholder="T.ex. konferens på torsdag, golf-helg, axeln knastrar lite...">{{ existing.notes if existing else "" }}</textarea>
+  </label>
+
+  <button type="submit">Skicka rapport</button>
+</form>
+
+{% if submitted %}
+<article style="background: #d1fae5; border-color: #059669;">
+  <p><strong>Tack — rapport sparad.</strong> Trixa läser detta vid nästa veckogenerering.</p>
+</article>
+{% endif %}
+
+{% endblock %}

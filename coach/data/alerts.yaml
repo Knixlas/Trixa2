@@ -1,0 +1,151 @@
+# Alert-protokoll — strukturerade meddelanden som Trixa producerar.
+#
+# Trixa kan inte göra fritext-tolkning. Varje varning, eskalering eller
+# observation måste mappa till en strukturerad alert med fast titel,
+# fast åtgärd, fast severity. Nils kan läsa dessa i tråden, men Trixa
+# behöver inte (och får inte) producera prosa.
+#
+# Severity:
+#   info     — observation, ingen åtgärd krävs
+#   warning  — observera, ev. justera. Adept ser i UI:t.
+#   critical — eskalering till coach / läkare / fysio. Adept varnas tydligt.
+#
+# Alert-type är stabil identifierare som UI:t kan filtrera/grupperar på.
+
+alerts:
+
+  # ─────────────────────────────────────────────────────────────
+  # Överträningssignaler (mappas från OvertrainingAssessment.level)
+  # ─────────────────────────────────────────────────────────────
+
+  - alert_type: overtraining_early
+    triggered_by: overtraining_level=early
+    severity: info
+    title: Tidiga tecken på trötthet
+    body: |
+      Engine ser 1-2 svaga varningssignaler den här veckan. Inget akut, men
+      hold an eye. Planen är skalad med -10% volym och -10% intensitet som
+      försiktighetsåtgärd.
+    follow_up: |
+      Om du själv märker fortsatt trötthet trots reduktionen — rapportera
+      det i nästa veckorapport. Annars: kör reducerad vecka och se hur
+      kroppen reagerar.
+
+  - alert_type: overtraining_moderate
+    triggered_by: overtraining_level=moderate
+    severity: warning
+    title: Tydliga tecken — minska belastning
+    body: |
+      Flera signaler pekar på att kroppen behöver vila. Planen är skalad
+      med -25% volym, -30% intensitet, +1 vilodag. Inga hårda pass denna
+      vecka — bara aerob volym och teknik.
+    follow_up: |
+      Rapportera mående i nästa veckorapport. Om signalerna inte vänder
+      inom 7 dagar eskalerar Trixa till severe — och då rekommenderas
+      kontakt med läkare eller fysio.
+
+  - alert_type: overtraining_severe
+    triggered_by: overtraining_level=severe
+    severity: critical
+    title: Allvarliga tecken — pausa hård träning
+    body: |
+      Engine ser kraftiga signaler. Planen är aktivt återhämtnings-fokuserad
+      denna vecka: -50% volym, all hård träning struken, +2 vilodagar.
+      Lätt promenad och stretching är OK.
+    follow_up: |
+      Boka kontakt med läkare eller fysio. Det här är inte ett pass att
+      "tränga igenom". Återgång till normal träning sker först när
+      vilopuls, sömn, motivation och energi är tillbaka.
+
+  # ─────────────────────────────────────────────────────────────
+  # Skade- och tillståndsalerts
+  # ─────────────────────────────────────────────────────────────
+
+  - alert_type: injury_needs_followup
+    triggered_by: active_concern.needs_followup=true
+    severity: warning
+    title: Skadesymtom kräver uppföljning
+    body: |
+      En aktiv concern är märkt som "needs_followup". Trixa kan inte göra
+      medicinsk bedömning — det är uttryckligen utanför systemets domän.
+    follow_up: |
+      Boka uppföljning med den professional som concern:en pekar mot
+      (fysio, läkare). Trixa skalar träningen försiktigt tills concern:en
+      är updaterad i athlete_profiles.
+
+  - alert_type: injury_persists
+    triggered_by: active_concern.since_date>14d AND severity>=3
+    severity: warning
+    title: Skada kvarstår > 2 veckor
+    body: |
+      En severity-3-skada har varit aktiv i mer än två veckor. Tumregel
+      från projektets skyddsräcken: oklara symtom som inte vänder inom
+      1-2 veckor → professional follow-up.
+    follow_up: |
+      Boka fysio eller annan relevant professional. Uppdatera severity
+      eller status i athlete_profiles när situationen ändras.
+
+  # ─────────────────────────────────────────────────────────────
+  # Data- och engine-signaler
+  # ─────────────────────────────────────────────────────────────
+
+  - alert_type: phase_mismatch
+    triggered_by: engine_phase != expected_phase_for_race_proximity
+    severity: warning
+    title: Fas matchar inte tävlingskalendern
+    body: |
+      Engine rekommenderar en fas som inte ligger i linje med antal veckor
+      kvar till tävlingen. Det här händer ofta när volymen är för låg i
+      relation till hur nära tävlingen är.
+    follow_up: |
+      Om coach (Nils) inte redan har dokumenterat en override — överväg om
+      kalendern eller volymen behöver justeras. Trixa följer engine strikt.
+
+  - alert_type: stale_test_values
+    triggered_by: ftp_test_date>90d OR css_test_date>90d
+    severity: info
+    title: Tröskelvärden är > 90 dagar gamla
+    body: |
+      FTP, CSS eller threshold-pace har inte testats på över tre månader.
+      Engine räknar zoner mot de värden som ligger inlagda — om de är
+      inaktuella blir intensitetsmålen fel.
+    follow_up: |
+      Schemalägg ett test (kategori T finns i passbanken). Uppdatera
+      athlete_profiles när nya värden finns.
+
+  - alert_type: data_gap
+    triggered_by: weekly_hours_actual<0.6*weekly_hours_target FOR 4+ weeks
+    severity: warning
+    title: Träningsvolym mycket lägre än deklarerat
+    body: |
+      Faktisk veckotid är konsekvent < 60% av deklarerat mål de senaste
+      fyra veckorna. Engine baserar fas-rekommendation på deklarerad volym
+      — om verkligheten är annorlunda blir planeringen orealistisk.
+    follow_up: |
+      Antingen sänk weekly_hours_target i athlete_profiles, eller hitta
+      orsaken till varför verkligheten avviker (sjukdom, kalender, motivation).
+
+  - alert_type: garmin_data_stale
+    triggered_by: latest_daily_metrics_date>3d
+    severity: info
+    title: Garmin-sync har inte uppdaterats
+    body: |
+      Senaste daily_metrics-rad är mer än 3 dagar gammal. Trixa kan
+      fortfarande generera en plan, men OT-bedömningen baseras inte på
+      aktuell data.
+    follow_up: |
+      Kör iOS-shortcut "Synka Trixa" eller manuell trigger via GitHub
+      Actions. Om problemet kvarstår → token-rotation kan behövas.
+
+  # ─────────────────────────────────────────────────────────────
+  # Plan-status (informativt, körs alltid)
+  # ─────────────────────────────────────────────────────────────
+
+  - alert_type: plan_generated
+    triggered_by: weekly_plan_persisted
+    severity: info
+    title: Veckoplan klar
+    body: |
+      Trixa har genererat veckans plan. Engine-beslut är spårbara i
+      training_weeks och workouts. Override kan göras av coach via API.
+    follow_up: null

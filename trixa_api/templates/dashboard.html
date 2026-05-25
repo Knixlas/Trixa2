@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}Trixa — dashboard{% endblock %}
+{% block content %}
+
+<h1>Hej {{ athlete.name or "adept" }}</h1>
+
+{% if athlete %}
+<section>
+  <h2>Status</h2>
+  <p>
+    <strong>Mål:</strong> {{ athlete.goal }} ({{ athlete.time_goal or "ingen måltid satt" }})<br>
+    <strong>Tävling:</strong> {{ athlete.race_date or "—" }} ({{ athlete.race_type or "—" }})<br>
+    <strong>Veckotimmar (mål):</strong> {{ athlete.weekly_hours }}h
+  </p>
+</section>
+{% endif %}
+
+{% if alerts %}
+<section>
+  <h2>Aktuella varningar</h2>
+  {% for alert in alerts %}
+  <div class="alert {{ alert.severity }}">
+    <strong><span class="badge {{ alert.severity }}">{{ alert.severity }}</span> {{ alert.title }}</strong>
+    <p>{{ alert.body | trim }}</p>
+  </div>
+  {% endfor %}
+</section>
+{% endif %}
+
+<section>
+  <h2>Veckans plan</h2>
+  {% if week and week.workouts %}
+    <p><strong>Fas:</strong> {{ week.phase }} | <strong>Pass:</strong> {{ week.workouts | length }}</p>
+    {% for w in week.workouts %}
+    <div class="workout">
+      <div class="workout-date">{{ w.date }} ({{ w.sport }})</div>
+      <strong>{{ w.title }}</strong>
+      <div class="workout-meta">
+        {{ w.code }} · {{ w.duration_minutes }} min · {{ w.intensity }}
+      </div>
+      {% if w.notes %}<details><summary>Syfte</summary><p>{{ w.notes | trim }}</p></details>{% endif %}
+    </div>
+    {% endfor %}
+  {% else %}
+    <p><em>Ingen plan för aktuell vecka. <a href="/ui/admin">Generera en plan</a>.</em></p>
+  {% endif %}
+</section>
+
+{% endblock %}

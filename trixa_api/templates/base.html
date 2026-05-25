@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="sv">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Trixa{% endblock %}</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.classless.min.css">
+  <style>
+    body { max-width: 760px; margin: 0 auto; padding: 1rem; }
+    .alert { border-left: 4px solid var(--pico-primary); padding: 0.5rem 1rem; margin: 0.5rem 0; background: var(--pico-card-background-color); }
+    .alert.warning { border-color: #d97706; }
+    .alert.critical { border-color: #dc2626; }
+    .workout { border: 1px solid var(--pico-muted-border-color); border-radius: 6px; padding: 0.75rem; margin-bottom: 0.5rem; }
+    .workout-date { font-size: 0.875rem; color: var(--pico-muted-color); }
+    .workout-meta { font-size: 0.875rem; color: var(--pico-muted-color); margin: 0.25rem 0; }
+    .rating-row label { display: inline-block; margin-right: 0.5rem; }
+    nav ul { padding: 0; }
+    nav li { display: inline; margin-right: 1rem; }
+    nav li a { text-decoration: none; }
+    .badge { display: inline-block; padding: 0.125rem 0.5rem; border-radius: 4px; font-size: 0.75rem; background: var(--pico-secondary-background); }
+    .badge.warning { background: #fef3c7; color: #92400e; }
+    .badge.critical { background: #fecaca; color: #991b1b; }
+    .badge.info { background: #dbeafe; color: #1e40af; }
+  </style>
+</head>
+<body>
+  <nav>
+    <ul>
+      <li><a href="/"><strong>Trixa</strong></a></li>
+      <li><a href="/ui/plan">Veckans plan</a></li>
+      <li><a href="/ui/report">Veckorapport</a></li>
+      <li><a href="/ui/admin">Admin</a></li>
+    </ul>
+  </nav>
+  <main>
+    {% block content %}{% endblock %}
+  </main>
+  <footer style="margin-top: 3rem; font-size: 0.75rem; color: var(--pico-muted-color);">
+    Trixa — deterministisk triathlontränare. Engine + passbank + planner.
+    Nils (LLM-coach) körs separat i Claude.
+  </footer>
+</body>
+</html>

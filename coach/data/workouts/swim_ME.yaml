@@ -1,0 +1,394 @@
+# Simpass — Muskulär Uthållighet (ME)
+#
+# ME1 — Long Cruise Intervals: längre intervaller nära tröskel (Z3-Z4)
+# ME2 — Short Cruise Intervals: kortare intervaller på CSS-pace
+# ME3 — Threshold: ren CSS/tröskel-arbete
+#
+# Detta är "race-specific" kvalitetsarbete. Bygger den uthålliga
+# fart-toleransen som tävlingar kräver.
+
+workouts:
+
+  # ─────────────────────────────────────────────────────────────
+  # ME1 — Long Cruise Intervals
+  # ─────────────────────────────────────────────────────────────
+
+  - code: ME1_swim_01
+    discipline: swim
+    category: ME
+    type_code: ME1
+    name: "3×800 @ CSS+3"
+    phase_appropriate: [base_3, build_1, build_2]
+    intent: |
+      Lång cruise — strax under CSS-fart, tillräckligt nära för att
+      det ska bita, tillräckligt under för att tre repetitioner går.
+      Bygger uthållighet på race-pace för halv- och hellång IM-simning.
+    main_set:
+      - segment: warmup
+        distance_m: 400
+        zone: 1
+      - segment: drills
+        sets: 4
+        distance_m: 50
+        rest_sec: 15
+      - segment: build
+        sets: 4
+        distance_m: 50
+        rest_sec: 10
+        description: "Build från Z2 till Z4, väck race-pace-känslan"
+      - segment: main
+        sets: 3
+        distance_m: 800
+        zone: 3
+        rest_sec: 90
+        description: "Jämn pace — sista 800:an ska se ut som första. Negative split mot CSS om möjligt."
+      - segment: cooldown
+        distance_m: 300
+        zone: 1
+    total_distance_m: 3300
+    total_duration_min:
+      estimated: 75
+      flexible_range: [70, 85]
+    zone_refs: [Z1, Z2, Z3]
+    equipment: []
+    abort_conditions:
+      - "Om split-1 av 800-2 är >5s/100m långsammare än 800-1 → korta 800-3 till 500"
+
+  - code: ME1_swim_02
+    discipline: swim
+    category: ME
+    type_code: ME1
+    name: "4×500 @ CSS"
+    phase_appropriate: [build_1, build_2]
+    intent: |
+      Fyra 500:or på CSS-fart är ett klassiskt 'CSS-test extended'-set.
+      Mätbart: pace ska ligga inom +/- 2s/100m på alla fyra.
+      Inkonsekvens betyder att CSS-värdet eller dagsformen ljuger.
+    main_set:
+      - segment: warmup
+        distance_m: 400
+        zone: 1
+      - segment: drills
+        sets: 4
+        distance_m: 50
+        rest_sec: 15
+      - segment: main
+        sets: 4
+        distance_m: 500
+        zone: 3
+        rest_sec: 45
+        description: "CSS-pace. Andas på 3 om möjligt."
+      - segment: cooldown
+        distance_m: 200
+        zone: 1
+    total_distance_m: 2800
+    total_duration_min:
+      estimated: 60
+      flexible_range: [55, 65]
+    zone_refs: [Z1, Z3]
+    equipment: []
+    coach_notes: |
+      Bra som indikator-pass. Loggade splits berättar om CSS behöver
+      uppdateras (för lätt) eller om kropp/återhämtning behöver fokus (svårt).
+
+  - code: ME1_swim_03
+    discipline: swim
+    category: ME
+    type_code: ME1
+    name: "2×1000 progressivt"
+    phase_appropriate: [build_1, build_2, peak]
+    intent: |
+      Två stora intervaller, andra snabbare än första. Mental och
+      fysisk träning på att 'ha kvar' när det redan kostat.
+    main_set:
+      - segment: warmup
+        distance_m: 400
+        zone: 1
+      - segment: drills
+        sets: 4
+        distance_m: 50
+        rest_sec: 15
+      - segment: main
+        sets: 1
+        distance_m: 1000
+        zone: 2
+        rest_sec: 90
+        description: "Övre Z2 / nedre Z3 — bygg upp till race-pace gradvis"
+      - segment: main
+        sets: 1
+        distance_m: 1000
+        zone: 3
+        rest_sec: 0
+        description: "På CSS eller strax under — om möjligt negative split"
+      - segment: cooldown
+        distance_m: 200
+        zone: 1
+    total_distance_m: 2800
+    total_duration_min:
+      estimated: 65
+      flexible_range: [60, 70]
+    zone_refs: [Z1, Z2, Z3]
+    equipment: []
+
+  # ─────────────────────────────────────────────────────────────
+  # ME2 — Short Cruise Intervals
+  # ─────────────────────────────────────────────────────────────
+
+  - code: ME2_swim_01
+    discipline: swim
+    category: ME
+    type_code: ME2
+    name: "10×100 @ CSS"
+    phase_appropriate: [base_3, build_1, build_2]
+    intent: |
+      Klassiskt 100:or-set. Tio repetitioner på exakt CSS-pace.
+      Den korta vilan tillåter inte full återhämtning — du måste
+      räkna på pace-disciplin, inte på 'ladda om' mellan.
+    main_set:
+      - segment: warmup
+        distance_m: 400
+        zone: 1
+      - segment: drills
+        sets: 4
+        distance_m: 50
+        rest_sec: 15
+      - segment: main
+        sets: 10
+        distance_m: 100
+        zone: 3
+        rest_sec: 15
+        description: "Strikt CSS-pace. Inte snabbare på första, inte långsammare på sista."
+      - segment: cooldown
+        distance_m: 200
+        zone: 1
+    total_distance_m: 1800
+    total_duration_min:
+      estimated: 45
+      flexible_range: [40, 50]
+    zone_refs: [Z1, Z3]
+    equipment: []
+
+  - code: ME2_swim_02
+    discipline: swim
+    category: ME
+    type_code: ME2
+    name: "15×100 rotation Z2/Z3/Z4"
+    phase_appropriate: [build_1, build_2]
+    intent: |
+      100:or i rotation: tre olika paces. Lär kroppen växla mellan
+      uthållighetsfart, tröskelfart och under-CSS. Användbart för
+      tävlingssimulering där fartvariation uppstår vid drafting, vågor.
+    main_set:
+      - segment: warmup
+        distance_m: 400
+        zone: 1
+      - segment: drills
+        sets: 4
+        distance_m: 50
+        rest_sec: 15
+      - segment: main
+        sets: 5
+        distance_m: 100
+        rest_sec: 15
+        zones_per_set: [2, 3, 4, 3, 2]
+        pace_pattern: alternating
+        description: "Första cykeln: Z2-Z3-Z4-Z3-Z2"
+      - segment: main
+        sets: 5
+        distance_m: 100
+        rest_sec: 15
+        zones_per_set: [2, 3, 4, 3, 2]
+        pace_pattern: alternating
+        description: "Andra cykeln, samma mönster"
+      - segment: main
+        sets: 5
+        distance_m: 100
+        rest_sec: 15
+        zones_per_set: [2, 3, 4, 3, 2]
+        pace_pattern: alternating
+        description: "Tredje cykeln, samma mönster"
+      - segment: cooldown
+        distance_m: 200
+        zone: 1
+    total_distance_m: 2300
+    total_duration_min:
+      estimated: 55
+      flexible_range: [50, 60]
+    zone_refs: [Z1, Z2, Z3, Z4]
+    equipment: []
+
+  - code: ME2_swim_03
+    discipline: swim
+    category: ME
+    type_code: ME2
+    name: "20×100 säng-test"
+    phase_appropriate: [build_1, build_2]
+    intent: |
+      Stort 100:or-set. Den totala distansen i kvalitetsintervall
+      gör det till en indikator: kan du hålla CSS över 20×100, är
+      du på rätt nivå för halv-IM-distansen tävlingsmässigt.
+    main_set:
+      - segment: warmup
+        distance_m: 400
+        zone: 1
+      - segment: drills
+        sets: 4
+        distance_m: 50
+        rest_sec: 15
+      - segment: build
+        sets: 4
+        distance_m: 50
+        rest_sec: 10
+      - segment: main
+        sets: 20
+        distance_m: 100
+        zone: 3
+        rest_sec: 10
+        description: "CSS-pace. När de börjar drifta — håll kvar mentalt, det är poängen."
+      - segment: cooldown
+        distance_m: 200
+        zone: 1
+    total_distance_m: 2900
+    total_duration_min:
+      estimated: 65
+      flexible_range: [60, 75]
+    zone_refs: [Z1, Z3]
+    equipment: []
+    abort_conditions:
+      - "Om split drifter >5s/100m sämre än start och inte återhämtar sig 2 intervaller → kör resterande i Z2"
+    coach_notes: |
+      Bra peak-fas-check 4-6 veckor innan IM. Resultatet säger
+      om race-pace är realistisk eller behöver justeras.
+
+  # ─────────────────────────────────────────────────────────────
+  # ME3 — Threshold
+  # ─────────────────────────────────────────────────────────────
+
+  - code: ME3_swim_01
+    discipline: swim
+    category: ME
+    type_code: ME3
+    name: "5×300 @ CSS"
+    phase_appropriate: [build_1, build_2]
+    intent: |
+      Klassisk tröskel-set. 300:orna är längre än 100:or men kortare
+      än 500:or — säkrar att du jobbar på tröskel utan att tappa pace.
+    main_set:
+      - segment: warmup
+        distance_m: 400
+        zone: 1
+      - segment: drills
+        sets: 4
+        distance_m: 50
+        rest_sec: 15
+      - segment: build
+        sets: 4
+        distance_m: 50
+        rest_sec: 10
+      - segment: main
+        sets: 5
+        distance_m: 300
+        zone: 3
+        rest_sec: 30
+        description: "Exakt CSS-pace, andas på 3"
+      - segment: cooldown
+        distance_m: 200
+        zone: 1
+    total_distance_m: 2300
+    total_duration_min:
+      estimated: 50
+      flexible_range: [45, 55]
+    zone_refs: [Z1, Z3]
+    equipment: []
+
+  - code: ME3_swim_02
+    discipline: swim
+    category: ME
+    type_code: ME3
+    name: "8×200 @ CSS-2"
+    phase_appropriate: [build_1, build_2, peak]
+    intent: |
+      Strax SNABBARE än CSS — sub-threshold kvalitetsarbete.
+      8×200 är gränsen där det går, just och just. Tränar
+      mjölksyra-tolerans och pace över CSS.
+    main_set:
+      - segment: warmup
+        distance_m: 400
+        zone: 1
+      - segment: drills
+        sets: 4
+        distance_m: 50
+        rest_sec: 15
+      - segment: main
+        sets: 8
+        distance_m: 200
+        zone: 4
+        rest_sec: 30
+        description: "2-3s/100m under CSS — det här ska kosta"
+      - segment: cooldown
+        distance_m: 300
+        zone: 1
+    total_distance_m: 2500
+    total_duration_min:
+      estimated: 55
+      flexible_range: [50, 60]
+    zone_refs: [Z1, Z4]
+    equipment: []
+    abort_conditions:
+      - "När pace på en 200 drifter över CSS → stop, sista intervallen i Z2 som cooldown-extra"
+
+  - code: ME3_swim_03
+    discipline: swim
+    category: ME
+    type_code: ME3
+    name: "3×400 @ CSS med teknikrespons"
+    phase_appropriate: [build_1, build_2]
+    intent: |
+      Tröskelintervaller med en 200 i Z1 mellan varje — den lugna
+      delen tillåter teknisk reflektion: 'vad bröts? vad ska tillbaka?'
+    main_set:
+      - segment: warmup
+        distance_m: 400
+        zone: 1
+      - segment: drills
+        sets: 4
+        distance_m: 50
+        rest_sec: 15
+      - segment: main
+        sets: 1
+        distance_m: 400
+        zone: 3
+        rest_sec: 30
+      - segment: main
+        sets: 1
+        distance_m: 200
+        zone: 1
+        rest_sec: 0
+        description: "Lugn fri — analysera vad som bröts i 400:an"
+      - segment: main
+        sets: 1
+        distance_m: 400
+        zone: 3
+        rest_sec: 30
+      - segment: main
+        sets: 1
+        distance_m: 200
+        zone: 1
+        rest_sec: 0
+      - segment: main
+        sets: 1
+        distance_m: 400
+        zone: 3
+        rest_sec: 0
+      - segment: cooldown
+        distance_m: 200
+        zone: 1
+    total_distance_m: 2400
+    total_duration_min:
+      estimated: 55
+      flexible_range: [50, 60]
+    zone_refs: [Z1, Z3]
+    equipment: []
+    coach_notes: |
+      Bra för adepter som teknik-bryter under fart. Den lugna mellan-200:an
+      är ingen vila — den är en lektion.

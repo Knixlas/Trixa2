@@ -1,0 +1,23 @@
+# Railway-deploy-config för Trixa.
+#
+# Två services:
+#   web    — FastAPI som serverar API + UI
+#   worker — schemalagd planner (söndagar 20:00 UTC = mån 22:00 svensk vintertid)
+#
+# Båda services delar samma kodbas och samma env-vars.
+# Skapa servicen via Railway-dashbord och pek dem mot detta repo.
+
+[build]
+builder = "NIXPACKS"
+
+# nixpacks använder requirements.txt automatiskt; lägger till Python 3.12
+# för stabil Jinja2 + pyiceberg-fritt environment (Python 3.14 har wheel-issues).
+nixpacksConfigPath = "nixpacks.toml"
+
+[deploy]
+# Default-startkommando — överskrivs per service om man har worker.
+startCommand = "uvicorn trixa_api.main:app --host 0.0.0.0 --port ${PORT:-8000}"
+healthcheckPath = "/health"
+healthcheckTimeout = 30
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 3

@@ -1,0 +1,128 @@
+# Simpass — Tester (T)
+#
+# CSS-Test: Critical Swim Speed-test enligt Swim Smooth-protokollet.
+# Resultatet kalibrerar samtliga simzoner.
+#
+# Genomför CSS-test:
+#   - I början av varje träningscykel (innan prep)
+#   - Efter ~6-8 veckor i base-fasen
+#   - 4-6 veckor innan A-tävling
+#   - När pace börjar drifta i ME-pass utan att övriga signaler förklarar det
+
+workouts:
+
+  - code: CSS_Test_swim_01
+    discipline: swim
+    category: T
+    type_code: CSS_Test
+    name: "CSS-test: 400 + 200"
+    phase_appropriate: [prep, base_1, base_2, base_3, build_1, build_2]
+    intent: |
+      Standard CSS-test enligt Swim Smooth. Två all-out tidtagningar
+      med vila emellan, formel räknar fram CSS-pace.
+      
+      Formel: CSS (sek/100m) = (T400 - T200) / 2
+      
+      Där T400 = tid för 400m i sekunder, T200 = tid för 200m i sekunder.
+    main_set:
+      - segment: warmup
+        distance_m: 400
+        zone: 1
+        description: "Lugn fri"
+      - segment: drills
+        sets: 4
+        distance_m: 50
+        rest_sec: 15
+        drills: [single_arm, fingertip_drag, six_kick_switch]
+      - segment: build
+        sets: 4
+        distance_m: 50
+        rest_sec: 15
+        description: "Build från Z2 till Z4, väck nervsystemet"
+      - segment: rest
+        rest_sec: 120
+        description: "Vila och förbered mentalt inför första testet"
+      - segment: test
+        sets: 1
+        distance_m: 400
+        zone: 5
+        description: "MAX-fart 400m. Jämn pace — undvik att skena första 100m."
+        notes: "Tidtagning krävs. Notera exakt tid i sekunder."
+      - segment: rest
+        rest_sec: 300
+        description: "5 minuter lugn fri eller stå. Ner med pulsen."
+      - segment: test
+        sets: 1
+        distance_m: 200
+        zone: 5
+        description: "MAX-fart 200m. Snabbare än 400-paceet, men inte sprint."
+        notes: "Tidtagning krävs. Notera exakt tid i sekunder."
+      - segment: cooldown
+        distance_m: 400
+        zone: 1
+    total_distance_m: 1800
+    total_duration_min:
+      estimated: 50
+      flexible_range: [45, 55]
+    zone_refs: [Z1, Z2, Z4, Z5]
+    equipment: []
+    abort_conditions:
+      - "Avbryt om sjukdomssymtom eller olämplig dagsform — testet ska göras pigg"
+    coach_notes: |
+      För bäst noggrannhet: gör testet i samma bassäng/distans/temperatur
+      varje gång. Logga både tider och faktorer (sömn senaste natten,
+      stress, dagar sedan senaste hårda pass) — det förklarar variation
+      mellan tester.
+      
+      Räknat exempel:
+        T400 = 6:20 (380 sek)
+        T200 = 3:00 (180 sek)
+        CSS = (380 - 180) / 2 = 100 sek/100m → 1:40/100m
+
+  - code: CSS_Test_swim_02
+    discipline: swim
+    category: T
+    type_code: CSS_Test
+    name: "CSS-test: 1500m time trial"
+    phase_appropriate: [build_1, build_2, peak]
+    intent: |
+      Alternativ CSS-bestämning genom 1500m all-out. Tar bort
+      400+200-formelns approximation och ger direkt race-distans-pace.
+      
+      CSS (sek/100m) ≈ T1500 / 15
+      
+      Mer race-specifikt men kräver mental förmåga att hålla pace
+      över 25-30 minuter självmant.
+    main_set:
+      - segment: warmup
+        distance_m: 400
+        zone: 1
+      - segment: drills
+        sets: 4
+        distance_m: 50
+        rest_sec: 15
+      - segment: build
+        sets: 4
+        distance_m: 50
+        rest_sec: 10
+      - segment: rest
+        rest_sec: 180
+        description: "Vila och mental förberedelse"
+      - segment: test
+        sets: 1
+        distance_m: 1500
+        zone: 4
+        description: "All-out över 1500m. Jämn pace — använd negative split-strategi om möjligt."
+        notes: "Tidtagning krävs. Logga splits per 100m om möjligt."
+      - segment: cooldown
+        distance_m: 400
+        zone: 1
+    total_distance_m: 2500
+    total_duration_min:
+      estimated: 55
+      flexible_range: [50, 65]
+    zone_refs: [Z1, Z2, Z4]
+    equipment: []
+    coach_notes: |
+      Lämpligt 4-6 veckor innan A-tävling som ren race-pace-indikator.
+      Tidigare i säsongen är 400+200-protokollet mer praktiskt.

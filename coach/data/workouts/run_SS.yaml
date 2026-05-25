@@ -1,0 +1,130 @@
+# Löppass — Snabbhetsfärdigheter (SS)
+#
+# SS1 — Strides: korta fartökningar 20-30 sek på platt mark.
+# SS2 — Pickups: gradvis stigande pace över en kontinuerlig löprunda.
+#
+# Båda är primärt parametriserade mallar. Strides är så enkla att
+# konkreta varianter knappast ger värde.
+
+workouts:
+
+  # ─────────────────────────────────────────────────────────────
+  # SS1 — Strides (parametriserad mall)
+  # ─────────────────────────────────────────────────────────────
+
+  - code: SS1_run_template
+    discipline: run
+    category: SS
+    type_code: SS1
+    name: "Strides — flex antal/längd"
+    phase_appropriate: [prep, base_1, base_2, base_3, build_1, build_2, peak, race]
+    parameterized: true
+    parameters:
+      reps:
+        default: 6
+        range: [4, 10]
+        description: "Antal strides — vanligast 6, fler i peak/race-prep"
+      stride_sec:
+        default: 20
+        range: [15, 30]
+        description: "Längd per stride i sekunder"
+      rest_sec:
+        default: 60
+        range: [45, 90]
+        description: "Aktiv vila (lugn jogg eller gång) mellan strides"
+    intent: |
+      Strides är korta, kontrollerade fartökningar — inte sprintar.
+      Tempot är "smooth fast" — ~90% av maxfart med PERFEKT teknik:
+      lång stegfrekvens, mjuka knän, avslappnade axlar.
+      
+      Syftet är neuromuskulärt: hålla snabbhetskvalitet vid liv,
+      öva på rätt teknik vid hög fart, väcka kroppen. Inga
+      uthållighets-effekter, ingen träningsstress värd att räkna.
+    main_set:
+      - segment: warmup
+        duration_min: 15
+        zone: 1
+        description: "Lugn jogg eller direkt efter ett AE2-pass"
+      - segment: main
+        sets: 6
+        duration_sec: 20
+        effort_descriptor: "smooth fast — ~90% maxfart, kontrollerad form, ingen anaerob press"
+        rest_sec: 60
+        description: "Aktiv vila: lugn jogg tillbaka eller gå"
+      - segment: cooldown
+        duration_min: 5
+        zone: 1
+    total_duration_min:
+      estimated: 30
+      flexible_range: [25, 45]
+    zone_refs: [Z1]
+    terrain: flat
+    surface: road
+    equipment: []
+    abort_conditions:
+      - "Om tekniken brister (sneda axlar, fötter slår i marken) → avbryt resterande reps"
+    coach_notes: |
+      Bästa appliceringen: påsläpp i slutet av ett AE2-pass, eller
+      som fristående mikro-pass när dagsformen inte räcker till
+      kvalitet men inte motiverar full vila. 2-3 gånger/vecka över
+      lag — billigt och högt värde.
+
+  # ─────────────────────────────────────────────────────────────
+  # SS2 — Pickups (parametriserad mall)
+  # ─────────────────────────────────────────────────────────────
+
+  - code: SS2_run_template
+    discipline: run
+    category: SS
+    type_code: SS2
+    name: "Pickups — flex duration"
+    phase_appropriate: [prep, base_1, base_2, base_3, build_1, build_2]
+    parameterized: true
+    parameters:
+      total_duration_min:
+        default: 50
+        range: [30, 70]
+      pickup_count:
+        default: 8
+        range: [6, 12]
+        description: "Antal pickups jämnt fördelade över hela passet"
+      pickup_sec:
+        default: 30
+        range: [20, 45]
+    intent: |
+      Pickups är gradvisa fartökningar inbakade i en kontinuerlig
+      löprunda. Skillnad mot strides: pickup går från Z2 till
+      Z3-Z4 över 20-45 sek (inte explosiv från start), och de
+      avbryts av Z2-segment, inte aktiv vila.
+      
+      Bygger förmågan att lyfta tempot på beställning — race-relevant
+      när du behöver svara på en attack eller ta dig förbi en grupp.
+    main_set:
+      - segment: warmup
+        duration_min: 10
+        zone: 1
+      - segment: continuous
+        duration_min: 35
+        zone: 2
+        description: "Stadig Z2 som baspass — pickups bryter in jämnt fördelade"
+        embedded_pickups:
+          count: 8
+          duration_sec: 30
+          effort_descriptor: "build från Z2 till övre Z3 över 30 sek, snabb retur till Z2"
+          spacing_min: 4
+      - segment: cooldown
+        duration_min: 5
+        zone: 1
+    total_duration_min:
+      estimated: 50
+      flexible_range: [30, 70]
+    zone_refs: [Z1, Z2, Z3]
+    terrain: flat
+    surface: road
+    equipment: []
+    coach_notes: |
+      Renderaren plockar fram pickup-schema: "Pickup vid 14, 18, 22…
+      min in i passet." Bättre än "var 4:e minut" för adepten i fält.
+      
+      Bra alternativ till stride-pass när långsiktig motorik-vana
+      ska tränas under ackumulerad trötthet.

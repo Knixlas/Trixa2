@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block title %}Veckans plan — Trixa{% endblock %}
+{% block content %}
+
+<h1>Veckoplan — {{ plan.week_start }}</h1>
+
+<section>
+  <p>
+    <strong>Fas:</strong> {{ plan.phase }}{% if plan.period %} ({{ plan.period }}){% endif %} —
+    vecka {{ plan.week_in_period if plan.week_in_period is defined else "?" }}<br>
+    <strong>Mål-volym:</strong> {{ "%.1f" | format(plan.total_hours_target) }}h<br>
+    <strong>Disciplinfördelning:</strong>
+    {% for d, h in plan.discipline_hours.items() %}{{ d }} {{ "%.1f" | format(h) }}h{% if not loop.last %}, {% endif %}{% endfor %}<br>
+    <strong>Kategorier:</strong> {{ plan.categories | join(", ") }}<br>
+    <strong>Styrkeprotokoll:</strong> {{ plan.strength_protocol }}<br>
+    <strong>Överträningsbedömning:</strong>
+    <span class="badge {{ 'critical' if plan.overtraining_level == 'severe' else 'warning' if plan.overtraining_level == 'moderate' else 'info' }}">
+      {{ plan.overtraining_level }}
+    </span>
+    {% if plan.overtraining_flags %}— flaggor: {{ plan.overtraining_flags | join(", ") }}{% endif %}
+  </p>
+
+  {% if plan.plan_adjustment %}
+  <article>
+    <strong>Planjustering aktiv:</strong>
+    -{{ plan.plan_adjustment.volume_reduction_pct }}% volym,
+    -{{ plan.plan_adjustment.intensity_reduction_pct }}% intensitet,
+    +{{ plan.plan_adjustment.extra_rest_days }} vilodagar
+    {% if plan.plan_adjustment.consider_medical_consultation %}
+    <br><strong style="color: #dc2626;">Överväg läkarkontakt.</strong>
+    {% endif %}
+  </article>
+  {% endif %}
+</section>
+
+<section>
+  <h2>Pass</h2>
+  {% for w in plan.workouts %}
+  <div class="workout">
+    <div class="workout-date">{{ w.date }}</div>
+    <strong>{{ w.title }}</strong> <span class="badge">{{ w.sport }}</span>
+    <span class="badge">{{ w.category }}</span>
+    <div class="workout-meta">
+      <code>{{ w.code }}</code> · {{ w.duration_minutes }} min · {{ w.intensity }}
+    </div>
+    {% if w.notes %}
+    <details>
+      <summary>Syfte och utförande</summary>
+      <pre style="white-space: pre-wrap; font-family: inherit;">{{ w.notes | trim }}</pre>
+    </details>
+    {% endif %}
+  </div>
+  {% endfor %}
+</section>
+
+{% if plan.warnings %}
+<section>
+  <h2>Varningar</h2>
+  <ul>
+    {% for w in plan.warnings %}<li>{{ w }}</li>{% endfor %}
+  </ul>
+</section>
+{% endif %}
+
+{% endblock %}

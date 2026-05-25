@@ -1,0 +1,342 @@
+# Simpass — Aerob Uthållighet (AE)
+#
+# AE är basvolym. Två typer:
+#   AE1 — Recovery: lätt, teknikfokus, korta pass
+#   AE2 — Aerobic Endurance: längre intervaller eller kontinuerligt i Z2
+#
+# AE-passen är till stor del PARAMETRISERADE mallar enligt CLAUDE.md-design.
+# Konkreta varianter finns för när man vill ha tydlig struktur (t.ex. teknikpass).
+
+workouts:
+
+  # ─────────────────────────────────────────────────────────────
+  # AE1 — Recovery
+  # ─────────────────────────────────────────────────────────────
+
+  - code: AE1_swim_template_01
+    discipline: swim
+    category: AE
+    type_code: AE1
+    name: "AE1-mall: kort recovery"
+    parameterized: true
+    parameters:
+      duration_min: { min: 20, max: 45, default: 30 }
+    phase_appropriate: [prep, base_1, base_2, base_3, build_1, build_2, peak, race, recovery]
+    intent: |
+      Lätt simning för aktiv återhämtning. Pulsen ska aldrig krypa upp.
+      Fokus på flyt och känsla för vattnet, inte tempo.
+    main_set:
+      - segment: warmup
+        duration_pct: 0.20
+        zone: 1
+        description: "Lugnt igång, valfri stil"
+      - segment: continuous
+        duration_pct: 0.60
+        zone: 1
+        description: "Stadig, lätt fart. Andas avslappnat. Byt stil var 200m om det känns bra."
+      - segment: cooldown
+        duration_pct: 0.20
+        zone: 1
+    total_duration_min:
+      estimated: 30
+      flexible_range: [20, 45]
+    zone_refs: [Z1]
+    equipment: []
+    coach_notes: |
+      Funkar dagen efter ett hårt pass eller som inlägg när man har
+      ont om tid och bara vill röra sig i vattnet.
+
+  - code: AE1_swim_01
+    discipline: swim
+    category: AE
+    type_code: AE1
+    name: "Teknikåtervändning"
+    phase_appropriate: [prep, base_1, base_2, recovery]
+    intent: |
+      Återhämtningspass med tydligt teknikfokus. Driller roterar genom
+      tre grundtekniker. Pulsen stannar låg — det är hjärnan som jobbar.
+    main_set:
+      - segment: warmup
+        distance_m: 300
+        zone: 1
+        description: "Valfri stil, känn in vattnet"
+      - segment: drills
+        sets: 6
+        distance_m: 50
+        rest_sec: 20
+        drills: [single_arm, six_kick_switch, fingertip_drag]
+        description: "Rotera: 2×single-arm, 2×6-kick-switch, 2×fingertip drag"
+      - segment: main
+        sets: 4
+        distance_m: 100
+        zone: 1
+        rest_sec: 15
+        description: "Lugn fri, fokus på det som drillen lärt"
+      - segment: cooldown
+        distance_m: 200
+        zone: 1
+    total_distance_m: 1800
+    total_duration_min:
+      estimated: 40
+      flexible_range: [35, 50]
+    zone_refs: [Z1]
+    equipment: []
+
+  - code: AE1_swim_02
+    discipline: swim
+    category: AE
+    type_code: AE1
+    name: "Kick + glid"
+    phase_appropriate: [prep, base_1, base_2, recovery]
+    intent: |
+      Lätt pass med kickfokus och glid-set. Bygger kicktolerans utan
+      att stressa armar/axlar. Bra dagen efter ett tungt cykel- eller löppass.
+    main_set:
+      - segment: warmup
+        distance_m: 300
+        zone: 1
+      - segment: kick
+        sets: 6
+        distance_m: 50
+        rest_sec: 20
+        equipment: [kickboard]
+        zone: 1
+        description: "Långsam, kraftfull kick. Nyckel: smal sparkamplitud."
+      - segment: drills
+        sets: 4
+        distance_m: 50
+        rest_sec: 15
+        drills: [superman_glide, side_kick]
+        description: "Glid-fokus: tre andetag mellan varje vänster/höger sida"
+      - segment: main
+        sets: 3
+        distance_m: 200
+        zone: 1
+        rest_sec: 20
+        description: "Lång fri, känn glidet från drillerna"
+      - segment: cooldown
+        distance_m: 200
+        zone: 1
+    total_distance_m: 1700
+    total_duration_min:
+      estimated: 40
+      flexible_range: [35, 50]
+    zone_refs: [Z1]
+    equipment: [kickboard]
+
+  # ─────────────────────────────────────────────────────────────
+  # AE2 — Aerobic Endurance
+  # ─────────────────────────────────────────────────────────────
+
+  - code: AE2_swim_template_01
+    discipline: swim
+    category: AE
+    type_code: AE2
+    name: "AE2-mall: kontinuerligt"
+    parameterized: true
+    parameters:
+      duration_min: { min: 30, max: 90, default: 60 }
+    phase_appropriate: [base_1, base_2, base_3, build_1]
+    intent: |
+      Aerob bas i Zon 2. Stadig fart, ingen kvalitet, ingen jakt.
+      Bygger uthållighet utan att kosta nervsystemet.
+    main_set:
+      - segment: warmup
+        duration_pct: 0.15
+        zone: 1
+        description: "Gradvis upp, sista 100m i nedre Z2"
+      - segment: continuous
+        duration_pct: 0.70
+        zone: 2
+        description: "Stadig Z2. Bryt aldrig ut hårdare. Andas på 3 eller 5."
+      - segment: cooldown
+        duration_pct: 0.15
+        zone: 1
+    total_duration_min:
+      estimated: 60
+      flexible_range: [30, 90]
+    zone_refs: [Z1, Z2]
+    equipment: []
+    coach_notes: |
+      Den här mallen är arbetshäst i base-fasen. Variera durationen efter
+      veckans volymmål. Inkludera kort drill-set i början om passet är >50 min.
+
+  - code: AE2_swim_01
+    discipline: swim
+    category: AE
+    type_code: AE2
+    name: "Klassiska 400-or"
+    phase_appropriate: [base_1, base_2, base_3, build_1]
+    intent: |
+      Aerob bas genom långa intervaller i Zon 2. Strukturen ger
+      naturliga pauser för andning och rytm-reset utan att tappa pace.
+    main_set:
+      - segment: warmup
+        distance_m: 400
+        zone: 1
+      - segment: drills
+        sets: 4
+        distance_m: 50
+        rest_sec: 15
+        drills: [superman_glide, six_kick_switch, fingertip_drag, single_arm]
+      - segment: main
+        sets: 4
+        distance_m: 400
+        zone: 2
+        rest_sec: 20
+        description: "Stadig pace över alla fyra. Andas på 3."
+      - segment: cooldown
+        distance_m: 200
+        zone: 1
+    total_distance_m: 2800
+    total_duration_min:
+      estimated: 55
+      flexible_range: [50, 65]
+    zone_refs: [Z1, Z2]
+    equipment: []
+    abort_conditions:
+      - "Om pace faller >5s/100m på interval 3 → kör interval 4 i nedre Z2 eller hoppa över"
+    coach_notes: |
+      Funkar i alla base-perioder. Skala till 3×400 vid lägre volymveckor,
+      5×400 vid högre.
+
+  - code: AE2_swim_02
+    discipline: swim
+    category: AE
+    type_code: AE2
+    name: "8×200 kort vila"
+    phase_appropriate: [base_2, base_3, build_1]
+    intent: |
+      Längre AE2 där den korta vilan håller intensiteten mer
+      kontinuerligt jämfört med 400-orna. Bygger förmågan att hålla
+      Z2 över längre samlad tid.
+    main_set:
+      - segment: warmup
+        distance_m: 400
+        zone: 1
+      - segment: drills
+        sets: 4
+        distance_m: 50
+        rest_sec: 15
+        drills: [single_arm, six_kick_switch]
+      - segment: main
+        sets: 8
+        distance_m: 200
+        zone: 2
+        rest_sec: 15
+        description: "Kort vila — tanken är att summan ska kännas som ett långt pass"
+      - segment: cooldown
+        distance_m: 200
+        zone: 1
+    total_distance_m: 2600
+    total_duration_min:
+      estimated: 55
+      flexible_range: [50, 65]
+    zone_refs: [Z1, Z2]
+    equipment: []
+
+  - code: AE2_swim_03
+    discipline: swim
+    category: AE
+    type_code: AE2
+    name: "Lång distans 1500"
+    phase_appropriate: [base_2, base_3, build_1, build_2]
+    intent: |
+      Kontinuerlig långsim i Z2. Förbereder kropp och huvud på
+      uthållig fri utan stopp — viktigt för IM-distansen och för
+      mental tolerans av långa simset.
+    main_set:
+      - segment: warmup
+        distance_m: 300
+        zone: 1
+      - segment: drills
+        sets: 4
+        distance_m: 50
+        rest_sec: 15
+        drills: [single_arm, six_kick_switch]
+      - segment: main
+        sets: 1
+        distance_m: 1500
+        zone: 2
+        rest_sec: 0
+        description: "Kontinuerligt. Bryt rytmen genom att andas på 3 första 500, 5 andra 500, 3 tredje 500."
+      - segment: cooldown
+        distance_m: 200
+        zone: 1
+    total_distance_m: 2200
+    total_duration_min:
+      estimated: 45
+      flexible_range: [40, 55]
+    zone_refs: [Z1, Z2]
+    equipment: []
+    abort_conditions:
+      - "Om pace börjar drifta uppåt (slowdown) — sänk till Z1 och avsluta i förtid"
+
+  - code: AE2_swim_04
+    discipline: swim
+    category: AE
+    type_code: AE2
+    name: "Pyramid 100→500→100"
+    phase_appropriate: [base_2, base_3, build_1]
+    intent: |
+      AE2-volym med varierad intervallängd. Pyramiden ger mental
+      variation och naturlig pacing-utmaning — kortare intervall i
+      slutet ska kännas lika lugna som de korta i början.
+    main_set:
+      - segment: warmup
+        distance_m: 400
+        zone: 1
+      - segment: main
+        sets: 1
+        distance_m: 100
+        zone: 2
+        rest_sec: 15
+      - segment: main
+        sets: 1
+        distance_m: 200
+        zone: 2
+        rest_sec: 20
+      - segment: main
+        sets: 1
+        distance_m: 300
+        zone: 2
+        rest_sec: 25
+      - segment: main
+        sets: 1
+        distance_m: 400
+        zone: 2
+        rest_sec: 30
+      - segment: main
+        sets: 1
+        distance_m: 500
+        zone: 2
+        rest_sec: 30
+      - segment: main
+        sets: 1
+        distance_m: 400
+        zone: 2
+        rest_sec: 25
+      - segment: main
+        sets: 1
+        distance_m: 300
+        zone: 2
+        rest_sec: 20
+      - segment: main
+        sets: 1
+        distance_m: 200
+        zone: 2
+        rest_sec: 15
+      - segment: main
+        sets: 1
+        distance_m: 100
+        zone: 2
+        rest_sec: 0
+      - segment: cooldown
+        distance_m: 200
+        zone: 1
+    total_distance_m: 3100
+    total_duration_min:
+      estimated: 65
+      flexible_range: [60, 75]
+    zone_refs: [Z1, Z2]
+    equipment: []

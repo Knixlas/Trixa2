@@ -1,0 +1,124 @@
+# Löppass — Tempo (TE)
+#
+# TE1 — Tempo Endurance: löpning i Z3, "bekvämt obekvämt".
+# Bygger tempotålighet — förmågan att hålla under-tröskel-pace
+# över längre sammanlagd tid. Halvmaraton-distans-relevant zon.
+
+workouts:
+
+  - code: TE1_run_01
+    discipline: run
+    category: TE
+    type_code: TE1
+    name: "Klassiskt tempopass — 20 min"
+    phase_appropriate: [base_2, base_3, build_1, build_2]
+    intent: |
+      Sammanhängande Z3-block. Tempot är "bekvämt obekvämt" — du
+      jobbar, men du behöver inte gå sönder. Andning är djup men
+      kontrollerad, samtal är möjligt i korta meningar.
+    main_set:
+      - segment: warmup
+        duration_min: 15
+        zone: 1
+        description: "Gradvis upp, sista 2 min i Z2"
+      - segment: build
+        duration_min: 3
+        zone: 2
+        description: "Build från Z2 till nedre Z3 — väck temponivån"
+      - segment: main
+        duration_min: 20
+        zone: 3
+        description: "Jämn Z3. Lås andningsrytm tidigt, håll den."
+      - segment: cooldown
+        duration_min: 12
+        zone: 1
+    total_duration_min:
+      estimated: 50
+      flexible_range: [45, 55]
+    zone_refs: [Z1, Z2, Z3]
+    terrain: flat
+    surface: road
+    equipment: []
+    abort_conditions:
+      - "Om HR driver över Z3 utan att fart ökar — sänk farten 10 sek/km, fortsätt"
+      - "Om Z3-fart kostar Z4-puls från start → fel dagsform, avbryt och kör Z2"
+    coach_notes: |
+      Klassiker. Ska kunna upprepas vecka efter vecka i base/build
+      utan att tröttna ut nervsystemet.
+
+  - code: TE1_run_02
+    discipline: run
+    category: TE
+    type_code: TE1
+    name: "Tempo-broken — 2×12 min"
+    phase_appropriate: [base_3, build_1, build_2]
+    intent: |
+      Två tempoblock med kort vila. Mindre totalt psykiskt motstånd
+      än ett 24-minuters block, samma fysiologiska träningseffekt.
+      Bra för adepter som har svårt att hålla pace mentalt över längre
+      sammanhängande tempopass.
+    main_set:
+      - segment: warmup
+        duration_min: 12
+        zone: 1
+      - segment: build
+        duration_min: 3
+        zone: 2
+      - segment: main
+        sets: 2
+        duration_min: 12
+        zone: 3
+        rest_sec: 180
+        description: "Jämn Z3. Vilan: lugn jogg Z1."
+      - segment: cooldown
+        duration_min: 10
+        zone: 1
+    total_duration_min:
+      estimated: 55
+      flexible_range: [50, 60]
+    zone_refs: [Z1, Z2, Z3]
+    terrain: flat
+    surface: road
+    equipment: []
+
+  - code: TE1_run_03
+    discipline: run
+    category: TE
+    type_code: TE1
+    name: "Progressivt tempo"
+    phase_appropriate: [build_1, build_2, peak]
+    intent: |
+      Tre 8-minutersblock där varje block är något snabbare än det
+      föregående: nedre Z3 → mitten Z3 → övre Z3. Tränar förmågan
+      att lyfta pace när trötthet redan finns — race-specifikt
+      för halvmaraton och senare delar av maraton.
+    main_set:
+      - segment: warmup
+        duration_min: 15
+        zone: 1
+      - segment: main
+        duration_min: 8
+        zone: 3
+        rest_sec: 120
+        description: "Nedre Z3 — försiktigt"
+      - segment: main
+        duration_min: 8
+        zone: 3
+        rest_sec: 120
+        description: "Mitten Z3 — lyft 5 sek/km"
+      - segment: main
+        duration_min: 8
+        zone: 3
+        description: "Övre Z3 — strax under tröskel"
+      - segment: cooldown
+        duration_min: 12
+        zone: 1
+    total_duration_min:
+      estimated: 60
+      flexible_range: [55, 65]
+    zone_refs: [Z1, Z3]
+    terrain: flat
+    surface: road
+    equipment: []
+    abort_conditions:
+      - "Om block 2 redan kostar Z4-puls → kör block 3 i samma pace, inte snabbare"
