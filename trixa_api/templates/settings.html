@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}Inställningar — Trixa{% endblock %}
+{% block content %}
+
+<h1>Veckans skelett</h1>
+
+<p>Adept-preferenser för hur veckan läggs upp. "Spelar ingen roll" =
+Trixa väljer (default lör för cykel, sön för löpning, mån som vila).</p>
+
+<form method="post" action="/ui/settings">
+
+  <fieldset>
+    <legend>Långpass</legend>
+
+    <label for="long_bike_day">
+      Dag för cykel-långpass
+      <select id="long_bike_day" name="long_bike_day">
+        <option value="">— spelar ingen roll —</option>
+        {% for day, label in days %}
+        <option value="{{ day }}" {% if athlete.long_bike_day == day %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </label>
+
+    <label for="long_run_day">
+      Dag för löp-långpass
+      <select id="long_run_day" name="long_run_day">
+        <option value="">— spelar ingen roll —</option>
+        {% for day, label in days %}
+        <option value="{{ day }}" {% if athlete.long_run_day == day %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </label>
+  </fieldset>
+
+  <fieldset>
+    <legend>Vilodagar</legend>
+    <p style="font-size: 0.875rem; color: var(--pico-muted-color);">
+      Markera dagar där du föredrar vila. Trixa låser dessa innan schemaläggning.
+      Lämna alla tomma = ingen fast vilodag (Trixa väljer).
+    </p>
+    {% for day, label in days %}
+    <label>
+      <input type="checkbox" name="rest_days" value="{{ day }}"
+        {% if day in athlete.preferred_rest_days %}checked{% endif %}>
+      {{ label }}
+    </label>
+    {% endfor %}
+  </fieldset>
+
+  <button type="submit">Spara</button>
+</form>
+
+{% if saved %}
+<article style="background: #d1fae5; border-color: #059669;">
+  <p><strong>Sparat.</strong> Nästa veckogenerering använder dessa val.</p>
+</article>
+{% endif %}
+
+{% endblock %}

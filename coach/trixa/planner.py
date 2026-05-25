@@ -452,33 +452,62 @@ def _estimated_duration_minutes(workout: dict) -> int:
     return 60
 
 
+_DAYS = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
+
+
+def _neighbor_disciplines(
+    schedule: dict[str, ScheduledWorkout], day: str
+) -> set[str]:
+    """Disciplinerna på dagen före och dagen efter."""
+    idx = _DAY_INDEX[day]
+    out: set[str] = set()
+    for delta in (-1, 1):
+        n_idx = idx + delta
+        if 0 <= n_idx < 7:
+            n_day = _DAYS[n_idx]
+            if n_day in schedule:
+                out.add(schedule[n_day].sport)
+    return out
+
+
+def _can_place(
+    schedule: dict[str, ScheduledWorkout], day: str, discipline: str
+) -> bool:
+    """True om disciplinen inte krockar med någon granne."""
+    return discipline not in _neighbor_disciplines(schedule, day)
+
+
 def _schedule_workouts(
     selected: list[dict],
     discipline_hours: dict[str, float],
     week_start: date,
-    long_day: str,
-    brick_day: str,
+    long_bike_day: str | None,
+    long_run_day: str | None,
     rest_days: list[str],
     strength_code: str,
 ) -> list[ScheduledWorkout]:
     """Fördela utvalda pass över veckodagar.
 
-    Strategi:
-      1. Vilodagar reserveras först.
-      2. Långpass (AE, störst duration) placeras på long_day.
-      3. Brick (BW) placeras på brick_day om finns.
-      4. Kvalitetspass (ME/AC/MF) fördelas på tis/ons/tor med variation
-         (inte två i rad samma disciplin).
-      5. Resterande AE-pass fördelas på lediga dagar.
-      6. Strength läggs på en dag som inte är långpass eller brick.
+    Schemaprinciper (i ordning):
+      1. Vilodagar låses från `preferred_rest_days` (eller default måndag).
+      2. Långpass-bike (största AE bike) på `long_bike_day` (default lördag).
+      3. Långpass-löp (största AE run) på `long_run_day` (default söndag).
+      4. Kvalitetspass (ME/AC/MF) — använd båda-grannar-constraint:
+         placera inte samma disciplin på dag före ELLER dag efter.
+      5. Speed (SS) — samma constraint.
+      6. Volym (AE som inte är långpass) — samma constraint.
+      7. Strength — på en kvalitetsdag som är ledig.
+
+    Brick: BW-kategori = bike+run kombo. När det finns konkreta brick-pass i
+    passbanken (filer brick_*.yaml) placeras de på long_bike_day eftersom
+    brick ÄR bike följt av run i samma pass — inte separata dagar.
     """
-    days = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
-    day_dates = {day: week_start + timedelta(days=_DAY_INDEX[day]) for day in days}
+    day_dates = {day: week_start + timedelta(days=_DAY_INDEX[day]) for day in _DAYS}
     schedule: dict[str, ScheduledWorkout] = {}
 
     # 1. Vilodagar
-    for d in rest_days:
-        if d in days:
+    for d in rest_days or []:
+        if d in _DAYS and d not in schedule:
             schedule[d] = ScheduledWorkout(
                 date=day_dates[d],
                 sport="rest",
@@ -490,7 +519,7 @@ def _schedule_workouts(
                 notes="Aktiv vila eller rörlighet 15-30 min är OK.",
             )
 
-    # Sortera kvalitet vs volym
+    # Sortera passen i kategorier
     def kind_of(w: dict) -> str:
         cat = w.get("category", "")
         if cat in ("ME", "AC", "MF"):
@@ -500,7 +529,7 @@ def _schedule_workouts(
         if cat == "SS":
             return "speed"
         if cat == "BW":
-            return "brick"
+            return "brick"  # bike+run kombo — placeras med bike-långpasset
         if cat == "T":
             return "test"
         return "other"
@@ -508,84 +537,94 @@ def _schedule_workouts(
     quality = [w for w in selected if kind_of(w) == "quality"]
     volume = [w for w in selected if kind_of(w) == "volume"]
     speed = [w for w in selected if kind_of(w) == "speed"]
-    brick = [w for w in selected if kind_of(w) == "brick"]
-    other = [w for w in selected if kind_of(w) not in ("quality", "volume", "speed", "brick")]
+    brick_pool = [w for w in selected if kind_of(w) == "brick"]
+    other = [w for w in selected if kind_of(w) in ("test", "other")]
 
-    # 2. Långpass på long_day — välj längsta AE-pass
-    if long_day in days and long_day not in schedule and volume:
-        long_workout = max(volume, key=_estimated_duration_minutes)
-        volume.remove(long_workout)
-        schedule[long_day] = _scheduled_from_workout(
-            long_workout, day_dates[long_day], is_long=True
-        )
+    # 2-3. Långpass per disciplin
+    def place_long(
+        target_day: str | None,
+        discipline: str,
+        default_day: str,
+    ) -> None:
+        """Placera längsta AE-pass i given disciplin på preferred dag."""
+        if target_day is None:
+            # "spelar ingen roll" — välj default men kontrollera grannar
+            candidates = [default_day] + [d for d in _DAYS if d != default_day]
+        else:
+            candidates = [target_day] + [d for d in _DAYS if d != target_day]
 
-    # 3. Brick på brick_day
-    if brick_day in days and brick_day not in schedule and brick:
-        b = brick.pop(0)
-        schedule[brick_day] = _scheduled_from_workout(b, day_dates[brick_day])
+        # Om brick-pass finns och disciplin är bike — föredra brick istället
+        bike_options = volume + (brick_pool if discipline == "bike" else [])
+        run_options = volume
 
-    # 4. Kvalitetspass — tis/ons/tor företrädesvis, undvik samma disciplin två i rad
-    quality_days = ["tuesday", "wednesday", "thursday", "friday"]
-    last_discipline: str | None = None
-    for q in quality:
-        placed = False
-        for d in quality_days:
+        pool = bike_options if discipline == "bike" else run_options
+        disc_pool = [w for w in pool if w.get("discipline") in (discipline, "brick")]
+        if not disc_pool:
+            return
+
+        chosen = max(disc_pool, key=_estimated_duration_minutes)
+
+        for d in candidates:
             if d in schedule:
                 continue
-            disc = q.get("discipline")
-            # Undvik samma disciplin som föregående schemalagda dag
-            prev_day_idx = _DAY_INDEX[d] - 1
-            prev_day = days[prev_day_idx] if prev_day_idx >= 0 else None
-            if prev_day and prev_day in schedule:
-                if schedule[prev_day].sport == disc and last_discipline == disc:
+            # Tillåt långpass även om granne är samma disciplin —
+            # långpasset är kärnan, det måste placeras
+            schedule[d] = _scheduled_from_workout(chosen, day_dates[d], is_long=True)
+            if chosen in volume:
+                volume.remove(chosen)
+            elif chosen in brick_pool:
+                brick_pool.remove(chosen)
+            return
+
+    place_long(long_bike_day, "bike", default_day="saturday")
+    place_long(long_run_day, "run", default_day="sunday")
+
+    # 4-6. Kvalitet + speed + volym med båda-grannar-constraint
+    def place_with_neighbor_constraint(pass_list: list[dict]) -> None:
+        for w in list(pass_list):
+            disc = w.get("discipline", "?")
+            # Försök hitta en dag där grannarna INTE redan har samma disciplin
+            placed = False
+            for d in _DAYS:
+                if d in schedule:
                     continue
-            schedule[d] = _scheduled_from_workout(q, day_dates[d])
-            last_discipline = disc
-            placed = True
-            break
-        if not placed:
-            # Inget bra spår — placera där det finns plats
-            for d in days:
-                if d not in schedule:
-                    schedule[d] = _scheduled_from_workout(q, day_dates[d])
+                if _can_place(schedule, d, disc):
+                    schedule[d] = _scheduled_from_workout(w, day_dates[d])
+                    pass_list.remove(w)
+                    placed = True
                     break
+            if not placed:
+                # Inget perfekt val — ta första lediga dag
+                for d in _DAYS:
+                    if d not in schedule:
+                        schedule[d] = _scheduled_from_workout(w, day_dates[d])
+                        pass_list.remove(w)
+                        break
 
-    # 5. Volym-pass fyller resterande
-    for v in volume:
-        for d in days:
-            if d not in schedule:
-                schedule[d] = _scheduled_from_workout(v, day_dates[d])
-                break
+    # Ordning: kvalitet (hårdast → prio), sen speed (lätta tillägg), sen volym, sen övrigt
+    place_with_neighbor_constraint(quality)
+    place_with_neighbor_constraint(speed)
+    place_with_neighbor_constraint(volume)
+    place_with_neighbor_constraint(other)
+    place_with_neighbor_constraint(brick_pool)  # om kvar (oplacerade brick)
 
-    # 6. Speed och övrigt — hängs på lediga dagar
-    for s in speed + other:
-        for d in days:
-            if d not in schedule:
-                schedule[d] = _scheduled_from_workout(s, day_dates[d])
-                break
-
-    # 7. Strength — välj en ledig kvalitetsdag (företrädesvis ons eller fre),
-    # eller hängs på samma dag som ett kort pass
+    # 7. Strength på en ledig kvalitetsdag
     if strength_code and strength_code != "none":
-        strength_day = None
         for d in ("wednesday", "friday", "tuesday", "thursday"):
             if d not in schedule:
-                strength_day = d
+                schedule[d] = ScheduledWorkout(
+                    date=day_dates[d],
+                    sport="strength",
+                    code=f"strength_{strength_code}",
+                    title=f"Styrka — {strength_code}",
+                    category="STR",
+                    duration_minutes=45,
+                    intensity=strength_code,
+                    notes=f"Protokoll: {strength_code}. Se data/strength.yaml för övningar och reps.",
+                )
                 break
-        if strength_day:
-            schedule[strength_day] = ScheduledWorkout(
-                date=day_dates[strength_day],
-                sport="strength",
-                code=f"strength_{strength_code}",
-                title=f"Styrka — {strength_code}",
-                category="STR",
-                duration_minutes=45,
-                intensity=strength_code,
-                notes=f"Protokoll: {strength_code}. Se data/strength.yaml för övningar och reps.",
-            )
 
-    # Returnera sorterat per datum
-    return [schedule[d] for d in days if d in schedule]
+    return [schedule[d] for d in _DAYS if d in schedule]
 
 
 def _scheduled_from_workout(
@@ -822,16 +861,18 @@ def generate_week(
                 continue
             selected.append(chosen)
 
-    # 5. Schemalägg på dagar
-    long_day = "saturday"  # TODO: läs från athlete_config eller athlete-row
-    brick_day = "sunday"
-    rest_days = ["monday"]
+    # 5. Schemalägg på dagar — läs adept-preferenser från athlete-row
+    long_bike_day = athlete.get("long_bike_day")  # None = "spelar ingen roll"
+    long_run_day = athlete.get("long_run_day")
+    rest_days_raw = athlete.get("preferred_rest_days") or ["monday"]
+    rest_days = rest_days_raw if isinstance(rest_days_raw, list) else ["monday"]
+
     scheduled = _schedule_workouts(
         selected=selected,
         discipline_hours=discipline_hours,
         week_start=week_start,
-        long_day=long_day,
-        brick_day=brick_day,
+        long_bike_day=long_bike_day,
+        long_run_day=long_run_day,
         rest_days=rest_days,
         strength_code=decisions["strength_protocol"],
     )
