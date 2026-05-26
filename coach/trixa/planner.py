@@ -166,6 +166,144 @@ def _fetch_latest_weekly_report(client, athlete_id: str) -> dict | None:
     return res.data[0] if res.data else None
 
 
+# ---------- Garmin-data (primärkälla för OT-bedömning + faktisk volym) ----------
+
+
+def _fetch_garmin_metrics(
+    client, garmin_athlete_id: str, today: date, days_back: int = 28
+) -> list[dict]:
+    """Hämta daily_metrics från garmin_coach-schemat. Nyaste först."""
+    if not garmin_athlete_id:
+        return []
+    start = (today - timedelta(days=days_back)).isoformat()
+    try:
+        res = (
+            client.schema("garmin_coach")
+            .table("daily_metrics")
+            .select(
+                "metric_date, resting_hr, hrv_last_night_ms, hrv_baseline_low,"
+                " hrv_baseline_high, sleep_score, readiness_score, stress_avg,"
+                " acute_load, chronic_load, load_ratio"
+            )
+            .eq("athlete_id", garmin_athlete_id)
+            .gte("metric_date", start)
+            .order("metric_date", desc=True)
+            .execute()
+        )
+        return res.data or []
+    except Exception:  # noqa: BLE001
+        return []
+
+
+def _fetch_actual_weekly_hours(
+    client, garmin_athlete_id: str, today: date, weeks: int = 4
+) -> float | None:
+    """Snitt-träningstimmar per vecka från garmin_coach.activities."""
+    if not garmin_athlete_id:
+        return None
+    start = (today - timedelta(weeks=weeks)).isoformat()
+    try:
+        res = (
+            client.schema("garmin_coach")
+            .table("activities")
+            .select("duration_sec")
+            .eq("athlete_id", garmin_athlete_id)
+            .gte("start_time", start)
+            .execute()
+        )
+    except Exception:  # noqa: BLE001
+        return None
+    if not res.data:
+        return None
+    total_sec = sum((row.get("duration_sec") or 0) for row in res.data)
+    if total_sec == 0:
+        return None
+    return total_sec / 3600.0 / weeks
+
+
+# Helpers för signal-beräkning (kopior av logik från coach/engine/garmin.py
+# men anpassade för postgrest-data istället för QueryFn).
+
+
+def _collect_nonnull(rows: list[dict], key: str) -> list[float]:
+    return [float(row[key]) for row in rows if row.get(key) is not None]
+
+
+def _avg(values: list[float]) -> float | None:
+    return sum(values) / len(values) if values else None
+
+
+def _compute_rhr_delta(metrics: list[dict]) -> float | None:
+    """Senaste RHR minus median av baseline-pool (dag 8-28)."""
+    if len(metrics) < 8:
+        return None
+    latest = metrics[0]
+    latest_rhr = latest.get("resting_hr")
+    baseline = _collect_nonnull(metrics[7:], "resting_hr")
+    if latest_rhr is None or not baseline:
+        return None
+    return float(latest_rhr) - sorted(baseline)[len(baseline) // 2]
+
+
+def _compute_hrv_pct_below(metrics: list[dict]) -> float | None:
+    if not metrics:
+        return None
+    latest = metrics[0]
+    hrv = latest.get("hrv_last_night_ms")
+    baseline_low = latest.get("hrv_baseline_low")
+    if hrv is None or baseline_low is None or baseline_low == 0:
+        return None
+    delta_pct = (float(baseline_low) - float(hrv)) / float(baseline_low) * 100.0
+    return max(0.0, delta_pct)
+
+
+def _compute_sleep_avg(metrics: list[dict], days: int = 7) -> float | None:
+    scores = _collect_nonnull(metrics[:days], "sleep_score")
+    return _avg(scores)
+
+
+def _compute_sleep_low_streak(metrics: list[dict], threshold: int = 60) -> int:
+    streak = 0
+    for row in metrics:
+        score = row.get("sleep_score")
+        if score is None or score >= threshold:
+            break
+        streak += 1
+    return streak
+
+
+def _compute_consecutive_high_load_weeks(metrics: list[dict]) -> int | None:
+    """Räkna sammanhängande veckor med ACWR > 1.3 (skadlig zon)."""
+    if len(metrics) < 14:
+        return None
+    by_week: dict[tuple[int, int], list[float]] = {}
+    for row in metrics:
+        ratio = row.get("load_ratio")
+        if ratio is None:
+            continue
+        d = row.get("metric_date")
+        if isinstance(d, str):
+            try:
+                d = date.fromisoformat(d[:10])
+            except ValueError:
+                continue
+        if not isinstance(d, date):
+            continue
+        iso_year, iso_week, _ = d.isocalendar()
+        by_week.setdefault((iso_year, iso_week), []).append(float(ratio))
+    if not by_week:
+        return None
+    sorted_weeks = sorted(by_week.keys(), reverse=True)
+    streak = 0
+    for wk in sorted_weeks:
+        avg_ratio = sum(by_week[wk]) / len(by_week[wk])
+        if avg_ratio > 1.3:
+            streak += 1
+        else:
+            break
+    return streak
+
+
 # ---------- Bygg engine-state ----------
 
 
@@ -220,8 +358,10 @@ def _build_athlete_state(
     athlete: dict,
     weekly_report: dict | None,
     today: date,
+    actual_weekly_hours: float | None = None,
+    garmin_metrics: list[dict] | None = None,
 ) -> AthleteState:
-    """Översätt athlete_profiles + weekly_report → AthleteState."""
+    """Översätt athlete_profiles + weekly_report + Garmin-data → AthleteState."""
     phase_state = athlete.get("phase_state") or {}
 
     # Self-rapporterad återhämtning från senaste veckorapport
@@ -231,10 +371,30 @@ def _build_athlete_state(
         energy = weekly_report.get("energy") or 0
         feels_rested = sleep >= 4 and energy >= 4
 
+    # Faktisk veckotid vinner över deklarerad
+    declared = float(athlete.get("weekly_hours") or 0)
+    if actual_weekly_hours is not None and actual_weekly_hours > 0:
+        weekly_hours = actual_weekly_hours
+    else:
+        weekly_hours = declared
+
+    # OT-tecken från Garmin (snabb-koll innan full assessment)
+    has_ot = False
+    if garmin_metrics:
+        latest = garmin_metrics[0]
+        readiness = latest.get("readiness_score")
+        if readiness is not None and readiness < 60:
+            has_ot = True
+        # HRV under baseline_low?
+        hrv = latest.get("hrv_last_night_ms")
+        baseline_low = latest.get("hrv_baseline_low")
+        if hrv and baseline_low and hrv < float(baseline_low) * 0.9:
+            has_ot = True
+
     return AthleteState(
-        weekly_training_hours=float(athlete.get("weekly_hours") or 0),
+        weekly_training_hours=weekly_hours,
         has_injury=_has_significant_injury(athlete),
-        has_overtraining_signs=False,  # härleds från Garmin-data i nästa iteration
+        has_overtraining_signs=has_ot,
         weeks_until_next_race=_weeks_until_race(athlete, today),
         last_race_completed_within_days=None,
         current_phase=phase_state.get("current_phase"),
@@ -247,20 +407,45 @@ def _build_athlete_state(
 def _build_ot_signals(
     athlete: dict,
     weekly_report: dict | None,
+    garmin_metrics: list[dict] | None = None,
 ) -> OvertrainingSignals:
-    """Bygg OT-signaler från strukturerade fält. Garmin-data kommer senare."""
+    """Bygg OT-signaler från Garmin-data + adept-rapporter.
+
+    Garmin är primärkälla för objektiva signaler (RHR, HRV, sömn, ACWR).
+    Weekly report ger subjektiva signaler (motivation, energi).
+    active_concerns ger injury_present-flaggan.
+    """
+    # Objektiva signaler från Garmin
+    rhr_delta = None
+    hrv_pct = None
+    sleep_avg = None
+    sleep_low_streak = None
+    high_load_streak = None
+    if garmin_metrics:
+        rhr_delta = _compute_rhr_delta(garmin_metrics)
+        hrv_pct = _compute_hrv_pct_below(garmin_metrics)
+        sleep_avg = _compute_sleep_avg(garmin_metrics, days=7)
+        sleep_low_streak = _compute_sleep_low_streak(garmin_metrics)
+        high_load_streak = _compute_consecutive_high_load_weeks(garmin_metrics)
+
+    # Subjektiva från weekly_report
     motivation_low = False
     poor_recovery = False
     persistent_fatigue = False
     if weekly_report:
         motivation_low = (weekly_report.get("motivation") or 5) <= 2
-        sleep = weekly_report.get("sleep_quality") or 5
+        sleep_q = weekly_report.get("sleep_quality") or 5
         soreness = weekly_report.get("soreness") or 5
-        poor_recovery = sleep <= 2 or soreness <= 2
+        poor_recovery = sleep_q <= 2 or soreness <= 2
         energy = weekly_report.get("energy") or 5
         persistent_fatigue = energy <= 2
 
     return OvertrainingSignals(
+        rhr_bpm_over_baseline=rhr_delta,
+        hrv_pct_below_baseline=hrv_pct,
+        sleep_score_avg_7d=sleep_avg,
+        sleep_consecutive_low_days=sleep_low_streak,
+        consecutive_high_load_weeks=high_load_streak,
         motivation_low=motivation_low,
         poor_recovery=poor_recovery,
         muscle_fatigue_persistent=persistent_fatigue,
@@ -972,14 +1157,62 @@ def generate_week(
     weekly_report = _fetch_latest_weekly_report(client, athlete_id)
     recent_workouts = _fetch_recent_workouts(client, athlete_id, weeks_back=4)
 
-    # 2. Bygg engine-input
-    state = _build_athlete_state(athlete, weekly_report, today)
-    ot_signals = _build_ot_signals(athlete, weekly_report)
+    # 2. Hämta Garmin-data (primärkälla för faktisk volym + OT-signaler)
+    garmin_id = athlete.get("garmin_athlete_id")
+    garmin_metrics = _fetch_garmin_metrics(client, garmin_id, today, days_back=28)
+    actual_weekly_hours = _fetch_actual_weekly_hours(client, garmin_id, today, weeks=4)
+
+    # Bygg engine-input
+    state = _build_athlete_state(
+        athlete, weekly_report, today,
+        actual_weekly_hours=actual_weekly_hours,
+        garmin_metrics=garmin_metrics,
+    )
+    ot_signals = _build_ot_signals(athlete, weekly_report, garmin_metrics=garmin_metrics)
 
     # 3. Kör engine
     decisions = _run_engine(state, ot_signals, week_in_period, weeks_in_period)
     decisions["_weeks_in_period"] = weeks_in_period
     decisions, honored = _apply_overrides(decisions, overrides)
+
+    # Spårbarhet: visa vad Trixa "ser" av Garmin-data
+    decisions["_data_sources"] = {
+        "actual_weekly_hours_4w_avg": (
+            round(actual_weekly_hours, 1) if actual_weekly_hours else None
+        ),
+        "declared_weekly_hours": float(athlete.get("weekly_hours") or 0),
+        "garmin_metrics_days": len(garmin_metrics) if garmin_metrics else 0,
+        "latest_metric_date": (
+            garmin_metrics[0].get("metric_date") if garmin_metrics else None
+        ),
+        "latest_hrv": (
+            garmin_metrics[0].get("hrv_last_night_ms") if garmin_metrics else None
+        ),
+        "latest_sleep_score": (
+            garmin_metrics[0].get("sleep_score") if garmin_metrics else None
+        ),
+        "latest_readiness": (
+            garmin_metrics[0].get("readiness_score") if garmin_metrics else None
+        ),
+        "ot_signals": {
+            "rhr_bpm_over_baseline": ot_signals.rhr_bpm_over_baseline,
+            "hrv_pct_below_baseline": ot_signals.hrv_pct_below_baseline,
+            "sleep_score_avg_7d": ot_signals.sleep_score_avg_7d,
+            "sleep_consecutive_low_days": ot_signals.sleep_consecutive_low_days,
+            "consecutive_high_load_weeks": ot_signals.consecutive_high_load_weeks,
+        },
+    }
+
+    # Volym-gap-varning
+    if (
+        actual_weekly_hours is not None
+        and athlete.get("weekly_hours")
+        and actual_weekly_hours < float(athlete["weekly_hours"]) * 0.6
+    ):
+        decisions["_warnings"] = decisions.get("_warnings", []) + [
+            f"Faktisk volym ({actual_weekly_hours:.1f}h/v) är mycket lägre"
+            f" än deklarerad ({athlete['weekly_hours']}h/v)"
+        ]
 
     phase = decisions["phase_recommendation"]["phase"]
     period = decisions["phase_recommendation"]["period"]
@@ -1026,7 +1259,7 @@ def generate_week(
         # I disciplin med partial impact: skippa hårda kategorier, behåll bara AE
         effective_cats_per_disc = {disc: cat for disc in active_sports}
         for disc, effective_cat in effective_cats_per_disc.items():
-            if disc in partial_disciplines and cat in ("ME", "AC", "MF", "TE"):
+            if disc in partial_disciplines and cat in ("ME", "AC", "MF", "TE", "SS"):
                 # Hård träning i partial-disciplin → ersätt med AE-volym
                 if "AE" not in categories:
                     # Lägg ändå till AE-pass — engine sa inte AE men skada kräver det
