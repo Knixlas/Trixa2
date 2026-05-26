@@ -1080,7 +1080,9 @@ def _persist_plan(client, plan: WeekPlan, race_name: str, race_date: str | None)
     plan_id = _ensure_training_plan(client, plan.athlete_id, race_name, race_date)
     week_id = _upsert_training_week(client, plan_id, plan.week_start, plan.phase)
 
-    rows = [wo.to_db_row(plan.athlete_id, week_id) for wo in plan.workouts if wo.sport != "rest"]
+    # Vila är ett pass i sin egen rätt — sparas i workouts med sport='rest'.
+    # check_constraint på workouts.sport tillåter värdena: swim/bike/run/strength/rest.
+    rows = [wo.to_db_row(plan.athlete_id, week_id) for wo in plan.workouts]
     if rows:
         client.table("workouts").insert(rows).execute()
 
