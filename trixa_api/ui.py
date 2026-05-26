@@ -488,6 +488,59 @@ def settings_submit(
     return settings_view(request, saved=True)
 
 
+# ---------- Debug: vad Trixa ser ----------
+
+
+@router.get("/debug", response_class=HTMLResponse)
+def debug_view(request: Request) -> HTMLResponse:
+    """Transparens-vy: alla datakällor + engine-beslut för aktuell vecka."""
+    user_id = _current_user_id(request)
+    week_start = _monday_of(date_type.today())
+
+    try:
+        plan = generate_week(
+            athlete_user_id=user_id,
+            week_start=week_start,
+            dry_run=True,
+        )
+    except ValueError as exc:
+        raise HTTPException(404, str(exc))
+
+    # Hämta concerns separat (visas i en egen tabell)
+    client = get_postgrest()
+    a_res = (
+        client.table("athlete_profiles")
+        .select("active_concerns")
+        .eq("user_id", user_id)
+        .execute()
+    )
+    concerns = a_res.data[0].get("active_concerns") or [] if a_res.data else []
+
+    ds = plan.engine_decisions.get("_data_sources", {})
+    ot = ds.get("ot_signals", {})
+
+    # Gap-procent (faktisk / deklarerat)
+    actual = ds.get("actual_weekly_hours_4w_avg")
+    declared = ds.get("declared_weekly_hours") or 0
+    gap_pct = round(actual / declared * 100) if (actual and declared > 0) else None
+
+    return _render(
+        "debug.html",
+        {
+            "request": request,
+            "plan": plan,
+            "ds": ds,
+            "ot": ot,
+            "gap_pct": gap_pct,
+            "concerns": concerns,
+            "data_warnings": plan.engine_decisions.get("_warnings", []),
+            "raw_json": json.dumps(
+                plan.to_dict(), indent=2, ensure_ascii=False, default=str
+            ),
+        },
+    )
+
+
 # ---------- Hälsa (strukturerad skaderapport) ----------
 
 

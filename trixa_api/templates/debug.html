@@ -1,0 +1,225 @@
+{% extends "base.html" %}
+{% block title %}Debug — vad Trixa ser{% endblock %}
+{% block content %}
+
+<h1>Vad Trixa ser</h1>
+
+<p>Fullständig transparens — alla datakällor och engine-beslut som driver
+veckogenereringen. Använd för att verifiera att Trixa läser din verklighet
+korrekt, inte deklarerad data.</p>
+
+<section>
+  <h2>Datakällor</h2>
+  <table>
+    <tr><th>Signal</th><th>Värde</th><th>Källa</th></tr>
+    <tr>
+      <td>Veckotimmar — faktiskt (4v snitt)</td>
+      <td>
+        {% if ds.actual_weekly_hours_4w_avg is not none %}
+          <strong>{{ ds.actual_weekly_hours_4w_avg }}h</strong>
+        {% else %}
+          <em>saknas (ingen Garmin-data)</em>
+        {% endif %}
+      </td>
+      <td><code>garmin_coach.activities</code></td>
+    </tr>
+    <tr>
+      <td>Veckotimmar — deklarerat</td>
+      <td>{{ ds.declared_weekly_hours }}h</td>
+      <td><code>athlete_profiles.weekly_hours</code></td>
+    </tr>
+    {% if gap_pct is not none %}
+    <tr>
+      <td>Volym-gap (faktisk / deklarerad)</td>
+      <td>
+        <strong>{{ gap_pct }}%</strong>
+        {% if gap_pct < 60 %}<span class="badge warning">låg</span>{% endif %}
+      </td>
+      <td>beräknad</td>
+    </tr>
+    {% endif %}
+    <tr>
+      <td>Daily metrics-dagar (senaste 28)</td>
+      <td>{{ ds.garmin_metrics_days }} dagar</td>
+      <td><code>garmin_coach.daily_metrics</code></td>
+    </tr>
+    <tr>
+      <td>Senaste data</td>
+      <td>{{ ds.latest_metric_date or "—" }}</td>
+      <td>sync timestamp</td>
+    </tr>
+    <tr>
+      <td>Senaste HRV</td>
+      <td>{{ ds.latest_hrv or "—" }} ms</td>
+      <td>Garmin</td>
+    </tr>
+    <tr>
+      <td>Senaste sömnpoäng</td>
+      <td>{{ ds.latest_sleep_score or "—" }}/100</td>
+      <td>Garmin</td>
+    </tr>
+    <tr>
+      <td>Senaste readiness</td>
+      <td>{{ ds.latest_readiness or "—" }}/100</td>
+      <td>Garmin</td>
+    </tr>
+  </table>
+</section>
+
+<section>
+  <h2>Överträningssignaler</h2>
+  <p style="font-size: 0.875rem; color: var(--pico-muted-color);">
+    Engine bygger en strukturerad bedömning från dessa värden. Tröskelvärdena
+    ligger i <code>coach/data/overtraining.yaml</code>.
+  </p>
+  <table>
+    <tr><th>Signal</th><th>Aktuellt</th><th>Tröskelvärde</th></tr>
+    <tr>
+      <td>RHR över baseline-median</td>
+      <td>
+        {% if ot.rhr_bpm_over_baseline is none %}
+          <em>saknas</em>
+        {% else %}
+          {{ "%.1f" | format(ot.rhr_bpm_over_baseline) }} bpm
+        {% endif %}
+      </td>
+      <td>+5 = förhöjd, +10 = kraftigt</td>
+    </tr>
+    <tr>
+      <td>HRV under baseline_low</td>
+      <td>
+        {% if ot.hrv_pct_below_baseline is none %}
+          <em>saknas</em>
+        {% else %}
+          {{ "%.1f" | format(ot.hrv_pct_below_baseline) }}%
+        {% endif %}
+      </td>
+      <td>10% = sänkt, 20% = kraftigt</td>
+    </tr>
+    <tr>
+      <td>Sömnpoäng 7d-snitt</td>
+      <td>
+        {% if ot.sleep_score_avg_7d is none %}
+          <em>saknas</em>
+        {% else %}
+          {{ "%.1f" | format(ot.sleep_score_avg_7d) }}/100
+        {% endif %}
+      </td>
+      <td>&lt;60 = låg</td>
+    </tr>
+    <tr>
+      <td>Dagar i rad med dålig sömn</td>
+      <td>{{ ot.sleep_consecutive_low_days if ot.sleep_consecutive_low_days is not none else "—" }}</td>
+      <td>≥3 = flagga</td>
+    </tr>
+    <tr>
+      <td>Tunga veckor i rad (ACWR>1.3)</td>
+      <td>{{ ot.consecutive_high_load_weeks if ot.consecutive_high_load_weeks is not none else "—" }}</td>
+      <td>&gt;3 = flagga</td>
+    </tr>
+  </table>
+</section>
+
+<section>
+  <h2>Engine-beslut</h2>
+  <table>
+    <tr>
+      <td><strong>Fas</strong></td>
+      <td>{{ plan.phase }}{% if plan.period %} ({{ plan.period }}){% endif %}</td>
+    </tr>
+    <tr>
+      <td><strong>Motivering</strong></td>
+      <td><em>{{ plan.engine_decisions.phase_recommendation.reason }}</em></td>
+    </tr>
+    <tr>
+      <td><strong>Kategorier denna vecka</strong></td>
+      <td>{{ plan.categories | join(", ") }}</td>
+    </tr>
+    <tr>
+      <td><strong>Disciplinfördelning</strong></td>
+      <td>
+        {% for d, h in plan.discipline_hours.items() %}
+        {{ d }} {{ "%.1f" | format(h) }}h{% if not loop.last %}, {% endif %}
+        {% endfor %}
+      </td>
+    </tr>
+    <tr>
+      <td><strong>Styrkeprotokoll</strong></td>
+      <td>{{ plan.strength_protocol }}</td>
+    </tr>
+    <tr>
+      <td><strong>Överträningsnivå</strong></td>
+      <td>
+        <span class="badge {{ 'critical' if plan.overtraining_level == 'severe' else 'warning' if plan.overtraining_level == 'moderate' else 'info' }}">
+          {{ plan.overtraining_level }}
+        </span>
+        {% if plan.overtraining_flags %}
+          — flaggor: {{ plan.overtraining_flags | join(", ") }}
+        {% endif %}
+      </td>
+    </tr>
+    {% if plan.plan_adjustment %}
+    <tr>
+      <td><strong>Planjustering</strong></td>
+      <td>
+        -{{ plan.plan_adjustment.volume_reduction_pct }}% volym,
+        -{{ plan.plan_adjustment.intensity_reduction_pct }}% intensitet,
+        +{{ plan.plan_adjustment.extra_rest_days }} vilodagar
+        {% if plan.plan_adjustment.consider_medical_consultation %}
+        <br><strong style="color: #dc2626;">Överväg läkarkontakt</strong>
+        {% endif %}
+      </td>
+    </tr>
+    {% endif %}
+  </table>
+</section>
+
+<section>
+  <h2>Aktiva concerns (skador/tillstånd)</h2>
+  {% if concerns %}
+  <table>
+    <tr><th>Namn</th><th>Severity</th><th>Swim</th><th>Bike</th><th>Run</th><th>Strength</th></tr>
+    {% for c in concerns %}
+    <tr>
+      <td>{{ c.name }}{% if c.location %} <small>({{ c.location }})</small>{% endif %}</td>
+      <td>{{ c.severity or "—" }}</td>
+      {% set imp = c.impact_per_discipline or {} %}
+      <td><code>{{ imp.swim or "none" }}</code></td>
+      <td><code>{{ imp.bike or "none" }}</code></td>
+      <td><code>{{ imp.run or "none" }}</code></td>
+      <td><code>{{ imp.strength or "none" }}</code></td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% else %}
+  <p><em>Inga rapporterade.</em></p>
+  {% endif %}
+</section>
+
+{% if plan.warnings %}
+<section>
+  <h2>Varningar</h2>
+  <ul>
+    {% for w in plan.warnings %}<li>{{ w }}</li>{% endfor %}
+  </ul>
+</section>
+{% endif %}
+
+{% if data_warnings %}
+<section>
+  <h2>Datakälls-varningar</h2>
+  <ul>
+    {% for w in data_warnings %}<li>{{ w }}</li>{% endfor %}
+  </ul>
+</section>
+{% endif %}
+
+<section>
+  <h2>Rå engine-output (JSON)</h2>
+  <details>
+    <summary>Visa</summary>
+    <pre style="font-size: 0.75rem; max-height: 400px; overflow: auto;">{{ raw_json }}</pre>
+  </details>
+</section>
+
+{% endblock %}
