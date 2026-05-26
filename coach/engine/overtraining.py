@@ -44,6 +44,7 @@ class OvertrainingSignals:
     hrv_pct_below_baseline: float | None = None
     sleep_score_avg_7d: float | None = None
     sleep_consecutive_low_days: int | None = None
+    readiness_score: float | None = None
     performance_drop_pct: float | None = None
     consecutive_high_load_weeks: int | None = None
 
@@ -134,6 +135,14 @@ def assess_overtraining(
         and signals.sleep_consecutive_low_days >= thresholds["sleep"]["consecutive_low_days_flag"]
     ):
         flags.append("flera dagar i rad med dålig sömn")
+
+    if signals.readiness_score is not None and "readiness" in thresholds:
+        readiness_thr = thresholds["readiness"]
+        if signals.readiness_score < readiness_thr["severely_low_threshold"]:
+            flags.append("readiness kraftigt sänkt")
+            severe_flags.append("readiness kraftigt sänkt")
+        elif signals.readiness_score < readiness_thr["low_threshold"]:
+            flags.append("readiness sänkt")
 
     if signals.performance_drop_pct is not None:
         if signals.performance_drop_pct >= thresholds["performance"]["drop_pct_vs_expected"]:

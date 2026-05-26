@@ -421,12 +421,18 @@ def _build_ot_signals(
     sleep_avg = None
     sleep_low_streak = None
     high_load_streak = None
+    readiness = None
     if garmin_metrics:
         rhr_delta = _compute_rhr_delta(garmin_metrics)
         hrv_pct = _compute_hrv_pct_below(garmin_metrics)
         sleep_avg = _compute_sleep_avg(garmin_metrics, days=7)
         sleep_low_streak = _compute_sleep_low_streak(garmin_metrics)
         high_load_streak = _compute_consecutive_high_load_weeks(garmin_metrics)
+        # Senaste readiness — Garmin uppdaterar denna dagligen baserat på
+        # sömn, HRV-trend, stress, aktivitet. 0-100.
+        readiness = garmin_metrics[0].get("readiness_score")
+        if readiness is not None:
+            readiness = float(readiness)
 
     # Subjektiva från weekly_report
     motivation_low = False
@@ -445,6 +451,7 @@ def _build_ot_signals(
         hrv_pct_below_baseline=hrv_pct,
         sleep_score_avg_7d=sleep_avg,
         sleep_consecutive_low_days=sleep_low_streak,
+        readiness_score=readiness,
         consecutive_high_load_weeks=high_load_streak,
         motivation_low=motivation_low,
         poor_recovery=poor_recovery,
@@ -1199,6 +1206,7 @@ def generate_week(
             "hrv_pct_below_baseline": ot_signals.hrv_pct_below_baseline,
             "sleep_score_avg_7d": ot_signals.sleep_score_avg_7d,
             "sleep_consecutive_low_days": ot_signals.sleep_consecutive_low_days,
+            "readiness_score": ot_signals.readiness_score,
             "consecutive_high_load_weeks": ot_signals.consecutive_high_load_weeks,
         },
     }

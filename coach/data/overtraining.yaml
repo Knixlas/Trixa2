@@ -50,6 +50,11 @@ thresholds:
     # Sömnpoäng (0-100 från Garmin) — låg flera dagar i rad
     low_score_threshold: 60
     consecutive_low_days_flag: 3
+  readiness:
+    # Garmin Body Battery / Readiness Score (0-100). Subjektiv mätning av
+    # återhämtningsstatus baserad på sömn, HRV-trend, stress, aktivitet.
+    low_threshold: 60       # under 60 = trött, en flagga
+    severely_low_threshold: 40  # under 40 = utmattad, severe-flagga
   performance:
     # Hur många % under förväntad prestation (puls/watt/pace) räknas som droppe
     drop_pct_vs_expected: 5
