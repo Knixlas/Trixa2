@@ -94,6 +94,7 @@ class GarminClient:
     def _load_tokens_from_supabase(self) -> tuple[str, str] | None:
         """Las tokens fran garmin_coach.oauth_tokens. Returnerar (di_token, di_refresh)."""
         if self._supabase is None:
+            print("[token-store] Supabase-klient saknas — hoppar over", flush=True)
             return None
         try:
             res = (
@@ -104,14 +105,20 @@ class GarminClient:
                 .execute()
             )
         except Exception as e:  # noqa: BLE001
-            logger.warning("Kunde inte lasa tokens fran Supabase: %s", e)
+            print(f"[token-store] Supabase-lasning failade: {type(e).__name__}: {e}", flush=True)
             return None
         if not res.data:
+            print(f"[token-store] Supabase: ingen rad for email={self._email}", flush=True)
             return None
         row = res.data[0]
         if not row.get("di_token") or not row.get("di_refresh_token"):
+            print("[token-store] Supabase: rad finns men tokens ar None", flush=True)
             return None
-        logger.info("Tokens lasta fran Supabase (uppdaterade %s)", row.get("updated_at"))
+        print(
+            f"[token-store] Supabase: tokens lasta (uppdaterade {row.get('updated_at')}, "
+            f"di_token={len(row['di_token'])} chars, refresh={len(row['di_refresh_token'])} chars)",
+            flush=True,
+        )
         return row["di_token"], row["di_refresh_token"]
 
     def _load_tokens_from_file(self) -> tuple[str, str] | None:
@@ -142,8 +149,10 @@ class GarminClient:
             tokens = self._load_tokens_from_file()
             source = "fil"
         if tokens is None:
+            print("[token-store] BADE Supabase och fil tomma — kor full login", flush=True)
             return None
         di_token, di_refresh = tokens
+        print(f"[token-store] Anvander tokens fran: {source}", flush=True)
 
         # Initiera Garmin-objektet utan att direkt logga in.
         # api.client skapas i __init__, sa vi kan stoppa in tokens dar.
@@ -160,6 +169,7 @@ class GarminClient:
             # refresha tokens internt under detta anrop (Garmin anvander
             # single-use refresh tokens), sa vi maste spara tillbaka direkt.
             api.get_user_profile()
+            print(f"[token-store] Tokens VERIFIERADE (kalla: {source})", flush=True)
             logger.info("Inloggad via cachade tokens (kalla: %s)", source)
             try:
                 self._dump_tokens(api)
@@ -167,6 +177,11 @@ class GarminClient:
                 logger.warning("Kunde inte spara refreshade tokens: %s", e)
             return api
         except Exception as e:
+            print(
+                f"[token-store] Tokens AVVISADE av Garmin (kalla: {source}): "
+                f"{type(e).__name__}: {str(e)[:200]}",
+                flush=True,
+            )
             logger.info("Cachade tokens ogiltiga (%s: %s) - kor full login",
                         type(e).__name__, e)
             return None
