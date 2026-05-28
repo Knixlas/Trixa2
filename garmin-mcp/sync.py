@@ -37,12 +37,13 @@ def _make_engine() -> SyncEngine:
     if not supabase_url or not supabase_key:
         sys.exit("FEL: SUPABASE_URL och SUPABASE_SERVICE_ROLE_KEY måste finnas i .env")
     
+    supabase = create_client(supabase_url, supabase_key)
     garmin = GarminClient(
         email=os.getenv("GARMIN_EMAIL"),
         password=os.getenv("GARMIN_PASSWORD"),
         token_dir=Path(os.getenv("GARMIN_TOKEN_DIR", "~/.garminconnect")).expanduser(),
+        supabase_client=supabase,  # Supabase som primary token-store
     )
-    supabase = create_client(supabase_url, supabase_key)
     user_id = os.getenv("SUPABASE_USER_ID") or None
     return SyncEngine(garmin=garmin, supabase=supabase, user_id=user_id)
 
