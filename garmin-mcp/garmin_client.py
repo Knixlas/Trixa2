@@ -54,7 +54,10 @@ class GarminClient:
             raise ValueError(
                 "GARMIN_EMAIL och GARMIN_PASSWORD maste finnas i miljon (.env)."
             )
-        self._email = email
+        # Normalisera email — GitHub Secrets kan innehalla trailing newline
+        # eller whitespace fran klipp-och-klistra. lower() for konsistens
+        # mellan olika source-system (case-insensitive matchning i tabell).
+        self._email = email.strip().lower()
         self._password = password
         self._token_dir = token_dir
         self._token_path = token_dir / TOKEN_FILE
@@ -96,6 +99,12 @@ class GarminClient:
         if self._supabase is None:
             print("[token-store] Supabase-klient saknas — hoppar over", flush=True)
             return None
+        # Debug: visa email + dess langd sa vi kan se om secret innehaller
+        # whitespace/newline som strip() redan rensat bort.
+        print(
+            f"[token-store] Soker oauth_tokens for email='{self._email}' (len={len(self._email)})",
+            flush=True,
+        )
         try:
             res = (
                 self._supabase.schema("garmin_coach")
