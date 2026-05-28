@@ -3,9 +3,16 @@ GarminClient - tunn wrapper runt python-garminconnect med token-caching
 och hantering av aterinloggning + MFA.
 
 Garminconnect 0.3.x anvander en intern "di_token" + "di_refresh_token"
-istallet for de gamla oauth1/oauth2-tokenfilerna. Vi sparar dessa som
-en enkel JSON och aterstaller dem genom direkt attribut-tilldelning
-pa Garmin-objektets klient.
+istallet for de gamla oauth1/oauth2-tokenfilerna.
+
+Token-storage:
+- Primar: Supabase garmin_coach.oauth_tokens (om supabase-klient given)
+- Sekundar/backup: fil garmin_tokens.json i token_dir
+- Vid load: las Supabase forst, fall back till fil
+- Vid save: skriv till BAGGE for redundans
+
+Detta loser problemet med single-use refresh tokens — workflow:n kan
+lasa OCH skriva tokens med samma SUPABASE_SERVICE_ROLE_KEY den redan har.
 """
 from __future__ import annotations
 
@@ -13,7 +20,9 @@ import json
 import logging
 import os
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
+from typing import Any
 
 from garminconnect import (
     Garmin,
@@ -34,7 +43,13 @@ IS_NON_INTERACTIVE = (
 
 
 class GarminClient:
-    def __init__(self, email: str | None, password: str | None, token_dir: Path):
+    def __init__(
+        self,
+        email: str | None,
+        password: str | None,
+        token_dir: Path,
+        supabase_client: Any | None = None,
+    ):
         if not email or not password:
             raise ValueError(
                 "GARMIN_EMAIL och GARMIN_PASSWORD maste finnas i miljon (.env)."
@@ -43,6 +58,7 @@ class GarminClient:
         self._password = password
         self._token_dir = token_dir
         self._token_path = token_dir / TOKEN_FILE
+        self._supabase = supabase_client
         self._api: Garmin | None = None
 
     @property
@@ -75,22 +91,59 @@ class GarminClient:
         self._dump_tokens(api)
         return api
 
-    def _try_cached_login(self) -> Garmin | None:
-        """Forsok ateranvanda sparade tokens. Returnerar None om de saknas/ar ogiltiga."""
-        if not self._token_path.exists():
-            logger.info("Inga cachade tokens (%s saknas)", self._token_path)
+    def _load_tokens_from_supabase(self) -> tuple[str, str] | None:
+        """Las tokens fran garmin_coach.oauth_tokens. Returnerar (di_token, di_refresh)."""
+        if self._supabase is None:
             return None
+        try:
+            res = (
+                self._supabase.schema("garmin_coach")
+                .table("oauth_tokens")
+                .select("di_token, di_refresh_token, updated_at")
+                .eq("email", self._email)
+                .execute()
+            )
+        except Exception as e:  # noqa: BLE001
+            logger.warning("Kunde inte lasa tokens fran Supabase: %s", e)
+            return None
+        if not res.data:
+            return None
+        row = res.data[0]
+        if not row.get("di_token") or not row.get("di_refresh_token"):
+            return None
+        logger.info("Tokens lasta fran Supabase (uppdaterade %s)", row.get("updated_at"))
+        return row["di_token"], row["di_refresh_token"]
 
+    def _load_tokens_from_file(self) -> tuple[str, str] | None:
+        """Las tokens fran filsystemet. Fall back om Supabase saknas/tom."""
+        if not self._token_path.exists():
+            logger.info("Inga cachade tokens i fil (%s saknas)", self._token_path)
+            return None
         try:
             data = json.loads(self._token_path.read_text(encoding="utf-8"))
-            di_token = data.get("di_token")
-            di_refresh = data.get("di_refresh_token")
-            if not di_token or not di_refresh:
-                logger.warning("Cachad tokens-fil saknar di_token/di_refresh_token")
-                return None
         except json.JSONDecodeError as e:
             logger.warning("Cachad tokens-fil ar inte giltig JSON: %s", e)
             return None
+        di_token = data.get("di_token")
+        di_refresh = data.get("di_refresh_token")
+        if not di_token or not di_refresh:
+            logger.warning("Cachad tokens-fil saknar di_token/di_refresh_token")
+            return None
+        return di_token, di_refresh
+
+    def _try_cached_login(self) -> Garmin | None:
+        """Forsok ateranvanda sparade tokens. Returnerar None om de saknas/ar ogiltiga.
+
+        Las fran Supabase forst (primar storage), fall back till fil.
+        """
+        tokens = self._load_tokens_from_supabase()
+        source = "supabase"
+        if tokens is None:
+            tokens = self._load_tokens_from_file()
+            source = "fil"
+        if tokens is None:
+            return None
+        di_token, di_refresh = tokens
 
         # Initiera Garmin-objektet utan att direkt logga in.
         # api.client skapas i __init__, sa vi kan stoppa in tokens dar.
@@ -107,7 +160,7 @@ class GarminClient:
             # refresha tokens internt under detta anrop (Garmin anvander
             # single-use refresh tokens), sa vi maste spara tillbaka direkt.
             api.get_user_profile()
-            logger.info("Inloggad via cachade tokens")
+            logger.info("Inloggad via cachade tokens (kalla: %s)", source)
             try:
                 self._dump_tokens(api)
             except Exception as e:  # noqa: BLE001
@@ -119,7 +172,11 @@ class GarminClient:
             return None
 
     def _dump_tokens(self, api: Garmin) -> None:
-        """Spara di_token + di_refresh_token till en JSON-fil."""
+        """Spara di_token + di_refresh_token till BAGGE Supabase och fil.
+
+        Supabase = primary store (overlever GitHub Actions runner-cleanup).
+        Fil = backup om Supabase ar onaabar.
+        """
         client = api.client
         di_token = getattr(client, "di_token", None)
         di_refresh = getattr(client, "di_refresh_token", None)
@@ -130,11 +187,31 @@ class GarminClient:
                 "garminconnect-API:t kan ha andrats."
             )
 
-        self._token_dir.mkdir(parents=True, exist_ok=True)
-        payload = {"di_token": di_token, "di_refresh_token": di_refresh}
-        self._token_path.write_text(json.dumps(payload), encoding="utf-8")
-        size = self._token_path.stat().st_size
-        logger.info("Tokens sparade till %s (%d bytes)", self._token_path, size)
+        # 1. Skriv till Supabase (primary)
+        if self._supabase is not None:
+            try:
+                self._supabase.schema("garmin_coach").table("oauth_tokens").upsert(
+                    {
+                        "email": self._email,
+                        "di_token": di_token,
+                        "di_refresh_token": di_refresh,
+                        "updated_at": datetime.now(timezone.utc).isoformat(),
+                    },
+                    on_conflict="email",
+                ).execute()
+                logger.info("Tokens sparade till Supabase (email=%s)", self._email)
+            except Exception as e:  # noqa: BLE001
+                logger.warning("Kunde inte skriva tokens till Supabase: %s", e)
+
+        # 2. Skriv till fil (backup)
+        try:
+            self._token_dir.mkdir(parents=True, exist_ok=True)
+            payload = {"di_token": di_token, "di_refresh_token": di_refresh}
+            self._token_path.write_text(json.dumps(payload), encoding="utf-8")
+            size = self._token_path.stat().st_size
+            logger.info("Tokens sparade till fil %s (%d bytes)", self._token_path, size)
+        except Exception as e:  # noqa: BLE001
+            logger.warning("Kunde inte skriva tokens till fil: %s", e)
 
     def refresh(self) -> None:
         """Tvinga ny inloggning."""
