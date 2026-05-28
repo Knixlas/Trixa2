@@ -103,9 +103,15 @@ class GarminClient:
             client.di_token = di_token
             client.di_refresh_token = di_refresh
 
-            # Verifiera tokens med ett latt API-anrop
+            # Verifiera tokens med ett latt API-anrop. garminconnect kan
+            # refresha tokens internt under detta anrop (Garmin anvander
+            # single-use refresh tokens), sa vi maste spara tillbaka direkt.
             api.get_user_profile()
             logger.info("Inloggad via cachade tokens")
+            try:
+                self._dump_tokens(api)
+            except Exception as e:  # noqa: BLE001
+                logger.warning("Kunde inte spara refreshade tokens: %s", e)
             return api
         except Exception as e:
             logger.info("Cachade tokens ogiltiga (%s: %s) - kor full login",
@@ -134,3 +140,18 @@ class GarminClient:
         """Tvinga ny inloggning."""
         self._api = None
         _ = self.api
+
+    def save_tokens(self) -> None:
+        """Spara aktuella tokens till disk. Anropas efter sync sa
+        eventuellt refreshade tokens inte kastas vid program-exit.
+
+        Garmin anvander single-use refresh tokens — om vi inte sparar
+        tillbaka efter varje sync invalideras refresh_token vid nasta
+        kornings forsta API-anrop.
+        """
+        if self._api is None:
+            return
+        try:
+            self._dump_tokens(self._api)
+        except Exception as e:  # noqa: BLE001
+            logger.warning("Kunde inte spara tokens efter sync: %s", e)

@@ -115,6 +115,14 @@ def main() -> int:
     except Exception as e:  # noqa: BLE001
         print(f"\n❌ Sync fallerade: {e}")
         return 1
+    finally:
+        # Spara eventuellt refreshade tokens — Garmin anvander
+        # single-use refresh tokens sa vi maste skriva tillbaka efter
+        # varje sync, oavsett om den lyckades eller failade.
+        try:
+            engine.garmin.save_tokens()
+        except Exception:  # noqa: BLE001
+            pass
 
 
 if __name__ == "__main__":
