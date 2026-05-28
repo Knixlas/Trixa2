@@ -15,6 +15,7 @@ from datetime import date
 from pathlib import Path
 
 from dotenv import load_dotenv
+from supabase import create_client
 
 from garmin_client import GarminClient
 
@@ -47,10 +48,23 @@ def main() -> int:
     print(f"Token-katalog: {os.getenv('GARMIN_TOKEN_DIR', '~/.garminconnect')}")
     print("\nKör tester …\n")
 
+    # Skapa Supabase-klient så tokens skrivs till garmin_coach.oauth_tokens
+    # vid lyckad login. Om Supabase-credentials saknas — fall tillbaka till
+    # bara fil-storage (gammalt beteende).
+    supabase_client = None
+    supabase_url = os.getenv("SUPABASE_URL")
+    supabase_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
+    if supabase_url and supabase_key:
+        supabase_client = create_client(supabase_url, supabase_key)
+        print(f"Supabase-store: aktiv")
+    else:
+        print(f"Supabase-store: inaktiv (saknar credentials)")
+
     client = GarminClient(
         email=email,
         password=password,
         token_dir=Path(os.getenv("GARMIN_TOKEN_DIR", "~/.garminconnect")).expanduser(),
+        supabase_client=supabase_client,
     )
 
     today = date.today().isoformat()
