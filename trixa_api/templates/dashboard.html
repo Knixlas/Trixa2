@@ -40,8 +40,6 @@
 </section>
 {% endif %}
 
-{% include "_season_timeline.html" %}
-
 {% if alerts %}
 <section>
   <h2>Aktuella varningar</h2>
@@ -57,12 +55,47 @@
 </section>
 {% endif %}
 
-{% with week=this_week, week_label="Denna vecka", fallback_week_start=this_monday, show_audit=true %}
-  {% include "_week_section.html" %}
-{% endwith %}
+{% if athlete %}
+<div class="tabs">
+  <button class="tab active" type="button" data-tab="week">Veckans träning</button>
+  <button class="tab" type="button" data-tab="plan">Nästa vecka &amp; faser</button>
+</div>
 
-{% with week=next_week, week_label="Nästa vecka", fallback_week_start=next_monday, show_audit=false %}
-  {% include "_week_section.html" %}
-{% endwith %}
+<div id="tab-week" class="tab-panel">
+  {% with week=this_week, week_label="Denna vecka", fallback_week_start=this_monday, show_audit=true %}
+    {% include "_week_section.html" %}
+  {% endwith %}
+</div>
+
+<div id="tab-plan" class="tab-panel" hidden>
+  {% include "_season_timeline.html" %}
+  {% with week=next_week, week_label="Nästa vecka", fallback_week_start=next_monday, show_audit=false %}
+    {% include "_week_section.html" %}
+  {% endwith %}
+</div>
+
+<style>
+  .tabs { display: flex; gap: 4px; margin: 22px 0 0; border-bottom: 2px solid var(--line); flex-wrap: wrap; }
+  .tab { background: transparent; box-shadow: none; color: var(--ink-3); border: none;
+         border-radius: var(--r-sm) var(--r-sm) 0 0; padding: 10px 18px; margin: 0;
+         font-weight: 700; font-size: 14px; cursor: pointer; }
+  .tab:hover { background: var(--bg-sand); }
+  .tab.active { background: var(--bg-card); color: var(--ink); box-shadow: var(--shadow-sm); }
+  .tab-panel { padding-top: 6px; }
+</style>
+<script>
+  (function () {
+    var tabs = document.querySelectorAll('.tab');
+    tabs.forEach(function (b) {
+      b.addEventListener('click', function () {
+        tabs.forEach(function (x) { x.classList.toggle('active', x === b); });
+        document.querySelectorAll('.tab-panel').forEach(function (p) {
+          p.hidden = (p.id !== 'tab-' + b.dataset.tab);
+        });
+      });
+    });
+  })();
+</script>
+{% endif %}
 
 {% endblock %}
