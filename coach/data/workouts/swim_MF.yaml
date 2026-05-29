@@ -1,0 +1,403 @@
+# Simpass — Muskulär Styrka (MF)
+#
+# MF1 — Muscular Force Reps: kraft i armtag, ofta med paddles/band/buoy
+# MF2 — Open Water Current Intervals: simning mot motstånd i öppet vatten
+# MF3 — Paddles: tunga paddel-set
+#
+# Gemensamt: fokus är att producera kraft per tag, inte hög stroke-rate.
+# Stroke-count räknas ofta för att hålla effektivitet.
+
+workouts:
+
+  # ─────────────────────────────────────────────────────────────
+  # MF1 — Muscular Force Reps
+  # ─────────────────────────────────────────────────────────────
+
+  - code: MF1_swim_01
+    discipline: swim
+    category: MF
+    type_code: MF1
+    name: "8×50 katch-fokus"
+    phase_appropriate: [base_2, base_3, build_1]
+    intent: |
+      Kraft per tag. Långsam stroke rate, maximalt grepp om vattnet
+      i tidiga katch-fasen. Inte snabb fart — kraft mot vatten.
+      Räkna tag per längd och försök sänka över passet.
+    main_set:
+      - segment: warmup
+        distance_m: 400
+        zone: 1
+      - segment: drills
+        sets: 4
+        distance_m: 50
+        rest_sec: 15
+        drills: [sculling_front, fist_swim, catch_drill]
+        description: "Vänja känslan av tidig katch"
+      - segment: main
+        sets: 8
+        distance_m: 50
+        zone: 2
+        rest_sec: 25
+        description: "Maximal katch, låg stroke rate. Räkna tag — försök matcha eller minska."
+        notes: "Pace ska INTE pressas. Fokus på kraften per tag."
+      - segment: cooldown
+        distance_m: 200
+        zone: 1
+    total_distance_m: 1800
+    total_duration_min:
+      estimated: 45
+      flexible_range: [40, 55]
+    zone_refs: [Z1, Z2]
+    equipment: []
+    coach_notes: |
+      Bra som komplement till tempo-pass i samma vecka — bygger den
+      styrkan som tempon kommer att kräva utan ackumulerad belastning.
+
+  - code: MF1_swim_02
+    discipline: swim
+    category: MF
+    type_code: MF1
+    name: "Buoy + paddles styrkeset"
+    phase_appropriate: [base_2, base_3, build_1, build_2]
+    intent: |
+      Klassiskt styrkepass: pull-buoy och paddles isolerar överkroppen
+      och multiplicerar motståndet. Långsam pace, fokus på dragkraften.
+    main_set:
+      - segment: warmup
+        distance_m: 400
+        zone: 1
+      - segment: drills
+        sets: 4
+        distance_m: 50
+        rest_sec: 15
+        drills: [sculling_front, catch_drill]
+      - segment: pull
+        sets: 6
+        distance_m: 100
+        zone: 2
+        rest_sec: 25
+        equipment: [pull_buoy, paddles]
+        description: "Långa drag, ta tag i vattnet. Pace ska kännas långsam — det är poängen."
+      - segment: main
+        sets: 4
+        distance_m: 50
+        zone: 2
+        rest_sec: 15
+        description: "Utan utrustning. Försök behålla känslan av långa drag."
+      - segment: cooldown
+        distance_m: 200
+        zone: 1
+    total_distance_m: 2000
+    total_duration_min:
+      estimated: 50
+      flexible_range: [45, 55]
+    zone_refs: [Z1, Z2]
+    equipment: [pull_buoy, paddles]
+    abort_conditions:
+      - "Vid axel- eller armbågssmärta: avbryt paddles, fortsätt utan utrustning eller avsluta"
+
+  - code: MF1_swim_03
+    discipline: swim
+    category: MF
+    type_code: MF1
+    name: "Band-only pull (ingen kick)"
+    phase_appropriate: [base_3, build_1, build_2]
+    intent: |
+      Ankelband eliminerar all kickkraft. Du är helt beroende av
+      armkraften för att hålla höften högt. Bygger både core och
+      pull-styrka. Hård men kort.
+    main_set:
+      - segment: warmup
+        distance_m: 400
+        zone: 1
+      - segment: drills
+        sets: 4
+        distance_m: 50
+        rest_sec: 15
+      - segment: pull
+        sets: 8
+        distance_m: 50
+        zone: 2
+        rest_sec: 20
+        equipment: [band]
+        description: "Bara band — ingen buoy, ingen paddles. Kompakt kropp, snabba tag."
+      - segment: cooldown
+        distance_m: 300
+        zone: 1
+        description: "Lugn fri utan utrustning, känn vad kicken gör nu"
+    total_distance_m: 1500
+    total_duration_min:
+      estimated: 45
+      flexible_range: [40, 50]
+    zone_refs: [Z1, Z2]
+    equipment: [band]
+    coach_notes: |
+      Det här passet är hårdare än det ser ut. Att simma utan kick är
+      core-arbete i förklädnad. Stoppa om höften börjar sjunka och
+      tekniken bryts.
+
+  # ─────────────────────────────────────────────────────────────
+  # MF2 — Open Water Current Intervals
+  # ─────────────────────────────────────────────────────────────
+
+  - code: MF2_swim_01
+    discipline: swim
+    category: MF
+    type_code: MF2
+    name: "Älv- eller åmotsim"
+    phase_appropriate: [base_2, base_3, build_1, build_2]
+    intent: |
+      Simning mot strömmande vatten. Strömmen ger naturligt
+      motstånd som tvingar fram kraftigare tag. Mätbart är distans —
+      tid och pace blir meningslösa i ström.
+    main_set:
+      - segment: warmup
+        sets: 1
+        distance_m: 200
+        zone: 1
+        description: "Lugnt med strömmen för att lösa upp"
+      - segment: main
+        sets: 6
+        distance_m: 100
+        zone: 3
+        rest_sec: 45
+        description: "Sim 100m mot strömmen. Vila genom att flyta tillbaka."
+      - segment: cooldown
+        sets: 1
+        distance_m: 200
+        zone: 1
+        description: "Med strömmen, lugnt"
+    total_distance_m: 1000
+    total_duration_min:
+      estimated: 40
+      flexible_range: [30, 50]
+    zone_refs: [Z1, Z3]
+    equipment: []
+    abort_conditions:
+      - "Strömhastighet >0.5 m/s gör passet ineffektivt — välj plats med måttligt flöde"
+      - "Vid kallt vatten (<14°C) — våtdräkt obligatorisk"
+    coach_notes: |
+      Bra säsongsöppning för öppet-vatten-känsla. Säkerhet:
+      simma med sällskap, känn till platsen, ha plan för utstigning.
+
+  - code: MF2_swim_02
+    discipline: swim
+    category: MF
+    type_code: MF2
+    name: "Choppy-water-tolerans"
+    phase_appropriate: [build_1, build_2, peak]
+    intent: |
+      Sim i sjö eller hav med vågor/krabb sjö. Inte ren styrketräning
+      utan teknisk-styrkemässig anpassning till verkliga tävlingsförhållanden.
+      Tag-rytmen måste anpassas — kortare, snabbare tag.
+    main_set:
+      - segment: warmup
+        sets: 1
+        distance_m: 300
+        zone: 1
+        description: "Lugnt parallellt med strand om möjligt"
+      - segment: main
+        sets: 4
+        distance_m: 200
+        zone: 3
+        rest_sec: 60
+        description: "Variera riktning: 2× mot vågor, 2× med. Anpassa tag och andning."
+      - segment: cooldown
+        sets: 1
+        distance_m: 200
+        zone: 1
+    total_distance_m: 1300
+    total_duration_min:
+      estimated: 35
+      flexible_range: [30, 45]
+    zone_refs: [Z1, Z3]
+    equipment: []
+    abort_conditions:
+      - "Vid sjögång du inte själv valt — avbryt"
+      - "Aldrig ensam i öppet vatten"
+
+  - code: MF2_swim_03
+    discipline: swim
+    category: MF
+    type_code: MF2
+    name: "Bassäng-simulering med snurr"
+    phase_appropriate: [base_2, base_3, build_1]
+    intent: |
+      När öppet vatten inte är tillgängligt — simulera motstånd
+      genom att simma mot konstgjord ström (motströms-pool) eller
+      genom band-fäste i bassängkant.
+    main_set:
+      - segment: warmup
+        distance_m: 400
+        zone: 1
+      - segment: main
+        sets: 8
+        distance_m: 50
+        zone: 3
+        rest_sec: 30
+        equipment: [band]
+        description: "Band fäst i kanten, sim 'stationär' så långt du kommer på 50m-tid"
+      - segment: cooldown
+        distance_m: 200
+        zone: 1
+    total_distance_m: 1000
+    total_duration_min:
+      estimated: 40
+      flexible_range: [35, 45]
+    zone_refs: [Z1, Z3]
+    equipment: [band]
+    coach_notes: |
+      Substitut för MF2_swim_01/02 vinterhalvåret. Inte lika
+      effektivt som riktigt strömvatten men bättre än ingenting.
+
+  # ─────────────────────────────────────────────────────────────
+  # MF3 — Paddles
+  # ─────────────────────────────────────────────────────────────
+
+  - code: MF3_swim_01
+    discipline: swim
+    category: MF
+    type_code: MF3
+    name: "8×100 paddles main set"
+    phase_appropriate: [base_2, base_3, build_1, build_2]
+    intent: |
+      Rent paddel-set. Tunga drag, fokus på katch och full dragväg.
+      Detta är styrketräning — pace ska inte vara hög trots ökat motstånd.
+    main_set:
+      - segment: warmup
+        distance_m: 400
+        zone: 1
+      - segment: drills
+        sets: 4
+        distance_m: 50
+        rest_sec: 15
+        drills: [sculling_front, catch_drill]
+      - segment: pull
+        sets: 8
+        distance_m: 100
+        zone: 2
+        rest_sec: 25
+        equipment: [paddles]
+        description: "Stora paddles, inga buoy. Långa kraftfulla tag, andas på 3."
+      - segment: cooldown
+        distance_m: 200
+        zone: 1
+    total_distance_m: 1800
+    total_duration_min:
+      estimated: 45
+      flexible_range: [40, 50]
+    zone_refs: [Z1, Z2]
+    equipment: [paddles]
+    abort_conditions:
+      - "Axelvärk — avbryt omedelbart, inte 'kör en till och se'"
+      - "Stroke rate behöver INTE vara hög — om armarna 'snurrar' har du för små paddles eller fel teknik"
+
+  - code: MF3_swim_02
+    discipline: swim
+    category: MF
+    type_code: MF3
+    name: "Paddles + buoy descending"
+    phase_appropriate: [base_3, build_1, build_2]
+    intent: |
+      Paddles + buoy = max överkroppsisolering. Descending pace
+      tvingar fram både kraft och kontroll. Sista paddel-paret
+      ska kännas tungt, inte snabbt.
+    main_set:
+      - segment: warmup
+        distance_m: 400
+        zone: 1
+      - segment: drills
+        sets: 4
+        distance_m: 50
+        rest_sec: 15
+      - segment: pull
+        sets: 5
+        distance_m: 200
+        rest_sec: 30
+        equipment: [pull_buoy, paddles]
+        pace_pattern: descending
+        zones_per_set: [2, 2, 2, 3, 3]
+        description: "Descending: två i Z2, två i Z2-3-gräns, sista i Z3"
+      - segment: cooldown
+        distance_m: 300
+        zone: 1
+        description: "Utan utrustning"
+    total_distance_m: 2100
+    total_duration_min:
+      estimated: 55
+      flexible_range: [50, 60]
+    zone_refs: [Z1, Z2, Z3]
+    equipment: [pull_buoy, paddles]
+    coach_notes: |
+      Det här är passet som producerar mest styrkeökning per minut för
+      simmare som redan tål paddles. Skala paddel-storlek individuellt.
+
+  - code: MF3_swim_03
+    discipline: swim
+    category: MF
+    type_code: MF3
+    name: "Paddel-stege 50-100-150-200-150-100-50"
+    phase_appropriate: [base_3, build_1, build_2]
+    intent: |
+      Paddel-set med varierande distans. Längre intervall = mer
+      ackumulerad belastning per intervall, bra för att testa
+      uthållighet med ökat motstånd.
+    main_set:
+      - segment: warmup
+        distance_m: 400
+        zone: 1
+      - segment: drills
+        sets: 4
+        distance_m: 50
+        rest_sec: 15
+      - segment: pull
+        sets: 1
+        distance_m: 50
+        zone: 2
+        rest_sec: 15
+        equipment: [paddles]
+      - segment: pull
+        sets: 1
+        distance_m: 100
+        zone: 2
+        rest_sec: 20
+        equipment: [paddles]
+      - segment: pull
+        sets: 1
+        distance_m: 150
+        zone: 2
+        rest_sec: 25
+        equipment: [paddles]
+      - segment: pull
+        sets: 1
+        distance_m: 200
+        zone: 2
+        rest_sec: 30
+        equipment: [paddles]
+      - segment: pull
+        sets: 1
+        distance_m: 150
+        zone: 2
+        rest_sec: 25
+        equipment: [paddles]
+      - segment: pull
+        sets: 1
+        distance_m: 100
+        zone: 2
+        rest_sec: 20
+        equipment: [paddles]
+      - segment: pull
+        sets: 1
+        distance_m: 50
+        zone: 2
+        rest_sec: 0
+        equipment: [paddles]
+      - segment: cooldown
+        distance_m: 200
+        zone: 1
+    total_distance_m: 2000
+    total_duration_min:
+      estimated: 50
+      flexible_range: [45, 55]
+    zone_refs: [Z1, Z2]
+    equipment: [paddles]

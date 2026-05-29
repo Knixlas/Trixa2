@@ -1,0 +1,246 @@
+# Cykelpass — Aerob Uthållighet (AE)
+#
+# AE1 — Recovery: parametriserad mall. Lugn cykling för aktiv återhämtning,
+#                 blodflöde i benen utan att tillföra träningsstress.
+#
+# AE2 — Aerobic Endurance: längre lugna pass som bygger aerob bas.
+#                          Parametriserad mall + konkreta varianter med
+#                          embedded kvalitetsinslag (spin-ups, tempo-pickups).
+
+workouts:
+
+  # ─────────────────────────────────────────────────────────────
+  # AE1 — Recovery (parametriserad mall)
+  # ─────────────────────────────────────────────────────────────
+
+  - code: AE1_bike_template
+    discipline: bike
+    category: AE
+    type_code: AE1
+    name: "Recovery — flex duration"
+    phase_appropriate: [prep, base_1, base_2, base_3, build_1, build_2, peak, race, recovery]
+    parameterized: true
+    parameters:
+      duration_min:
+        default: 45
+        range: [20, 75]
+        description: "Total tid; skala efter veckans volym och dagsform"
+    intent: |
+      Återhämtningspass. Lätt tramp i Z1 — kroppen ska kännas bättre
+      EFTER passet än före. Ingen som helst kvalitet, ingen progression,
+      inga backar att jaga. Om du börjar känna efter belastning är farten
+      för hög.
+    setting: either
+    terrain: flat
+    erg_mode: false
+    main_set:
+      - segment: continuous
+        duration_min: "{duration_min}"
+        zone: 1
+        cadence_rpm: [85, 95]
+        description: "Lugn tramp i Z1. Naturlig kadens, fri tanke."
+    total_duration_min:
+      estimated: "{duration_min}"
+      flexible_range: ["{duration_min} - 10", "{duration_min} + 10"]
+    zone_refs: [Z1]
+    equipment: [power_meter, hr_strap]
+    abort_conditions:
+      - "Pulsen driver över Z1 utan ansträngning → avbryt eller gå ned i tempo"
+      - "Stelhet eller smärta som inte släpper efter 10 min → avbryt"
+    coach_notes: |
+      Klassiskt återhämtningsverktyg. Funkar utomhus på platt rutt eller
+      på trainer med Netflix. 30 min är default-default; 45-60 om volymen
+      tillåter; max 75 (då börjar det räknas som bas-pass).
+
+  # ─────────────────────────────────────────────────────────────
+  # AE2 — Aerobic Endurance (parametriserad huvudmall)
+  # ─────────────────────────────────────────────────────────────
+
+  - code: AE2_bike_template
+    discipline: bike
+    category: AE
+    type_code: AE2
+    name: "Aerobic Endurance — flex duration"
+    phase_appropriate: [prep, base_1, base_2, base_3, build_1, build_2]
+    parameterized: true
+    parameters:
+      duration_min:
+        default: 120
+        range: [60, 360]
+        description: |
+          Total tid. 60-90 i prep, 90-180 i base, 180-300 i build_1/2.
+          IM-specifika långpass når 300-360 i sen base/build_1.
+    intent: |
+      Aerob baspass. Jämn Z2 — du andas tydligt men kan föra samtal i hela
+      meningar. Detta är passet som bygger förmågan att fortsätta cykla
+      timmar på timmar. Få adepter inser hur LITE intensiv riktigt aerob
+      träning ska vara. Om du undrar om du går för lätt, gör du förmodligen
+      rätt.
+    setting: outdoor
+    terrain: flat
+    erg_mode: false
+    main_set:
+      - segment: warmup
+        duration_min: 10
+        zone: 1
+        description: "Stegra långsamt från Z1 upp i Z2"
+      - segment: continuous
+        duration_min: "{duration_min} - 15"
+        zone: 2
+        cadence_rpm: [85, 95]
+        description: |
+          Jämn Z2. Watt är primärt target — låt pulsen drifta inom Z2-spannet.
+          Vid värme eller dehydrering driftar pulsen uppåt; sänk watt något.
+      - segment: cooldown
+        duration_min: 5
+        zone: 1
+    total_duration_min:
+      estimated: "{duration_min}"
+      flexible_range: ["{duration_min} - 15", "{duration_min} + 30"]
+    zone_refs: [Z1, Z2]
+    equipment: [power_meter, hr_strap]
+    abort_conditions:
+      - "HR-drift > 10 bpm vid stabil watt → nutrition/dehydrering, ta paus eller avbryt"
+      - "Vid pass > 180 min: missad nutrition i 60+ min → bryt långpasset"
+    coach_notes: |
+      Mall för platta långpass utomhus. För kuperade rutter, använd
+      AE2_bike_01 (Rolling Endurance). För indoor-version, använd
+      AE2_bike_02 (Trainer Z2).
+
+  # ─────────────────────────────────────────────────────────────
+  # AE2 — konkreta varianter
+  # ─────────────────────────────────────────────────────────────
+
+  - code: AE2_bike_01
+    discipline: bike
+    category: AE
+    type_code: AE2
+    name: "Rolling Endurance — kuperat Z2"
+    phase_appropriate: [base_1, base_2, base_3, build_1]
+    intent: |
+      Lång aerob åktur i kuperad terräng. Backarna sätter naturlig variation
+      i belastning utan att du behöver styra. Håll Z2 i snitt över passet —
+      tillåt korta watt-spikar i backar, kompensera med lugnare passages
+      på platta partier. Tekniskt: tappa inte kadensen under 75 i backarna,
+      växla ned tidigt.
+    setting: outdoor
+    terrain: rolling
+    outdoor_only: true
+    erg_mode: false
+    main_set:
+      - segment: warmup
+        duration_min: 15
+        zone: 1
+        description: "Platta partier i början om möjligt"
+      - segment: continuous
+        duration_min: 120
+        zone: 2
+        cadence_rpm: [80, 95]
+        description: |
+          Z2 i snitt. Backarna får dra upp till nedre Z3 i korta spikar,
+          men inte stå kvar där. Växla ned tidigt — bevara kadens > 75.
+      - segment: cooldown
+        duration_min: 10
+        zone: 1
+    total_duration_min:
+      estimated: 145
+      flexible_range: [120, 180]
+    zone_refs: [Z1, Z2, Z3]
+    equipment: [power_meter, hr_strap]
+    abort_conditions:
+      - "Backar tvingar upp till Z4 upprepade gånger → välj plattare rutt"
+    coach_notes: |
+      Bättre än ren platt Z2 för adepter som kommer att tävla på kuperade
+      banor (Kalmar är platt — men det skadar inte att vara redo för
+      vinden, som beter sig som backar). Bra alternativ när vädret stör
+      lång jämn-watt-träning.
+
+  - code: AE2_bike_02
+    discipline: bike
+    category: AE
+    type_code: AE2
+    name: "Trainer Z2 — strict watt"
+    phase_appropriate: [prep, base_1, base_2, base_3, build_1, build_2]
+    intent: |
+      Trainer-version av aerobt baspass. ERG-mode håller dig på exakt
+      watt-target — perfekt för att lära kroppen vad jämn Z2 känns som.
+      Mer tröttsamt mentalt än utomhus; planera underhållning. Den fysiska
+      adaptionen är likvärdig.
+    setting: indoor
+    requires_trainer: true
+    erg_mode: true
+    main_set:
+      - segment: warmup
+        duration_min: 10
+        zone: 1
+        erg_mode: false
+        description: "Fri ramp från Z1 till Z2"
+      - segment: continuous
+        duration_min: 75
+        zone: 2
+        cadence_rpm: [85, 95]
+        description: "ERG fixerar watt mitt i Z2-spannet (≈ 70% FTP)"
+      - segment: cooldown
+        duration_min: 5
+        zone: 1
+        erg_mode: false
+    total_duration_min:
+      estimated: 90
+      flexible_range: [60, 120]
+    zone_refs: [Z1, Z2]
+    equipment: [power_meter, hr_strap, trainer]
+    abort_conditions:
+      - "HR-drift > 10 bpm vid fast watt → nutrition/hydrering, paus eller avbryt"
+    coach_notes: |
+      Default-pass när väder/trafik gör utomhus opraktiskt. ERG-mode tar
+      bort möjligheten att glida nedåt i watt (vanlig fallgrop vid trötthet).
+      Skala duration efter ork — 60 i prep, 90 i base, 120 i build.
+
+  - code: AE2_bike_03
+    discipline: bike
+    category: AE
+    type_code: AE2
+    name: "Z2 + spin-ups"
+    phase_appropriate: [base_1, base_2, base_3, build_1]
+    intent: |
+      Stadig Z2-cykling med 6 korta spin-ups under passet. Spin-ups håller
+      neuromuskulär snabbhet och pedal-teknik vid liv under uthållighets-
+      byggande utan att tillföra träningsstress värd att räkna. Som
+      strides för löpare.
+    setting: either
+    terrain: flat
+    erg_mode: false
+    main_set:
+      - segment: warmup
+        duration_min: 10
+        zone: 1
+      - segment: continuous
+        duration_min: 30
+        zone: 2
+        cadence_rpm: [85, 95]
+      - segment: main
+        sets: 6
+        duration_min: 1
+        effort_descriptor: "Mjuk spin-up till 110-115 rpm, watt får drifta upp till nedre Z3 men inte högre. Behåll smooth pedaltramp — inga hopp i sadeln."
+        cadence_rpm: [110, 115]
+        rest_sec: 180
+        description: "Aktiv vila i Z2 mellan reps"
+      - segment: continuous
+        duration_min: 15
+        zone: 2
+        cadence_rpm: [85, 95]
+      - segment: cooldown
+        duration_min: 5
+        zone: 1
+    total_duration_min:
+      estimated: 80
+      flexible_range: [70, 90]
+    zone_refs: [Z1, Z2]
+    equipment: [power_meter, hr_strap]
+    abort_conditions:
+      - "Watt-spik > Z3 i spin-ups → kadensen tar över, watt tappar"
+    coach_notes: |
+      Billigt sätt att hålla snabba-ben-egenskaper i base-fasen. Spin-ups
+      triggar inte träningsstress värd att räkna i veckoplaneringen. Kan
+      köras både ute och inne — på trainer hjälper kadens-sensorn att
+      verkligen nå 110+.

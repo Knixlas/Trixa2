@@ -1,0 +1,211 @@
+# Cykelpass — Tester (T)
+#
+# FTP-test (Functional Threshold Power) — bestämmer adeptens FTP-watt,
+# som driver alla cykelzoner. Tre etablerade protokoll:
+#
+#   FTP_20min  — 20-min all-out × 0.95. Guldstandard, mentalt tuff.
+#   FTP_2x8min — Två 8-min all-out, snitt × 0.90. Mellanting.
+#   FTP_Ramp   — Stegrande ramp till utmattning. Lättast på trötta ben.
+#
+# Trixa/Nils väljer protokoll baserat på:
+#   - Adeptens vana med FTP-test (guldstandard kräver erfarenhet)
+#   - Dagsform (Ramp är lättare på trötta ben)
+#   - Tidigare testhistorik (samma protokoll = jämförbara resultat)
+#
+# Standardrekommendation: 20-min för adepter med tidigare 20-min-tester
+# i historiken (jämförbarhet). Ramp för förstagångstest eller efter
+# längre uppehåll.
+
+workouts:
+
+  # ─────────────────────────────────────────────────────────────
+  # 20-min FTP-test (guldstandard)
+  # ─────────────────────────────────────────────────────────────
+
+  - code: T_bike_FTP_20min
+    discipline: bike
+    category: T
+    type_code: FTP_20min
+    name: "FTP-test — 20 min all-out"
+    phase_appropriate: [prep, base_1, base_2, base_3, build_1, build_2]
+    intent: |
+      Klassiskt 20-min FTP-test. Du kör 20 min så hårt du kan hålla jämnt
+      — målet är att producera maximalt snittwatt över 20 min, INTE att
+      starta för hårt och dö. Resultatet × 0.95 = FTP. Mentalt jobbigt;
+      den första halvan är där man rusar iväg, andra halvan är där man
+      egentligen testas. Andas djupt och håll watt.
+    setting: indoor
+    requires_trainer: true
+    erg_mode: false
+    main_set:
+      - segment: warmup
+        duration_min: 20
+        zone: 1
+        description: |
+          Stegvis uppvärmning:
+          - 5 min Z1
+          - 5 min Z2
+          - 1 min Z3
+          - 3 min Z1
+          - 1 min Z4
+          - 5 min Z1
+      - segment: main
+        duration_min: 5
+        zone: 4
+        description: "Öppnare — 5 min nedre Z4 för att aktivera tröskelsystem"
+      - segment: rest
+        duration_min: 5
+        zone: 1
+        description: "Återhämtning innan testet"
+      - segment: test
+        duration_min: 20
+        effort_descriptor: "Maximalt hållbar watt i 20 min. Starta kontrollerat — håll back 5%, släpp loss sista 5 min. Snitt-watt × 0.95 = FTP."
+        cadence_rpm: [85, 100]
+        description: "Notera snitt-watt, snitt-HR, snitt-kadens, peak-HR"
+      - segment: cooldown
+        duration_min: 15
+        zone: 1
+    total_duration_min:
+      estimated: 65
+      flexible_range: [60, 75]
+    zone_refs: [Z1, Z2, Z3, Z4]
+    equipment: [power_meter, hr_strap, trainer]
+    abort_conditions:
+      - "Watt faller > 15% under > 60 sek i mitten av testet → testet är ogiltigt, avbryt och försök igen om 3-5 dagar"
+      - "Sjukdomssymtom eller kraftig huvudvärk → avbryt"
+    coach_notes: |
+      Beräkning: FTP_watt = snitt_20min_watt × 0.95
+      
+      Justering om snitt-HR i testet > 105% av aktuell LTHR → FTP är något
+      högt; överväg att ta 0.94 istället för 0.95 som multiplier.
+      
+      Trainer rekommenderas starkt — utomhus blir terräng-variationer och
+      trafik störande. Om utomhus krävs: hitta absolut platt rak 8-10 km
+      sträcka utan korsningar.
+      
+      För adepter som inte gjort 20-min-test förut: kör T_bike_FTP_Ramp
+      först för att få en uppskattning, sedan 20-min nästa testcykel.
+
+  # ─────────────────────────────────────────────────────────────
+  # 2×8 min FTP-test
+  # ─────────────────────────────────────────────────────────────
+
+  - code: T_bike_FTP_2x8
+    discipline: bike
+    category: T
+    type_code: FTP_2x8
+    name: "FTP-test — 2×8 min"
+    phase_appropriate: [prep, base_1, base_2, base_3]
+    intent: |
+      Mellanting mellan 20-min och Ramp. Två 8-minutersblock all-out med
+      10 min återhämtning emellan. Snitt över båda × 0.90 = FTP. Mindre
+      mental utmaning än 20-min, mer noggrann än Ramp. Bra alternativ för
+      adepter som inte fungerar bra under 20-min-protokollet.
+    setting: indoor
+    requires_trainer: true
+    erg_mode: false
+    main_set:
+      - segment: warmup
+        duration_min: 20
+        zone: 1
+        description: "Samma stegvis uppvärmning som 20-min-testet"
+      - segment: main
+        duration_min: 3
+        zone: 4
+        description: "Öppnare — 3 min nedre Z4"
+      - segment: rest
+        duration_min: 5
+        zone: 1
+      - segment: test
+        duration_min: 8
+        effort_descriptor: "Maximalt hållbar watt i 8 min — block 1. Watt-target ≈ 105-110% av uppskattad FTP. Notera snitt."
+        cadence_rpm: [85, 100]
+      - segment: rest
+        duration_min: 10
+        zone: 1
+        description: "Generös vila — vi vill ha full återhämtning"
+      - segment: test
+        duration_min: 8
+        effort_descriptor: "Maximalt hållbar watt i 8 min — block 2. Ska helst bli marginellt högre eller samma som block 1."
+        cadence_rpm: [85, 100]
+      - segment: cooldown
+        duration_min: 10
+        zone: 1
+    total_duration_min:
+      estimated: 70
+      flexible_range: [65, 80]
+    zone_refs: [Z1, Z2, Z3, Z4, Z5]
+    equipment: [power_meter, hr_strap, trainer]
+    abort_conditions:
+      - "Block 2 < 85% av block 1 → otillräcklig återhämtning eller över-grenat block 1; testet ogiltigt"
+    coach_notes: |
+      Beräkning: FTP_watt = ((snitt_block_1 + snitt_block_2) / 2) × 0.90
+      
+      Coggan/Allen-protokollet. Något konservativare än 20-min × 0.95
+      (resultatet brukar bli 2-4 watt lägre) men mindre känsligt för
+      misjudged pacing. För nya adepter där 20-min-pacing känns oöverskådligt.
+
+  # ─────────────────────────────────────────────────────────────
+  # Ramp Test
+  # ─────────────────────────────────────────────────────────────
+
+  - code: T_bike_FTP_Ramp
+    discipline: bike
+    category: T
+    type_code: FTP_Ramp
+    name: "FTP-test — Ramp till utmattning"
+    phase_appropriate: [prep, base_1, base_2, base_3, build_1, recovery]
+    intent: |
+      Ramp-test: watt ökas successivt i steg om 20 W per minut tills du
+      inte längre kan upprätthålla kadens > 60 rpm. Lättast på trötta ben
+      — det första 10-12 minuterna är aerobt och vi mäter peak power
+      (de sista 60 sek). FTP = peak power × 0.75. Snabbt, repeterbart,
+      passar nybörjare.
+    setting: indoor
+    requires_trainer: true
+    erg_mode: true
+    main_set:
+      - segment: warmup
+        duration_min: 10
+        zone: 1
+        erg_mode: false
+        description: "Lugn uppvärmning, inga öppnare — vi vill ha full ben-energi"
+      - segment: test
+        duration_min: 20
+        effort_descriptor: |
+          Ramp: börja på 100 W. Öka 20 W per minut. Håll smooth kadens
+          85-95 rpm. Fortsätt tills du inte längre kan hålla kadens > 60
+          mer än 5 sek. Notera peak power: snitt-watt över sista 60 sek
+          innan utmattning.
+        cadence_rpm: [85, 95]
+        description: |
+          Trainer-program kan automatisera ramp via ERG. Manuell variant:
+          öka motstånd själv var 60:e sekund.
+      - segment: cooldown
+        duration_min: 10
+        zone: 1
+        erg_mode: false
+    total_duration_min:
+      estimated: 40
+      flexible_range: [30, 50]
+    zone_refs: [Z1, Z2, Z3, Z4, Z5]
+    equipment: [power_meter, hr_strap, trainer]
+    abort_conditions:
+      - "Kraftig huvudvärk eller yrsel → avbryt omedelbart"
+    coach_notes: |
+      Beräkning: FTP_watt = peak_1min_watt × 0.75
+      
+      Zwift-standard. Tenderar ge något lägre FTP än 20-min (typiskt 2-3%)
+      eftersom ramp testar VO2max-end snarare än sustained tröskel-watt.
+      För adepter med högre anaerob kapacitet (rena cyklister, sprinter-typer)
+      ger Ramp överskattat FTP — håll 20-min för dem.
+      
+      Bäst för:
+        - Förstagångstest (etablera baseline)
+        - Adept med trötta ben från annan träning
+        - Recovery-fas där 20-min är för stressande
+        - Snabbt återtest efter sjukdom eller längre uppehåll
+      
+      Mindre bra för: adepter med stort gap mellan VO2-kapacitet och
+      sustained tröskel (eller om historik är 20-min och jämförelse är
+      önskvärd).

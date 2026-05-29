@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% block title %}Veckans plan — Trixa{% endblock %}
+{% block content %}
+
+<h1>Veckoplan — {{ plan.week_start }}</h1>
+
+<section>
+  <p>
+    <strong>Fas:</strong> {{ plan.phase }}{% if plan.period %} ({{ plan.period }}){% endif %} —
+    vecka {{ plan.week_in_period if plan.week_in_period is defined else "?" }}<br>
+    <strong>Mål-volym:</strong> {{ "%.1f" | format(plan.total_hours_target) }}h<br>
+    <strong>Disciplinfördelning:</strong>
+    {% for d, h in plan.discipline_hours.items() %}{{ d }} {{ "%.1f" | format(h) }}h{% if not loop.last %}, {% endif %}{% endfor %}<br>
+    <strong>Kategorier:</strong> {{ plan.categories | join(", ") }}<br>
+    <strong>Styrkeprotokoll:</strong> {{ plan.strength_protocol }}<br>
+    <strong>Överträningsbedömning:</strong>
+    <span class="badge {{ 'critical' if plan.overtraining_level == 'severe' else 'warning' if plan.overtraining_level == 'moderate' else 'info' }}">
+      {{ plan.overtraining_level }}
+    </span>
+    {% if plan.overtraining_flags %}— flaggor: {{ plan.overtraining_flags | join(", ") }}{% endif %}
+  </p>
+
+  {% if plan.plan_adjustment %}
+  <article>
+    <strong>Planjustering aktiv:</strong>
+    -{{ plan.plan_adjustment.volume_reduction_pct }}% volym,
+    -{{ plan.plan_adjustment.intensity_reduction_pct }}% intensitet,
+    +{{ plan.plan_adjustment.extra_rest_days }} vilodagar
+    {% if plan.plan_adjustment.consider_medical_consultation %}
+    <br><strong style="color: var(--coral);">Överväg läkarkontakt.</strong>
+    {% endif %}
+  </article>
+  {% endif %}
+</section>
+
+<section>
+  <h2>Pass</h2>
+  {% set disc = {
+    'swim':['waves','var(--lagoon)'], 'bike':['bike','var(--pineapple)'],
+    'run':['footprints','var(--hibiscus)'], 'strength':['dumbbell','var(--palm)'],
+    'rest':['moon','var(--ink-3)']
+  } %}
+  {% for w in plan.workouts %}
+  <div class="workout">
+    <div class="wk-disc" style="background: {{ disc.get(w.sport, disc['rest'])[1] }};">
+      <i data-lucide="{{ disc.get(w.sport, disc['rest'])[0] }}"></i>
+    </div>
+    <div class="wk-main">
+      <div class="workout-date">{{ w.date }}</div>
+      <strong>{{ w.title }}</strong>
+      <div class="workout-meta">
+        <span class="badge">{{ w.sport }}</span>
+        <span class="badge info">{{ w.category }}</span>
+        <code>{{ w.code }}</code>
+        <span>· {{ w.duration_minutes }} min · {{ w.intensity }}</span>
+      </div>
+      {% if w.details_markdown %}
+      <details open>
+        <summary>Upplägg, zoner och utförande</summary>
+        <pre style="white-space: pre-wrap; font-family: inherit; font-size: 0.875rem;">{{ w.details_markdown | trim }}</pre>
+      </details>
+      {% elif w.notes %}
+      <details>
+        <summary>Syfte</summary>
+        <pre style="white-space: pre-wrap; font-family: inherit;">{{ w.notes | trim }}</pre>
+      </details>
+      {% endif %}
+    </div>
+  </div>
+  {% endfor %}
+</section>
+
+{% if plan.warnings %}
+<section>
+  <h2>Varningar</h2>
+  <ul>
+    {% for w in plan.warnings %}<li>{{ w }}</li>{% endfor %}
+  </ul>
+</section>
+{% endif %}
+
+{% endblock %}

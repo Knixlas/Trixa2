@@ -1,0 +1,261 @@
+# Simpass — Aerob Kapacitet (AC)
+#
+# AC1 — VO2Max Intervals: korta hårda intervaller på Z5
+# AC2 — Aerobic Capacity Intervals: något längre intervaller på Z5/Z4-gräns
+#
+# Detta är passen som lyfter taket. Hårt, kort, högkvalitativt.
+# Ger maximal träningseffekt per minut men kräver också mest återhämtning.
+
+workouts:
+
+  # ─────────────────────────────────────────────────────────────
+  # AC1 — VO2Max Intervals
+  # ─────────────────────────────────────────────────────────────
+
+  - code: AC1_swim_01
+    discipline: swim
+    category: AC
+    type_code: AC1
+    name: "16×50 @ Z5"
+    phase_appropriate: [build_1, build_2, peak]
+    intent: |
+      Klassiskt VO2max-set. 50:or är kort nog för att man kan
+      pressa Z5, lång nog för att hjärtat hinner upp ordentligt.
+      Den korta vilan håller pulsen hög genom hela setet.
+    main_set:
+      - segment: warmup
+        distance_m: 400
+        zone: 1
+      - segment: drills
+        sets: 4
+        distance_m: 50
+        rest_sec: 15
+      - segment: build
+        sets: 4
+        distance_m: 50
+        rest_sec: 15
+        description: "Build från Z2 till Z4 — väck systemet"
+      - segment: sprint
+        sets: 16
+        distance_m: 50
+        zone: 5
+        rest_sec: 20
+        description: "Z5-pace, snabbare än 200-tävlingstempo. Andas så lite som möjligt."
+      - segment: cooldown
+        distance_m: 400
+        zone: 1
+    total_distance_m: 2000
+    total_duration_min:
+      estimated: 50
+      flexible_range: [45, 60]
+    zone_refs: [Z1, Z2, Z4, Z5]
+    equipment: []
+    abort_conditions:
+      - "När pace på en 50 är >3s/100m långsammare än snabbaste → kör resten i Z3, det är inte VO2-arbete längre"
+
+  - code: AC1_swim_02
+    discipline: swim
+    category: AC
+    type_code: AC1
+    name: "12×75 @ Z5"
+    phase_appropriate: [build_2, peak]
+    intent: |
+      75:or är 'half-grymma' — längre än 50, kort nog för att Z5
+      går att hålla genomgående. Bygger uthålligheten i VO2-zonen.
+    main_set:
+      - segment: warmup
+        distance_m: 400
+        zone: 1
+      - segment: drills
+        sets: 4
+        distance_m: 50
+        rest_sec: 15
+      - segment: build
+        sets: 4
+        distance_m: 50
+        rest_sec: 10
+      - segment: sprint
+        sets: 12
+        distance_m: 75
+        zone: 5
+        rest_sec: 30
+        description: "Z5 — sista 25 ska kosta. Andas på 5 första 50, sedan på 3."
+      - segment: cooldown
+        distance_m: 300
+        zone: 1
+    total_distance_m: 2000
+    total_duration_min:
+      estimated: 50
+      flexible_range: [45, 55]
+    zone_refs: [Z1, Z2, Z4, Z5]
+    equipment: []
+
+  - code: AC1_swim_03
+    discipline: swim
+    category: AC
+    type_code: AC1
+    name: "Tabata-inspired 8×(25 sprint / 15s vila)"
+    phase_appropriate: [build_2, peak]
+    intent: |
+      Mycket korta, mycket hårda intervaller. Inte ren Tabata
+      (4-min-format funkar inte i bassäng) — men anda av tabata:
+      maximal effekt per intervall, väldigt kort vila.
+    main_set:
+      - segment: warmup
+        distance_m: 400
+        zone: 1
+      - segment: drills
+        sets: 4
+        distance_m: 50
+        rest_sec: 15
+      - segment: sprint
+        sets: 8
+        distance_m: 25
+        zone: 5
+        rest_sec: 15
+        description: "MAX-tempo, 15s vila. Bara 8 — det räcker."
+      - segment: main
+        sets: 1
+        distance_m: 200
+        zone: 1
+        rest_sec: 90
+        description: "Vila-block — pulsen ska ner före nästa set"
+      - segment: sprint
+        sets: 8
+        distance_m: 25
+        zone: 5
+        rest_sec: 15
+        description: "Set 2 — samma intensitet trots tröttheten"
+      - segment: cooldown
+        distance_m: 400
+        zone: 1
+    total_distance_m: 1400
+    total_duration_min:
+      estimated: 40
+      flexible_range: [35, 45]
+    zone_refs: [Z1, Z5]
+    equipment: []
+    abort_conditions:
+      - "Om set 2 öppning är >2s/100m långsammare än set 1 öppning → hoppa över set 2"
+
+  # ─────────────────────────────────────────────────────────────
+  # AC2 — Aerobic Capacity Intervals
+  # ─────────────────────────────────────────────────────────────
+
+  - code: AC2_swim_01
+    discipline: swim
+    category: AC
+    type_code: AC2
+    name: "8×100 @ Z5 lika vila"
+    phase_appropriate: [build_1, build_2, peak]
+    intent: |
+      Klassisk VO2-långa-intervaller: 100:or med lika lång vila som
+      arbetsperiod. Den långa vilan tillåter Z5-pace på alla åtta —
+      annars bröts setet på 4-5.
+    main_set:
+      - segment: warmup
+        distance_m: 400
+        zone: 1
+      - segment: drills
+        sets: 4
+        distance_m: 50
+        rest_sec: 15
+      - segment: build
+        sets: 4
+        distance_m: 50
+        rest_sec: 10
+      - segment: sprint
+        sets: 8
+        distance_m: 100
+        zone: 5
+        rest_sec: 90
+        description: "Z5 — pace runt 400m-tävlingstempo. Lika vila."
+      - segment: cooldown
+        distance_m: 300
+        zone: 1
+    total_distance_m: 2100
+    total_duration_min:
+      estimated: 55
+      flexible_range: [50, 60]
+    zone_refs: [Z1, Z5]
+    equipment: []
+
+  - code: AC2_swim_02
+    discipline: swim
+    category: AC
+    type_code: AC2
+    name: "6×150 @ Z5"
+    phase_appropriate: [build_2, peak]
+    intent: |
+      Längre VO2-intervaller. 150 är gränsen där Z5 går att hålla
+      med träning — kortare och man underutnyttjar setet,
+      längre och man halkar till Z4.
+    main_set:
+      - segment: warmup
+        distance_m: 400
+        zone: 1
+      - segment: drills
+        sets: 4
+        distance_m: 50
+        rest_sec: 15
+      - segment: build
+        sets: 4
+        distance_m: 50
+        rest_sec: 10
+      - segment: sprint
+        sets: 6
+        distance_m: 150
+        zone: 5
+        rest_sec: 90
+      - segment: cooldown
+        distance_m: 300
+        zone: 1
+    total_distance_m: 2000
+    total_duration_min:
+      estimated: 55
+      flexible_range: [50, 60]
+    zone_refs: [Z1, Z5]
+    equipment: []
+
+  - code: AC2_swim_03
+    discipline: swim
+    category: AC
+    type_code: AC2
+    name: "10×100 descending från Z4 till Z5"
+    phase_appropriate: [build_1, build_2]
+    intent: |
+      Descending från Z4 till Z5. Lär nervsystemet att stega upp
+      kontrollerat — viktigt för pace-disciplin i tävling där det
+      finns frestelse att skena tidigt.
+    main_set:
+      - segment: warmup
+        distance_m: 400
+        zone: 1
+      - segment: drills
+        sets: 4
+        distance_m: 50
+        rest_sec: 15
+      - segment: main
+        sets: 5
+        distance_m: 100
+        rest_sec: 30
+        zones_per_set: [4, 4, 4, 4, 4]
+        description: "Block 1: alla i Z4"
+      - segment: main
+        sets: 5
+        distance_m: 100
+        rest_sec: 45
+        zones_per_set: [5, 5, 5, 5, 5]
+        description: "Block 2: alla i Z5 — märk skillnaden mot block 1"
+      - segment: cooldown
+        distance_m: 300
+        zone: 1
+    total_distance_m: 2100
+    total_duration_min:
+      estimated: 55
+      flexible_range: [50, 60]
+    zone_refs: [Z1, Z4, Z5]
+    equipment: []
+    coach_notes: |
+      Bra som indikator-pass. Splits berättar om Z4-Z5-gränsen
+      är kalibrerad rätt mot adeptens CSS.

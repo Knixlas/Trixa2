@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% block title %}Trixa — dashboard{% endblock %}
+{% block content %}
+
+{% set phasemap = {
+  'prep':       ['Förberedelse', 'var(--phase-prep)',       'sprout'],
+  'base':       ['Grundträning', 'var(--phase-base)',       'waves'],
+  'build':      ['Bygg',         'var(--phase-build)',      'trending-up'],
+  'peak':       ['Toppning',     'var(--phase-peak)',       'sun'],
+  'race':       ['Tävling',      'var(--phase-race)',       'trophy'],
+  'transition': ['Återhämtning', 'var(--phase-transition)', 'palmtree']
+} %}
+{% set alerticon = {'info': 'info', 'warning': 'triangle-alert', 'critical': 'octagon-alert'} %}
+
+<h1>Hej {{ athlete.name or "adept" }}</h1>
+
+{% if athlete %}
+<section>
+  <article>
+    <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 6px;">
+      <h3 style="margin: 0;">Status</h3>
+      <div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap;">
+        {% if phase %}
+        {% set p = phasemap.get(phase, phasemap['base']) %}
+        <span class="phase-pill" style="background: {{ p[1] }};"><i data-lucide="{{ p[2] }}"></i>{{ p[0] }}</span>
+        {% endif %}
+        {% if behind and optimal_phase %}{% set op = phasemap.get(optimal_phase, phasemap['build']) %}
+        <span class="badge" style="background: var(--coral-soft); color: var(--coral);"
+              title="Din faktiska volym bär inte den optimala fasen än — planen är nedskalad">⚠ ligger efter · optimalt {{ op[0] }}</span>
+        {% endif %}
+      </div>
+    </div>
+    <p style="margin: 0;">
+      <strong>Mål:</strong> {{ athlete.goal }} ({{ athlete.time_goal or "ingen måltid satt" }})<br>
+      <strong>Tävling:</strong> {{ athlete.race_date or "—" }} ({{ athlete.race_type or "—" }})<br>
+      <strong>Veckotimmar (mål):</strong> {{ athlete.weekly_hours }}h<br>
+      <strong>Aktuell fas:</strong> {{ phase }}{% if behind and optimal_phase %} — <span style="color: var(--coral);">optimalt vore {{ optimal_phase }}, ligger efter</span>{% endif %}
+    </p>
+  </article>
+</section>
+{% endif %}
+
+{% if alerts %}
+<section>
+  <h2>Aktuella varningar</h2>
+  {% for alert in alerts %}
+  <div class="alert {{ alert.severity }}">
+    <div class="ic"><i data-lucide="{{ alerticon.get(alert.severity, 'info') }}"></i></div>
+    <div class="alert-body">
+      <strong>{{ alert.title }}</strong>
+      <p>{{ alert.body | trim }}</p>
+    </div>
+  </div>
+  {% endfor %}
+</section>
+{% endif %}
+
+{% if athlete %}
+<div class="tabs">
+  <button class="tab active" type="button" data-tab="week">Veckans träning</button>
+  <button class="tab" type="button" data-tab="plan">Nästa vecka &amp; faser</button>
+</div>
+
+<div id="tab-week" class="tab-panel">
+  {% with week=this_week, week_label="Denna vecka", fallback_week_start=this_monday, show_audit=true %}
+    {% include "_week_section.html" %}
+  {% endwith %}
+</div>
+
+<div id="tab-plan" class="tab-panel" hidden>
+  {% include "_season_timeline.html" %}
+  {% with week=next_week, week_label="Nästa vecka", fallback_week_start=next_monday, show_audit=false %}
+    {% include "_week_section.html" %}
+  {% endwith %}
+</div>
+
+<style>
+  .tabs { display: flex; gap: 4px; margin: 22px 0 0; border-bottom: 2px solid var(--line); flex-wrap: wrap; }
+  .tab { background: transparent; box-shadow: none; color: var(--ink-3); border: none;
+         border-radius: var(--r-sm) var(--r-sm) 0 0; padding: 10px 18px; margin: 0;
+         font-weight: 700; font-size: 14px; cursor: pointer; }
+  .tab:hover { background: var(--bg-sand); }
+  .tab.active { background: var(--bg-card); color: var(--ink); box-shadow: var(--shadow-sm); }
+  .tab-panel { padding-top: 6px; }
+</style>
+<script>
+  (function () {
+    var tabs = document.querySelectorAll('.tab');
+    tabs.forEach(function (b) {
+      b.addEventListener('click', function () {
+        tabs.forEach(function (x) { x.classList.toggle('active', x === b); });
+        document.querySelectorAll('.tab-panel').forEach(function (p) {
+          p.hidden = (p.id !== 'tab-' + b.dataset.tab);
+        });
+      });
+    });
+  })();
+</script>
+{% endif %}
+
+{% endblock %}

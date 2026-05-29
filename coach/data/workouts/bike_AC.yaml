@@ -1,0 +1,389 @@
+# Cykelpass — Aerob Kapacitet (AC)
+#
+# AC1 — VO2Max Intervals: korta hårda intervaller på Z5 (3-5 min) eller
+#                         mycket korta (30/30). Maximal syreupptag.
+#
+# AC2 — Pyramid Intervals: stegrande/avtagande intervaller i Z5,
+#                          t.ex. 1-2-3-2-1 min.
+#
+# AC3 — Hill Intervals: korta Z5-intervaller i backe. Kombinerar
+#                       maximal kapacitet med specifik backe-stress.
+
+workouts:
+
+  # ─────────────────────────────────────────────────────────────
+  # AC1 — VO2Max Intervals
+  # ─────────────────────────────────────────────────────────────
+
+  - code: AC1_bike_01
+    discipline: bike
+    category: AC
+    type_code: AC1
+    name: "VO2Max — 5×3 min Z5"
+    phase_appropriate: [build_1, build_2]
+    intent: |
+      Klassisk VO2Max-träning. Fem 3-minutersblock i Z5 — total 15 min
+      där du jobbar nära max syreupptag. Det här är passet där du undrar
+      vad du gjorde fel i livet. Watt-target är 110-120% FTP. Lik-vila
+      (1:1) gör att det inte blir helt återhämtning mellan reps — det är
+      poängen. Andningen är häftig och konstant.
+    setting: indoor
+    requires_trainer: true
+    erg_mode: true
+    main_set:
+      - segment: warmup
+        duration_min: 20
+        zone: 1
+        erg_mode: false
+        description: "Inkludera 2 × 1 min progressive build mot Z4 och 1 × 30 sek Z5 öppnare"
+      - segment: main
+        sets: 5
+        duration_min: 3
+        zone: 5
+        cadence_rpm: [90, 105]
+        rest_sec: 180
+        description: |
+          Mitten Z5 (≈115% FTP). Aktiv vila i Z1-Z2.
+          Första repet sätt watt-disciplinen; rep 4-5 är där adaption sker.
+      - segment: cooldown
+        duration_min: 10
+        zone: 1
+        erg_mode: false
+    total_duration_min:
+      estimated: 65
+      flexible_range: [60, 75]
+    zone_refs: [Z1, Z5]
+    equipment: [power_meter, hr_strap, trainer]
+    abort_conditions:
+      - "Watt rep 5 < 90% av rep 1 → bryt sista repet"
+      - "HR-snabbleds-trötthet: pulsen stannar under Z5 trots ansträngning → AC-systemet är slut, avbryt"
+      - "Kraftiga huvudvärks- eller yrselsymtom → avbryt omedelbart"
+    coach_notes: |
+      Default AC1. Mycket effektivt men hård dos — använd max 1-2 gånger
+      per vecka i build, inte alls i prep eller base. ERG hjälper hålla
+      watt när tankarna börjar argumentera mot.
+
+  - code: AC1_bike_02
+    discipline: bike
+    category: AC
+    type_code: AC1
+    name: "VO2Max — 30/30 × 20"
+    phase_appropriate: [build_1, build_2, peak]
+    intent: |
+      Tabata-liknande 30/30 — 30 sek hårt / 30 sek lugnt × 20 reps. Total
+      10 min hård tid, men intensitetet är högre än 3-min-reps eftersom
+      vilan är så kort. HR aldrig stabil; effort_descriptor används istället
+      för zone. Maximal VO2-stimulering med begränsad muskulär trötthet.
+    setting: indoor
+    requires_trainer: true
+    erg_mode: true
+    main_set:
+      - segment: warmup
+        duration_min: 15
+        zone: 1
+        erg_mode: false
+        description: "Inkludera 1 × 30 sek Z5 mot slutet som öppnare"
+      - segment: main
+        sets: 20
+        duration_sec: 30
+        effort_descriptor: "30 sek vid 120-130% FTP. Watt-target ≈ 1.25 × FTP. Smooth tramp, hög kadens."
+        cadence_rpm: [95, 110]
+        rest_sec: 30
+        description: "30 sek aktiv vila — låg watt, vrid kvar benen"
+      - segment: cooldown
+        duration_min: 10
+        zone: 1
+        erg_mode: false
+    total_duration_min:
+      estimated: 50
+      flexible_range: [45, 55]
+    zone_refs: [Z1, Z5]
+    equipment: [power_meter, hr_strap, trainer]
+    abort_conditions:
+      - "Watt i reps 15-20 faller > 15% från rep 1-5 → bryt resterande"
+      - "Kadens faller under 85 vid maxwatt → tröttheten är fysiologisk, bryt"
+    coach_notes: |
+      Klassisk Tabata-inspirerad protokoll, modifierad för cykel. ERG
+      krävs absolut — på 30 sek tappar man watt-target utan automation.
+      Bra alternativ till AC1_bike_01 när du vill ha mindre muskulär
+      stress (lättare återhämtning till nästa dag).
+
+  - code: AC1_bike_03
+    discipline: bike
+    category: AC
+    type_code: AC1
+    name: "VO2Max — 4×4 min Z5"
+    phase_appropriate: [build_1, build_2]
+    intent: |
+      "Norrländska 4×4" — fyra 4-minutersintervaller i Z5 med 3 min vila.
+      Något längre per rep än 3-min-varianten (mer aerob), något kortare
+      total tid (mindre muskulär trötthet). Bra mellanting och har vetenskaplig
+      stöd (Helgerud-protokollet) som bästa VO2-byggande dos.
+    setting: indoor
+    requires_trainer: true
+    erg_mode: true
+    main_set:
+      - segment: warmup
+        duration_min: 20
+        zone: 1
+        erg_mode: false
+      - segment: main
+        sets: 4
+        duration_min: 4
+        zone: 5
+        cadence_rpm: [90, 105]
+        rest_sec: 180
+        description: "Nedre Z5 (≈110-115% FTP). HR ska upp i 90+% av max under sista minuten av varje rep."
+      - segment: cooldown
+        duration_min: 10
+        zone: 1
+        erg_mode: false
+    total_duration_min:
+      estimated: 65
+      flexible_range: [60, 75]
+    zone_refs: [Z1, Z5]
+    equipment: [power_meter, hr_strap, trainer]
+    abort_conditions:
+      - "HR ej över 90% max i rep 1-2 → uppvärmning otillräcklig eller systemiskt trött"
+      - "Watt rep 4 < 90% av rep 1 → bryt"
+    coach_notes: |
+      Något lättare än AC1_bike_01 (4 min vs 3 min är paradoxalt mindre
+      stressande pga längre vila). För adepter som AC1_bike_01 var för
+      hård för.
+
+  # ─────────────────────────────────────────────────────────────
+  # AC2 — Pyramid Intervals
+  # ─────────────────────────────────────────────────────────────
+
+  - code: AC2_bike_01
+    discipline: bike
+    category: AC
+    type_code: AC2
+    name: "Pyramid — 1/2/3/2/1 min Z5"
+    phase_appropriate: [build_1, build_2]
+    intent: |
+      Stegrande/avtagande VO2-pyramid: 1, 2, 3, 2, 1 min i Z5 med vila
+      lika med rep-tiden. Pyramiden ger variation utan att tappa fokus;
+      3-min-toppen ligger där VO2 maxar. Lättare mental dos än 5×3 men
+      lika fysiskt effektiv.
+    setting: indoor
+    requires_trainer: true
+    erg_mode: true
+    main_set:
+      - segment: warmup
+        duration_min: 20
+        zone: 1
+        erg_mode: false
+      - segment: main
+        duration_min: 1
+        zone: 5
+        cadence_rpm: [95, 110]
+        rest_sec: 60
+      - segment: main
+        duration_min: 2
+        zone: 5
+        cadence_rpm: [95, 105]
+        rest_sec: 120
+      - segment: main
+        duration_min: 3
+        zone: 5
+        cadence_rpm: [90, 100]
+        rest_sec: 180
+      - segment: main
+        duration_min: 2
+        zone: 5
+        cadence_rpm: [95, 105]
+        rest_sec: 120
+      - segment: main
+        duration_min: 1
+        zone: 5
+        cadence_rpm: [95, 110]
+      - segment: cooldown
+        duration_min: 10
+        zone: 1
+        erg_mode: false
+    total_duration_min:
+      estimated: 55
+      flexible_range: [50, 60]
+    zone_refs: [Z1, Z5]
+    equipment: [power_meter, hr_strap, trainer]
+    abort_conditions:
+      - "3-min-toppen ej genomförbar → reducera till 2 min och hoppa över sista 1-min-repet"
+    coach_notes: |
+      Total Z5-tid: 9 min — mindre än 5×3 men distribuerat över pyramiden.
+      Bra introduktion till AC1 för adept som inte kört VO2-träning förut.
+
+  - code: AC2_bike_02
+    discipline: bike
+    category: AC
+    type_code: AC2
+    name: "Pyramid — Tabata-pyramid 30-60-90-60-30 sek"
+    phase_appropriate: [build_1, build_2, peak]
+    intent: |
+      Kort-rep-pyramid: 30, 60, 90, 60, 30 sek med vila = rep-tid. Watt-target
+      högre än 3-min-pyramiden (≈120% FTP på 30-sek, ≈115% på 90-sek). HR
+      hinner aldrig stabilisera helt; effort_descriptor används.
+    setting: indoor
+    requires_trainer: true
+    erg_mode: true
+    main_set:
+      - segment: warmup
+        duration_min: 15
+        zone: 1
+        erg_mode: false
+      - segment: main
+        duration_sec: 30
+        effort_descriptor: "120% FTP, smooth"
+        cadence_rpm: [100, 110]
+        rest_sec: 30
+      - segment: main
+        duration_sec: 60
+        effort_descriptor: "118% FTP"
+        cadence_rpm: [95, 105]
+        rest_sec: 60
+      - segment: main
+        duration_sec: 90
+        effort_descriptor: "115% FTP"
+        cadence_rpm: [95, 105]
+        rest_sec: 90
+      - segment: main
+        duration_sec: 60
+        effort_descriptor: "118% FTP"
+        cadence_rpm: [95, 105]
+        rest_sec: 60
+      - segment: main
+        duration_sec: 30
+        effort_descriptor: "120% FTP, smooth"
+        cadence_rpm: [100, 110]
+        rest_sec: 60
+      - segment: main
+        duration_sec: 30
+        effort_descriptor: "120% FTP — pyramid 2 börjar"
+        cadence_rpm: [100, 110]
+        rest_sec: 30
+      - segment: main
+        duration_sec: 60
+        effort_descriptor: "118% FTP"
+        cadence_rpm: [95, 105]
+        rest_sec: 60
+      - segment: main
+        duration_sec: 90
+        effort_descriptor: "115% FTP"
+        cadence_rpm: [95, 105]
+        rest_sec: 90
+      - segment: main
+        duration_sec: 60
+        effort_descriptor: "118% FTP"
+        cadence_rpm: [95, 105]
+        rest_sec: 60
+      - segment: main
+        duration_sec: 30
+        effort_descriptor: "120% FTP, smooth"
+        cadence_rpm: [100, 110]
+      - segment: cooldown
+        duration_min: 10
+        zone: 1
+        erg_mode: false
+    total_duration_min:
+      estimated: 50
+      flexible_range: [45, 55]
+    zone_refs: [Z1, Z5]
+    equipment: [power_meter, hr_strap, trainer]
+    abort_conditions:
+      - "Watt-targets i pyramid 2 < 90% av pyramid 1 → bryt pyramid 2 efter 90-sek-repet"
+    coach_notes: |
+      Två pyramider i sekvens med 1 min vila mellan. Total Z5-tid: 11 min
+      (vs 9 min i AC2_bike_01) men kortare reps gör det möjligt att hålla
+      högre watt. Effort_descriptor pga varierande watt-target inom passet.
+
+  # ─────────────────────────────────────────────────────────────
+  # AC3 — Hill Intervals
+  # ─────────────────────────────────────────────────────────────
+
+  - code: AC3_bike_01
+    discipline: bike
+    category: AC
+    type_code: AC3
+    name: "Hill Intervals — 6×2 min Z5 i backe"
+    phase_appropriate: [build_1, build_2]
+    intent: |
+      Korta hårda backe-intervaller. Hitta backe på 2 min (typiskt 500-700m,
+      6-10%). Watt-target Z5 (≈115-120% FTP). Kombinerar VO2-stress med
+      backe-belastning — adapt är specifik för IM-cykling med kuperade
+      partier eller motvind. Mycket hårt; kort dos.
+    setting: outdoor
+    terrain: hilly
+    outdoor_only: true
+    erg_mode: false
+    main_set:
+      - segment: warmup
+        duration_min: 20
+        zone: 1
+        description: "Inkludera 2 × 30 sek progressive i Z3-Z4 mot slutet"
+      - segment: main
+        sets: 6
+        duration_min: 2
+        zone: 5
+        cadence_rpm: [85, 100]
+        rest_sec: 240
+        description: |
+          Mitten Z5. Rull ned i återhämtning. 4 min vila är generös men
+          nödvändig för att kunna upprepa Z5 6 gånger.
+      - segment: cooldown
+        duration_min: 10
+        zone: 1
+    total_duration_min:
+      estimated: 70
+      flexible_range: [65, 80]
+    zone_refs: [Z1, Z5]
+    equipment: [power_meter, hr_strap]
+    abort_conditions:
+      - "Watt rep 6 < 90% av rep 1 → bryt"
+      - "Kadens under 80 trots växel-val → backen för brant, sänk watt-target"
+    coach_notes: |
+      Mer specifik för IM-cykling med vind/backar än indoor VO2. Kräver
+      rätt backe — för Niklas: typ Värmdö (Boo/Stavsnäs-vägen-höjder)
+      eller Lidingö (norra delarna). I peak-fas kan reps reduceras till
+      4 men intensiteten ökas.
+
+  - code: AC3_bike_02
+    discipline: bike
+    category: AC
+    type_code: AC3
+    name: "Hill Intervals — 8×90 sek Z5 i backe"
+    phase_appropriate: [build_2, peak]
+    intent: |
+      Kortare och mer intensiva backe-intervaller. Backe på 90 sek (400-500m,
+      8-12%). Watt-target hög Z5 / nedre Z6 (≈120-125% FTP). 8 reps med
+      tillräcklig vila för att hålla wattan. Peak-fas-specifikt — bygger
+      "top end" inför tävling.
+    setting: outdoor
+    terrain: hilly
+    outdoor_only: true
+    erg_mode: false
+    main_set:
+      - segment: warmup
+        duration_min: 20
+        zone: 1
+      - segment: main
+        sets: 8
+        duration_sec: 90
+        effort_descriptor: "Hög Z5 / nedre Z6 (≈120-125% FTP). Hård och smooth — inte all-out sprint."
+        cadence_rpm: [85, 100]
+        rest_sec: 180
+        description: "Rull ned i återhämtning, lugn återgång till backens fot"
+      - segment: cooldown
+        duration_min: 10
+        zone: 1
+    total_duration_min:
+      estimated: 75
+      flexible_range: [70, 90]
+    zone_refs: [Z1, Z5]
+    equipment: [power_meter, hr_strap]
+    abort_conditions:
+      - "Watt i reps 6-8 < 90% av rep 1-2 → bryt"
+      - "Watt rep 1 omedelbart i Z6+ → for hårt, sänk"
+    coach_notes: |
+      Mer intensitet, mindre total tid än AC3_bike_01. Peak-fas-pass —
+      sista hårdkörningarna 4-3 veckor innan A-race. Inte för build_1
+      eller tidigare; för hård dos.

@@ -1,0 +1,275 @@
+{# Include-template för en vecka. Förväntar:
+   week: dict med {phase, week_start, workouts: [...]}
+   week_label: rubrik som "Denna vecka" eller "Nästa vecka"
+   fallback_week_start: ISO-date används om week saknas (för "generera nu"-knapp)
+   show_audit: bool, om coach-noter/audit-trail ska visas per pass
+#}
+{% set disc = {
+  'swim':     ['waves',      'var(--lagoon)'],
+  'bike':     ['bike',       'var(--pineapple)'],
+  'run':      ['footprints', 'var(--hibiscus)'],
+  'strength': ['dumbbell',   'var(--palm)'],
+  'rest':     ['moon',       'var(--ink-3)']
+} %}
+{# Plan-vs-actual-status → temats badge-klass/stil + accentfärg för actual-raden #}
+{% set statusbadge = {
+  'done':        ['badge', 'background: var(--palm-soft); color: var(--palm-deep);', 'var(--palm)'],
+  'rest_ok':     ['badge', 'background: var(--palm-soft); color: var(--palm-deep);', 'var(--palm)'],
+  'deviated':    ['badge warning',  '', 'var(--mango)'],
+  'rest_broken': ['badge warning',  '', 'var(--mango)'],
+  'missed':      ['badge critical', '', 'var(--coral)'],
+  'planned':     ['badge info',     '', 'var(--lagoon)'],
+  'today':       ['badge',          '', 'var(--ink-3)']
+} %}
+
+<section>
+  <h2>{{ week_label }}{% if week %} — {{ week.week_start }}{% endif %}</h2>
+
+  {% if week and week.workouts %}
+    <p>
+      {% if week.phase %}<strong>Fas:</strong> {{ week.phase }} | {% endif %}<strong>Pass:</strong> {{ week.workouts | length }}
+      {% if week.plan_source == "coach" %}
+      <span class="badge" style="background: var(--lagoon-soft); color: var(--lagoon-deep);"
+            title="Planen kommer från din coach (Nils), inte den automatiska generatorn">coachens plan</span>
+      {% else %}
+      <span class="badge" title="Automatiskt genererad av Trixa-motorn">genererad</span>
+      {% endif %}
+    </p>
+
+    {% if week.plan_source != "coach" %}
+    <details>
+      <summary>Regenerera denna vecka</summary>
+      <article style="margin-top: 0.5rem;">
+        <p style="font-size: 0.875rem;">
+          Skriver över befintlig plan baserat på aktuell engine-state,
+          inställningar och eventuella overrides.
+        </p>
+        <form method="post" action="/ui/plan/regenerate"
+              onsubmit="return confirm('Skriv över hela veckans plan?');">
+          <input type="hidden" name="week_start" value="{{ week.week_start }}">
+          <button type="submit">Regenerera vecka</button>
+        </form>
+      </article>
+    </details>
+    {% else %}
+    <p style="font-size: 12.5px; color: var(--ink-3); margin: 6px 0 14px;">
+      <i data-lucide="info" style="width: 13px; height: 13px; vertical-align: -2px;"></i>
+      Den här veckan följer <strong>coachens plan</strong> — regenerering gäller bara veckor som Trixa planerar själv.
+    </p>
+    {% endif %}
+
+    {% if week.exercise_suggestions %}
+    <datalist id="ex-{{ week.week_start }}">
+      {% for ex in week.exercise_suggestions %}<option value="{{ ex }}">{% endfor %}
+    </datalist>
+    {% endif %}
+
+    {% for w in week.workouts %}
+    <div class="workout">
+      <div class="wk-disc" style="background: {{ disc.get(w.sport, disc['rest'])[1] }};">
+        <i data-lucide="{{ disc.get(w.sport, disc['rest'])[0] }}"></i>
+      </div>
+      <div class="wk-main">
+        <div class="workout-date">{{ w.date }} · {{ w.sport }}</div>
+        <strong>{{ w.title }}</strong>
+        <div style="margin: 2px 0 6px; display: flex; gap: 5px; flex-wrap: wrap;">
+          {% if w.status %}{% set sb = statusbadge.get(w.status.key, ['badge', '', 'var(--ink-3)']) %}
+          <span class="{{ sb[0] }}" style="{{ sb[1] }}" title="{{ w.status.label }}">{{ w.status.emoji }} {{ w.status.label }}</span>{% endif %}
+          {% if w.is_manual %}<span class="badge" style="background: var(--orchid-soft); color: var(--orchid);" title="Adept-skapat pass">✋ Eget pass</span>{% endif %}
+        </div>
+        <div class="workout-meta">
+          <code>{{ w.code }}</code> <span class="badge info">{{ w.category or w.sport }}</span>
+          {% if w.setting == "outdoor" %}<span class="badge" style="background: var(--palm-soft); color: var(--palm-deep);"><i data-lucide="sun"></i>utomhus</span>
+          {% elif w.setting == "indoor" %}<span class="badge" style="background: var(--pineapple-soft); color: var(--pineapple-deep);"><i data-lucide="home"></i>inomhus</span>
+          {% elif w.setting == "either" %}<span class="badge">inne/ute</span>
+          {% endif %}
+          <span>· {{ w.duration_minutes }} min{% if w.distance %} · {{ w.distance }}{% endif %}{% if w.intensity %} · {{ w.intensity }}{% endif %}</span>
+        </div>
+
+        {# Faktiskt utfört (plan vs actual) under den alltid synliga plan-titeln #}
+        {% if w.status and w.status.actual %}
+        {% set acc = statusbadge.get(w.status.key, ['badge', '', 'var(--ink-3)'])[2] %}
+        <details style="border-left: 3px solid {{ acc }}; padding-left: 10px; margin-top: 8px;">
+          <summary>{{ w.status.actual.summary }}</summary>
+          <ul style="font-size: 13px; color: var(--ink-3); margin: 6px 0; padding-left: 18px;">
+            <li>Aktivitet: {{ w.status.actual.name or "—" }}{% if w.status.actual.activity_type %} ({{ w.status.actual.activity_type }}){% endif %}</li>
+            <li>Tid: {{ w.status.actual.duration_min }} min</li>
+            {% if w.status.actual.avg_hr %}<li>Puls: {{ w.status.actual.avg_hr }} snitt{% if w.status.actual.max_hr %} / {{ w.status.actual.max_hr }} max{% endif %} bpm</li>{% endif %}
+            {% if w.status.actual.distance_km %}<li>Distans: {{ w.status.actual.distance_km }} km</li>{% endif %}
+            {% if w.status.actual.normalized_power %}<li>Effekt: {{ w.status.actual.normalized_power }} W NP{% if w.status.actual.avg_power %} (snitt {{ w.status.actual.avg_power }} W){% endif %}</li>{% endif %}
+            {% if w.status.actual.training_load %}<li>Träningslast: TSS {{ w.status.actual.training_load }}</li>{% endif %}
+          </ul>
+        </details>
+        {% endif %}
+
+        {# Styrkelogg — set/reps/vikt/ansträngning mot styrkepasset #}
+        {% if w.sport == "strength" %}
+        <details {% if w.logged_exercises %}open{% endif %} style="margin-top: 8px;">
+          <summary>Logga styrka{% if w.logged_exercises %} ({{ w.logged_exercises | length }})  {% endif %}</summary>
+          <article style="margin-top: 6px;">
+            {% if w.planned_exercises %}
+            <p style="font-size: 12.5px; color: var(--ink-3); margin: 0 0 8px;"><strong>Planerat:</strong>
+              {% for ex in w.planned_exercises %}{{ ex.name }}{% if ex.sets %} {{ ex.sets }}×{{ ex.reps or ex.unit or "?" }}{% endif %}{% if ex.weight_from %} @{{ ex.weight_from }}kg{% endif %}{% if not loop.last %} · {% endif %}{% endfor %}
+            </p>
+            {% endif %}
+            {% if w.logged_exercises %}
+            {% set em = {1: '💚 lätt', 2: '💛 medel', 3: '🟠 tung', 4: '❤️ max', -1: '⏭️ hoppade'} %}
+            <ul style="font-size: 13px; margin: 0 0 10px; padding: 0; list-style: none;">
+              {% for lg in w.logged_exercises %}
+              <li style="display: flex; align-items: center; gap: 8px; padding: 3px 0; border-bottom: 1px dashed var(--line);">
+                <strong>{{ lg.exercise_name }}</strong>
+                <span style="color: var(--ink-3);">{% if lg.sets %}{{ lg.sets }}×{{ lg.reps or "?" }}{% endif %}{% if lg.weight_from %} @ {{ lg.weight_from }} kg{% endif %} · {{ em.get(lg.effort, "•") }}</span>
+                <form method="post" action="/ui/strength/remove" style="margin-left: auto;">
+                  <input type="hidden" name="log_id" value="{{ lg.id }}">
+                  <button type="submit" class="outline" style="font-size: 11px; padding: 2px 9px;">×</button>
+                </form>
+              </li>
+              {% endfor %}
+            </ul>
+            {% endif %}
+            <form method="post" action="/ui/strength/log" class="grid" style="align-items: end; gap: 0 10px;">
+              <input type="hidden" name="session_date" value="{{ w.date }}">
+              <label style="grid-column: 1 / -1;">Övning
+                <input type="text" name="exercise_name" list="ex-{{ week.week_start }}" required placeholder="t.ex. Knäböj">
+              </label>
+              <label>Set <input type="number" name="sets" min="0" placeholder="3"></label>
+              <label>Reps <input type="number" name="reps" min="0" placeholder="12"></label>
+              <label>Vikt (kg) <input type="number" name="weight_from" min="0" step="0.5" placeholder="40"></label>
+              <label>Ansträngning
+                <select name="effort">
+                  <option value="1">Lätt</option>
+                  <option value="2" selected>Medel</option>
+                  <option value="3">Tung</option>
+                  <option value="4">Max</option>
+                  <option value="-1">Hoppade över</option>
+                </select>
+              </label>
+              <button type="submit" style="grid-column: 1 / -1;">Logga övning</button>
+            </form>
+          </article>
+        </details>
+        {% endif %}
+
+        {% if w.notes %}
+        <details>
+          <summary>Syfte</summary>
+          <p>{{ w.notes | trim }}</p>
+        </details>
+        {% endif %}
+
+        {% if w.steps %}
+        <details>
+          <summary>Upplägg</summary>
+          <ol style="font-size: 0.875rem;">
+            {% for s in w.steps %}
+            <li>
+              <strong>{{ s.segment or "?" }}:</strong>
+              {% if s.sets and s.sets > 1 %}{{ s.sets }}×{% endif %}{{ s.distance_m or s.duration_min or "?" }}{% if s.distance_m %}m{% elif s.duration_min %} min{% endif %}
+              {% if s.zone %}— Z{{ s.zone }}{% endif %}
+              {% if s.rest_sec %}, {{ s.rest_sec }}s vila{% endif %}
+              {% if s.description %}<br><em>{{ s.description }}</em>{% endif %}
+            </li>
+            {% endfor %}
+          </ol>
+        </details>
+        {% endif %}
+
+        {% if w.sport in ("swim", "bike", "run") and week.plan_source != "coach" %}
+        <details>
+          <summary>Ändra detta pass</summary>
+          <article style="margin-top: 0.5rem; font-size: 0.875rem;">
+
+            {% if w.alternatives %}
+            <form method="post" action="/ui/workouts/{{ w.id }}/swap"
+                  style="margin-bottom: 1rem;"
+                  onsubmit="return confirm('Byt ut passet?');">
+              <label for="swap-{{ w.id }}">Byt till annat pass (samma kategori)</label>
+              <select id="swap-{{ w.id }}" name="new_code" required>
+                <option value="">— välj —</option>
+                {% for alt in w.alternatives %}
+                <option value="{{ alt.code }}">{{ alt.name }} ({{ alt.code }})</option>
+                {% endfor %}
+              </select>
+              <button type="submit">Byt ut pass</button>
+            </form>
+            {% else %}
+            <p><em>Inga alternativa pass i passbanken för denna kategori + fas.</em></p>
+            {% endif %}
+
+            <form method="post" action="/ui/workouts/{{ w.id }}/swap-discipline"
+                  onsubmit="return confirm('Byt gren och planera om hela veckan?');">
+              <label for="swap-disc-{{ w.id }}">Byt till annan gren + planera om vecka</label>
+              <select id="swap-disc-{{ w.id }}" name="new_discipline" required>
+                <option value="">— välj gren —</option>
+                {% if w.sport != "swim" %}<option value="swim">Simning</option>{% endif %}
+                {% if w.sport != "bike" %}<option value="bike">Cykel</option>{% endif %}
+                {% if w.sport != "run" %}<option value="run">Löpning</option>{% endif %}
+              </select>
+              <button type="submit">Byt gren + replanera</button>
+            </form>
+
+          </article>
+        </details>
+        {% endif %}
+
+        {% if w.is_manual %}
+        <form method="post" action="/ui/workouts/{{ w.id }}/delete-custom"
+              onsubmit="return confirm('Ta bort eget pass?');" style="margin-top: 6px;">
+          <button type="submit" class="outline" style="font-size: 12px; padding: 4px 12px;">Ta bort eget pass</button>
+        </form>
+        {% endif %}
+
+        {% if show_audit and w.coach_notes %}
+        <details>
+          <summary>Coach-noter / audit</summary>
+          <pre style="white-space: pre-wrap; font-size: 0.75rem; color: var(--ink-3);">{{ w.coach_notes | trim }}</pre>
+        </details>
+        {% endif %}
+      </div>
+    </div>
+    {% endfor %}
+
+    {% if week.plan_source != "coach" and week.id %}
+    <details style="margin-top: 8px;">
+      <summary>+ Lägg till eget pass</summary>
+      <article>
+        <form method="post" action="/ui/workouts/custom">
+          <input type="hidden" name="week_id" value="{{ week.id }}">
+          <label>Dag
+            <input type="date" name="date" value="{{ week.week_start }}"
+                   min="{{ week.week_start }}" max="{{ week.week_end }}" required>
+          </label>
+          <label>Gren
+            <select name="sport" required>
+              <option value="swim">Simning</option>
+              <option value="bike">Cykel</option>
+              <option value="run">Löpning</option>
+              <option value="strength">Styrka</option>
+            </select>
+          </label>
+          <label>Sträcka (valfritt)
+            <input type="text" name="distance" placeholder="t.ex. 5 km eller 1500 m">
+          </label>
+          <label>Tid (min)
+            <input type="number" name="duration_minutes" min="0" placeholder="45">
+          </label>
+          <label>Beskrivning
+            <input type="text" name="description" placeholder="Kort beskrivning av passet">
+          </label>
+          <button type="submit">Lägg till pass</button>
+        </form>
+      </article>
+    </details>
+    {% endif %}
+  {% else %}
+    <article style="text-align: center; padding: 24px;">
+      <i data-lucide="palmtree" style="width: 34px; height: 34px; color: var(--ink-3);"></i>
+      <p style="margin: 10px 0 16px; color: var(--ink-3);"><em>Ingen plan genererad för denna vecka.</em></p>
+      <form method="post" action="/ui/plan/regenerate"
+            onsubmit="return confirm('Generera plan för {{ fallback_week_start }}?');">
+        <input type="hidden" name="week_start" value="{{ fallback_week_start }}">
+        <button type="submit">Generera vecka {{ fallback_week_start }}</button>
+      </form>
+    </article>
+  {% endif %}
+</section>

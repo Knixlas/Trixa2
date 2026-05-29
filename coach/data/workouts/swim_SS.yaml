@@ -1,0 +1,328 @@
+# Simpass — Snabbhetsfärdigheter (SS)
+#
+# SS1 — Fast Forms 25s: korta sprintar med teknikfokus, full återhämtning
+# SS2 — Toys Sets: fenor, snorkel, kickboard — verktyg för teknik och snabbhet
+#
+# Gemensamt: hög kvalitet per repetition. Aldrig trötta upp. När
+# tekniken bryts är passet slut.
+
+workouts:
+
+  # ─────────────────────────────────────────────────────────────
+  # SS1 — Fast Forms 25s
+  # ─────────────────────────────────────────────────────────────
+
+  - code: SS1_swim_01
+    discipline: swim
+    category: SS
+    type_code: SS1
+    name: "16×25 all-out"
+    phase_appropriate: [prep, base_1, base_2, base_3, build_1, build_2, peak]
+    intent: |
+      Klassisk snabbhetsdrill. Korta sprintar med full återhämtning.
+      Poängen är ren snabbhet utan trötthet — alla 25 ska se ut som
+      första 25. Aldrig 'snubbla i mål' tekniskt.
+    main_set:
+      - segment: warmup
+        distance_m: 400
+        zone: 1
+      - segment: drills
+        sets: 4
+        distance_m: 50
+        rest_sec: 15
+        drills: [single_arm, six_kick_switch, fast_swim_focus]
+      - segment: build
+        sets: 4
+        distance_m: 25
+        rest_sec: 30
+        description: "Build från Z2 till Z4 — väck nervsystemet"
+      - segment: sprint
+        sets: 16
+        distance_m: 25
+        zone: 5
+        rest_sec: 30
+        description: "All-out från push. Full återhämtning innan nästa."
+        notes: "Andas så lite som möjligt — helst inte alls på 25m"
+      - segment: cooldown
+        distance_m: 300
+        zone: 1
+    total_distance_m: 1500
+    total_duration_min:
+      estimated: 45
+      flexible_range: [40, 55]
+    zone_refs: [Z1, Z2, Z4, Z5]
+    equipment: []
+    abort_conditions:
+      - "När pace på en 25:a är >2 sek långsammare än den snabbaste hittills → sluta, det är trötthet inte snabbhet"
+
+  - code: SS1_swim_02
+    discipline: swim
+    category: SS
+    type_code: SS1
+    name: "Underwater dolphin starts"
+    phase_appropriate: [base_2, base_3, build_1, build_2, peak]
+    intent: |
+      Sprint-set med fokus på undervatten-fasen ut från väggen.
+      Inte ren simning — varje 25 börjar med 5 dolphin-kicks
+      undervatten innan första taget. Bygger startkraft och kicktolerans.
+    main_set:
+      - segment: warmup
+        distance_m: 400
+        zone: 1
+      - segment: drills
+        sets: 4
+        distance_m: 25
+        rest_sec: 20
+        description: "Bara undervattens-dolphin från push — kom upp och stå"
+      - segment: sprint
+        sets: 8
+        distance_m: 25
+        zone: 5
+        rest_sec: 45
+        description: "5 dolphin-kicks under vattnet ut från väggen, sedan sprint upp till mål"
+      - segment: cooldown
+        distance_m: 200
+        zone: 1
+    total_distance_m: 900
+    total_duration_min:
+      estimated: 30
+      flexible_range: [25, 40]
+    zone_refs: [Z1, Z5]
+    equipment: []
+    coach_notes: |
+      Korta pass — undervattenarbete är belastande på lungor och kropp.
+      Aldrig stretcha gränsen för att hålla andan, det är farligt.
+
+  - code: SS1_swim_03
+    discipline: swim
+    category: SS
+    type_code: SS1
+    name: "Sprintstege 12×25 build"
+    phase_appropriate: [base_2, base_3, build_1, build_2, peak]
+    intent: |
+      Sprint-set med progressiv intensitet. Första repetitionerna
+      är inte all-out — du bygger till maximalsnabbhet på de sista.
+      Lär nervsystemet att skala upp utan teknikbortfall.
+    main_set:
+      - segment: warmup
+        distance_m: 400
+        zone: 1
+      - segment: drills
+        sets: 4
+        distance_m: 50
+        rest_sec: 15
+      - segment: sprint
+        sets: 4
+        distance_m: 25
+        zone: 4
+        rest_sec: 30
+        description: "Steg 1: snabbt men under max"
+      - segment: sprint
+        sets: 4
+        distance_m: 25
+        zone: 4
+        rest_sec: 35
+        description: "Steg 2: snabbare än steg 1"
+      - segment: sprint
+        sets: 4
+        distance_m: 25
+        zone: 5
+        rest_sec: 40
+        description: "Steg 3: maximalt"
+      - segment: cooldown
+        distance_m: 300
+        zone: 1
+    total_distance_m: 1300
+    total_duration_min:
+      estimated: 40
+      flexible_range: [35, 50]
+    zone_refs: [Z1, Z4, Z5]
+    equipment: []
+
+  # ─────────────────────────────────────────────────────────────
+  # SS2 — Toys Sets
+  # ─────────────────────────────────────────────────────────────
+
+  - code: SS2_swim_01
+    discipline: swim
+    category: SS
+    type_code: SS2
+    name: "Fen-set: snabb och flytande"
+    phase_appropriate: [prep, base_1, base_2, base_3, build_1, build_2, peak]
+    intent: |
+      Fenor multiplicerar både kraft och hastighet utan att slita
+      lika hårt på axlar. Bra för att vänja kroppen vid högre hastigheter
+      än CSS — den 'feeling' du sedan vill kunna återskapa utan fenor.
+    main_set:
+      - segment: warmup
+        distance_m: 400
+        zone: 1
+      - segment: kick
+        sets: 4
+        distance_m: 50
+        rest_sec: 15
+        equipment: [fins, kickboard]
+        description: "Kick på rygg eller med kickboard, snabba fötter"
+      - segment: drills
+        sets: 4
+        distance_m: 50
+        rest_sec: 15
+        equipment: [fins]
+        drills: [six_kick_switch, side_kick]
+      - segment: main
+        sets: 8
+        distance_m: 50
+        zone: 3
+        rest_sec: 20
+        equipment: [fins]
+        description: "Snabb fri med fenor — fart du normalt inte når"
+      - segment: cooldown
+        distance_m: 200
+        zone: 1
+        equipment: []
+        description: "Utan fenor — kontrast"
+    total_distance_m: 1800
+    total_duration_min:
+      estimated: 45
+      flexible_range: [40, 50]
+    zone_refs: [Z1, Z3]
+    equipment: [fins, kickboard]
+
+  - code: SS2_swim_02
+    discipline: swim
+    category: SS
+    type_code: SS2
+    name: "Snorkel-teknikset"
+    phase_appropriate: [prep, base_1, base_2, base_3]
+    intent: |
+      Snorkel eliminerar andning från ekvationen — du kan fokusera
+      på 100% kroppsposition och tag-mekanik utan att andnings-vridningen
+      stör. Långsamt och precist.
+    main_set:
+      - segment: warmup
+        distance_m: 300
+        zone: 1
+        equipment: []
+      - segment: drills
+        sets: 6
+        distance_m: 50
+        rest_sec: 20
+        equipment: [snorkel]
+        drills: [sculling_front, catch_drill, fingertip_drag]
+        description: "Snorkel på — fokusera helt på vad armarna gör"
+      - segment: main
+        sets: 4
+        distance_m: 100
+        zone: 2
+        rest_sec: 20
+        equipment: [snorkel]
+        description: "Lugn fri med snorkel — försök behålla drill-känslan"
+      - segment: main
+        sets: 4
+        distance_m: 50
+        zone: 2
+        rest_sec: 15
+        equipment: []
+        description: "Utan snorkel — bibehåll positionen från snorkel-delen"
+      - segment: cooldown
+        distance_m: 200
+        zone: 1
+    total_distance_m: 1500
+    total_duration_min:
+      estimated: 45
+      flexible_range: [40, 50]
+    zone_refs: [Z1, Z2]
+    equipment: [snorkel]
+
+  - code: SS2_swim_03
+    discipline: swim
+    category: SS
+    type_code: SS2
+    name: "Toy rotation set"
+    phase_appropriate: [base_1, base_2, base_3]
+    intent: |
+      Rotation genom flera verktyg — fenor, snorkel, kickboard.
+      Varje del isolerar ett tekniskt fokus. Passet ger bred
+      teknisk täckning på en gång.
+    main_set:
+      - segment: warmup
+        distance_m: 400
+        zone: 1
+      - segment: kick
+        sets: 6
+        distance_m: 50
+        rest_sec: 15
+        equipment: [kickboard, fins]
+        zone: 2
+        description: "Snabb kick, fokus på smal amplitud"
+      - segment: drills
+        sets: 4
+        distance_m: 50
+        rest_sec: 15
+        equipment: [snorkel]
+        drills: [catch_drill, sculling_front]
+      - segment: main
+        sets: 4
+        distance_m: 75
+        zone: 2
+        rest_sec: 20
+        equipment: [fins]
+        description: "Fenor + fri, känn farten"
+      - segment: cooldown
+        distance_m: 200
+        zone: 1
+        equipment: []
+    total_distance_m: 1500
+    total_duration_min:
+      estimated: 45
+      flexible_range: [40, 50]
+    zone_refs: [Z1, Z2]
+    equipment: [fins, snorkel, kickboard]
+    coach_notes: |
+      Passet är variation-tungt — bra som veckans 'teknik-pass'
+      när det inte finns plats för specifikt tekniktema.
+
+  - code: SS2_swim_04
+    discipline: swim
+    category: SS
+    type_code: SS2
+    name: "Fenor snabbhet (over-speed)"
+    phase_appropriate: [base_3, build_1, build_2, peak]
+    intent: |
+      Over-speed-träning: fenor gör att du kan simma snabbare än
+      din egen CSS tillåter. Nervsystemet lär sig vad farten KÄNNS
+      som. Forskningen kring overspeed är blandad men i praktiken
+      ger det en mental referens för 'snabb fri'.
+    main_set:
+      - segment: warmup
+        distance_m: 400
+        zone: 1
+      - segment: build
+        sets: 4
+        distance_m: 50
+        rest_sec: 15
+        equipment: [fins]
+        description: "Build fart med fenor"
+      - segment: sprint
+        sets: 12
+        distance_m: 25
+        zone: 5
+        rest_sec: 30
+        equipment: [fins]
+        description: "Sprint med fenor — högre hastighet än någonsin utan"
+      - segment: main
+        sets: 4
+        distance_m: 50
+        zone: 4
+        rest_sec: 20
+        equipment: []
+        description: "Utan fenor — försök behålla snabbhetskänslan"
+      - segment: cooldown
+        distance_m: 200
+        zone: 1
+    total_distance_m: 1400
+    total_duration_min:
+      estimated: 40
+      flexible_range: [35, 45]
+    zone_refs: [Z1, Z4, Z5]
+    equipment: [fins]

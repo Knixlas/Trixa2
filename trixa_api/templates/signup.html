@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}Skapa konto — Trixa{% endblock %}
+{% block content %}
+<section style="max-width: 420px; margin: 6vh auto 0;">
+  <h1 style="font-size: 2.1rem;">Skapa konto</h1>
+  <article>
+    {% if error %}
+    <p style="color: var(--coral); margin: 0 0 14px; font-weight: 600;">{{ error }}</p>
+    {% endif %}
+    <form method="post" action="/ui/signup">
+      <label>Namn
+        <input type="text" name="name" autocomplete="name" placeholder="Ditt namn">
+      </label>
+      <label>E-post
+        <input type="email" name="email" required autofocus autocomplete="email"
+               placeholder="din@epost.se">
+      </label>
+      <label>Lösenord
+        <input type="password" name="password" required autocomplete="new-password"
+               minlength="8" placeholder="Minst 8 tecken">
+      </label>
+      {% if require_code %}
+      <label>Inbjudningskod
+        <input type="text" name="code" required placeholder="Koden du fick av din coach">
+      </label>
+      {% endif %}
+      <button type="submit" style="width: 100%;">Skapa konto &amp; logga in</button>
+    </form>
+  </article>
+  <p style="font-size: 12.5px; color: var(--ink-3); text-align: center;">
+    Har du redan ett konto? <a href="/ui/login">Logga in</a>.
+  </p>
+</section>
+{% endblock %}

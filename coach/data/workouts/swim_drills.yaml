@@ -1,0 +1,638 @@
+# Simdrills — katalog
+#
+# Drills är inte ifyllnad. De är ofta det enda passet levererar tekniskt.
+# Varje drill har syfte, utförandeinstruktion, vanliga fel, och tränar-cues.
+# Renderaren kan slå upp drill-koden från ett pass och visa kort
+# beskrivning intill själva passinstruktionen.
+#
+# Kategorier:
+#   body_position  — kropp i vattnet, streamline, höft, balans
+#   rotation       — rotation kring längsaxeln
+#   catch_pull     — fram-katch, dragväg, propulsion
+#   breathing      — andningsmönster, takt, kontroll
+#   kick           — kickteknik och kicktolerans
+#   speed_tempo    — stroke rate, snabbhet, count
+#
+# Svårighetsgrad (difficulty):
+#   1 — grunddrill, lärbar för alla
+#   2 — kräver tidigare drill-erfarenhet
+#   3 — avancerad, kräver hyfsad teknisk bas
+#
+# OBS: drillen "catchup" (vänta-på-handen) ingår avsiktligt INTE i denna katalog.
+# Adeptens simcoach har avrått från den och det finns gott om alternativ
+# som ger samma front-quadrant-timing-effekt utan catchups nackdelar
+# (stroke rate-bortfall, rörelseekonomi).
+
+drills:
+
+  # ─────────────────────────────────────────────────────────────
+  # body_position
+  # ─────────────────────────────────────────────────────────────
+
+  - code: superman_glide
+    name: "Superman Glide"
+    category: body_position
+    difficulty: 1
+    intent: |
+      Återupprätta känslan av lång, smal kropp i vattnet.
+      Drillen sker mellan tagen — efter varje hela armcykel pausar
+      du i streamline och glider innan nästa tag. Lär kroppen
+      att vila i glidet istället för att forcera fram nya tag.
+    execution: |
+      1. Streamline från vägg, ansiktet i vattnet
+      2. Sex normala armtag → händerna möts framför
+      3. Håll positionen 2-3 sekunder, glid
+      4. Nytt set om sex tag → glid igen
+      5. Upprepa över 25-50m
+    common_mistakes:
+      - "Tappar streamline under glidet — kropp sjunker, höft faller"
+      - "Andas under glidet — vrid huvudet bara på tag-fasen"
+      - "Glider för länge och tappar momentum"
+    cues:
+      - "Räkna 'ett-två-tre' i glidet, sedan nytt tag"
+      - "Sträck dig som om någon drar din främre hand"
+    equipment: []
+    typical_distance_m: 50
+    related_drills: [side_kick, popov_skate]
+
+  - code: side_kick
+    name: "Side Kick"
+    category: body_position
+    difficulty: 1
+    intent: |
+      Kick på sidan med en arm framsträckt. Lär kroppen kicktolerans
+      i rotationsposition och stabiliserar streamline med kick som
+      enda framdrift.
+    execution: |
+      1. Pusha från vägg på sidan (vänster sida först)
+      2. Vänster arm sträckt framåt, höger arm vid höften
+      3. Ansiktet i vattnet, blicken neråt-framåt
+      4. Vrid huvudet uppåt för andning, sedan ner igen
+      5. Kicka kontinuerligt över 25m
+      6. Byt sida vid vändning
+    common_mistakes:
+      - "Höften sjunker — håll core spänd, sträck den nedre flanken"
+      - "Den övre armen 'faller' — håll den vid höften"
+      - "Kicken bryter ut bredvid sig — smal amplitud nerför"
+    cues:
+      - "Föreställ dig en pinne genom kroppen från huvud till tå"
+      - "Andas mot taket, inte mot väggen"
+    equipment: []
+    typical_distance_m: 25
+    related_drills: [six_kick_switch, popov_skate]
+
+  - code: popov_skate
+    name: "Popov Skate"
+    category: body_position
+    difficulty: 2
+    intent: |
+      Aleksandr Popovs klassiska sidekick-drill. Tre kicks på sidan,
+      sedan ett tag, sedan tre kicks på andra sidan. Skapar tydlig
+      rotation och tränar tag-igenom-rotation-känslan.
+    execution: |
+      1. Pusha på vänster sida, vänster arm framåt
+      2. Tre kicks i sidoläge
+      3. Höger arm tar ett komplett tag, kroppen roterar till höger sida
+      4. Höger arm framåt, tre kicks
+      5. Upprepa
+    common_mistakes:
+      - "Tagets timing fel — du roterar med tagets början, inte mitten"
+      - "Höften ligger efter — driv rotationen från höften, inte armen"
+      - "Andas på sidokick-fasen — andas på själva taget"
+    cues:
+      - "Taget och rotationen är samma rörelse"
+      - "Lång sida, tre kicks, kraftigt tag, lång andra sida"
+    equipment: []
+    typical_distance_m: 50
+    related_drills: [side_kick, six_kick_switch]
+
+  - code: head_lead_balance
+    name: "Head-Lead Balance"
+    category: body_position
+    difficulty: 1
+    intent: |
+      Balanceringsdrill — flyt på rygg eller mage med armarna vid sidorna,
+      bara kick. Lär kroppen att hitta balanslinjen utan armarnas hjälp.
+    execution: |
+      1. Pusha från vägg på mage, armarna vid sidorna
+      2. Ansiktet i vattnet, blicken neråt
+      3. Lugn flutter-kick
+      4. Andas genom att lyfta huvudet kort, sedan tillbaka
+      5. 25m, sedan upprepa på rygg
+    common_mistakes:
+      - "Lyfter huvudet och låter höften sjunka"
+      - "Tunga armar — håll dem avslappnat utmed kroppen"
+    cues:
+      - "Bröstet trycker neråt, huvudet flyter"
+    equipment: []
+    typical_distance_m: 25
+    related_drills: [superman_glide, kick_streamline]
+
+  # ─────────────────────────────────────────────────────────────
+  # rotation
+  # ─────────────────────────────────────────────────────────────
+
+  - code: six_kick_switch
+    name: "6-Kick Switch"
+    category: rotation
+    difficulty: 2
+    intent: |
+      Sex kicks i sidoläge, sedan rotation till andra sidan via ett tag.
+      Tränar både kicktolerans och rotationskontroll. Klassiker.
+    execution: |
+      1. Pusha på vänster sida, vänster arm sträckt framåt
+      2. Sex kicks i sidoläge (räkna i huvudet)
+      3. Höger arm tar ett tag samtidigt som kroppen roterar
+      4. Höger arm sträckt framåt, sex kicks på höger sida
+      5. Upprepa
+    common_mistakes:
+      - "Andas under kick-fasen istället för under själva taget — håll andan, andas på taget"
+      - "Höften släpar — driv rotationen från höften"
+      - "Trampar vatten — håll smal kick"
+    cues:
+      - "Räkna högt i huvudet: ett-två-tre-fyra-fem-sex"
+      - "Den främre handen är spjutspetsen"
+    equipment: []
+    typical_distance_m: 50
+    related_drills: [side_kick, popov_skate, single_arm]
+
+  - code: single_arm
+    name: "Single Arm"
+    category: rotation
+    difficulty: 2
+    intent: |
+      Ena armen simmar, andra streamlinear framåt. Tvingar full rotation
+      vid varje tag eftersom kroppen inte kan kompensera med båda armarna.
+      Bygger också enhets-styrka — varje arm jobbar isolerat.
+    execution: |
+      1. Vänster arm sträckt framåt, höger arm vid höften
+      2. Höger arm tar ett komplett tag → tillbaka till starpositionen
+      3. Andas mot motsatt sida (vänster) varannan tag
+      4. 25m → byt arm
+    common_mistakes:
+      - "Den sträckta armen 'fladdrar' — håll den stilla och spänd"
+      - "Ingen rotation eftersom den sträckta armen lurar — tvinga rotationen ändå"
+      - "Andas mot samma sida som taget — det blir teknik-fel"
+    cues:
+      - "Den vilande armen är klippan, den simmande är hammaren"
+      - "Andas mot vilande sidan, inte simmande"
+    equipment: []
+    typical_distance_m: 50
+    related_drills: [six_kick_switch, zipper]
+
+  - code: zipper
+    name: "Zipper"
+    category: rotation
+    difficulty: 1
+    intent: |
+      Under recovery dras handen upp längs kroppens sida — som att dra
+      upp en dragkedja. Tränar hög armbåge i recovery och tydlig rotation.
+    execution: |
+      1. Normal fri
+      2. Under recovery: tumman dras längs kroppens sida från höft till
+         armhåla, sedan vidare till framtaget
+      3. Armbågen ska vara den högsta punkten under recovery
+      4. Övriga taget normalt
+    common_mistakes:
+      - "Lyfter handen istället för armbågen — armbågen leder"
+      - "Skrapar hårt mot kroppen — det räcker att tumman 'sveper'"
+    cues:
+      - "Armbågen pekar mot taket"
+      - "Tumman drar upp dragkedjan"
+    equipment: []
+    typical_distance_m: 50
+    related_drills: [shark_fin, fingertip_drag]
+
+  - code: shark_fin
+    name: "Shark Fin"
+    category: rotation
+    difficulty: 2
+    intent: |
+      Under recovery pausas armen halvvägs upp — armbågen pekar mot taket
+      i ca 1 sekund som en haj-fena. Tränar hög armbåge och rotation.
+    execution: |
+      1. Normal fri
+      2. När armen kommer ur vatten i recovery: stoppa när armbågen är
+         högst, underarm pekar neråt
+      3. Håll positionen 1 sekund (känn rotationen)
+      4. Fortsätt taget framåt och ner i vattnet
+    common_mistakes:
+      - "Pausen är för kort eller obefintlig — håll positionen tydligt"
+      - "Förlorar momentum — bibehåll glid med kicken"
+      - "Höften roterar inte med — håll positionen med rotationen"
+    cues:
+      - "Frys i hajfens-positionen"
+      - "Vit underarm pekar rakt ner"
+    equipment: []
+    typical_distance_m: 50
+    related_drills: [zipper]
+
+  # ─────────────────────────────────────────────────────────────
+  # catch_pull
+  # ─────────────────────────────────────────────────────────────
+
+  - code: sculling_front
+    name: "Front Sculling"
+    category: catch_pull
+    difficulty: 1
+    intent: |
+      Lateral handrörelse framför kroppen för att känna vattnets motstånd
+      mot handen och underarmen. Lär 'känna' vattnet — den taktila bas
+      som hela katchfasen bygger på.
+    execution: |
+      1. Pusha från vägg på mage med pull-buoy mellan benen
+      2. Båda armarna framsträckta, händerna ~30cm under ytan
+      3. Sculling: lateralt fram-och-tillbaka med handflatorna
+      4. Handflatorna pekar utåt på utåt-rörelsen, inåt på inåt-rörelsen
+      5. Liten amplitud — bara ~30cm
+      6. Kropp och huvud orörliga, bara händerna jobbar
+    common_mistakes:
+      - "Stora svepande rörelser — det är inte vatten-vinkar"
+      - "Handflatan tappar 'grepp' om vattnet — tryck konstant"
+      - "Lyfter huvudet — använd snorkel om det hjälper"
+    cues:
+      - "Du skopar vatten åt sidorna"
+      - "Handflatorna är paddor som biter i vattnet"
+    equipment: [pull_buoy]
+    typical_distance_m: 25
+    related_drills: [sculling_under_chest, catch_drill]
+
+  - code: sculling_under_chest
+    name: "Sculling Under Chest"
+    category: catch_pull
+    difficulty: 2
+    intent: |
+      Sculling-drill längre in i tagcykeln — händerna under bröstet.
+      Tränar känslan av att 'gripa' vattnet i mitten av dragvägen.
+    execution: |
+      1. Pull-buoy mellan benen
+      2. Sculling-position framför ansiktet i 5 sekunder
+      3. Glid händerna ner till position under bröstet
+      4. Sculling där — handflatorna pekar bakåt, inte utåt
+      5. Tryck vatten bakåt mot fötterna
+    common_mistakes:
+      - "Handflatorna pekar utåt — i denna position ska de peka bakåt"
+      - "Armbågarna sjunker — håll hög armbåge"
+    cues:
+      - "Bygg en kupa under bröstet och tryck"
+      - "Underarmen är paddel"
+    equipment: [pull_buoy]
+    typical_distance_m: 25
+    related_drills: [sculling_front, catch_drill]
+
+  - code: fist_swim
+    name: "Fist Swim"
+    category: catch_pull
+    difficulty: 2
+    intent: |
+      Knytnävssim. Eliminerar handens 'paddel' och tvingar dig att hitta
+      vattnet med underarmen. När du sedan öppnar handen igen känns
+      katchfasen tydligt — handen blir en bonus, inte huvudkraften.
+    execution: |
+      1. Knyt händerna helt (knogar inåt)
+      2. Sim normal fri 50m med knytnävar
+      3. Öppna händerna och sim 50m normalt
+      4. Märk skillnaden i 'grepp' om vattnet
+    common_mistakes:
+      - "Halvknutna händer — knyt ordentligt"
+      - "Sliter med armarna — det blir inte snabbare av att panika"
+    cues:
+      - "Underarmen är paddel"
+      - "Tryck bakåt, inte ner"
+    equipment: []
+    typical_distance_m: 50
+    related_drills: [sculling_front, catch_drill]
+
+  - code: catch_drill
+    name: "Catch Drill (Early Vertical Forearm)"
+    category: catch_pull
+    difficulty: 3
+    intent: |
+      Träna tidig vertikal underarm i katchfasen. När handen kommer ner
+      i vattnet ska armbågen genast peka mot ytan och underarmen vertikal —
+      'grepp' om vattnet börjar omedelbart.
+    execution: |
+      1. Normal fri
+      2. När handen går i vattnet: stoppa armen kort i den extended-positionen
+      3. Sedan vinkla armbågen så att underarmen pekar rakt ner
+      4. Håll armbågen hög nära ytan
+      5. Tryck bakåt med hela underarmen + handen som enhet
+    common_mistakes:
+      - "Armbågen sjunker tidigt — håll den nära ytan så länge som möjligt"
+      - "Drar med rak arm — den ska vinklas"
+      - "För snabbt — det här är teknik-drill, ingen fart"
+    cues:
+      - "Underarmen är en spade"
+      - "Tryck vatten mot tårna, inte mot botten"
+    equipment: []
+    typical_distance_m: 50
+    related_drills: [sculling_front, fist_swim, doggy_paddle]
+
+  - code: doggy_paddle
+    name: "Doggy Paddle"
+    category: catch_pull
+    difficulty: 1
+    intent: |
+      Kort drill där händerna aldrig kommer över ytan — som hundkak.
+      Isolerar katch- och dragväg-fasen helt utan recovery.
+    execution: |
+      1. Pull-buoy mellan benen (eller utan om man kan)
+      2. Bara dragfasen: hand framåt, ner i katch, dra bakåt
+      3. När handen är vid höften: dra fram den under ytan istället för
+         över
+      4. Aldrig handen över ytan
+    common_mistakes:
+      - "För hög rörelsefrekvens — det här är teknik, inte cardio"
+      - "Tappar streamline — andas snabbt och kort"
+    cues:
+      - "Hela taget under ytan, inget visas över"
+    equipment: [pull_buoy]
+    typical_distance_m: 25
+    related_drills: [catch_drill, sculling_front]
+
+  # ─────────────────────────────────────────────────────────────
+  # breathing
+  # ─────────────────────────────────────────────────────────────
+
+  - code: bilateral_pattern_3_5_7
+    name: "Bilateral Pattern 3-5-7"
+    category: breathing
+    difficulty: 2
+    intent: |
+      Andningsmönsterträning. Växla 3-takt, 5-takt, 7-takt i samma pass.
+      Bygger CO2-tolerans och tränar avslappnad andning på båda sidor.
+    execution: |
+      1. 50m andas på var tredje tag (bilateral)
+      2. 50m andas på var femte tag
+      3. 50m andas på var sjunde tag
+      4. Tillbaka till 3 → 5 → 7 över hela passet
+    common_mistakes:
+      - "Hyperventilerar mellan andningarna — utandning ska vara
+        kontinuerlig i vattnet"
+      - "Lyfter huvudet istället för att vrida"
+      - "Hoppar över 7-takten för att den är obekväm — där sker träningen"
+    cues:
+      - "Utandning hela tiden som ett konstant 'bbbb'-ljud"
+      - "Vrid genom rotationen, inte över rotationen"
+    equipment: []
+    typical_distance_m: 150
+    related_drills: [trickle_breath, breathing_one_side]
+
+  - code: breathing_one_side
+    name: "Single-Side Breathing"
+    category: breathing
+    difficulty: 1
+    intent: |
+      Andas bara på en sida (vanligaste tävlingstekniken). Bygger
+      sidan-känsla och avslappnad andnings-timing. Använd 25m vänster,
+      25m höger — undvik att bli en 'enkelsidig' simmare.
+    execution: |
+      1. 25m andas bara höger
+      2. 25m andas bara vänster
+      3. Upprepa
+      4. Andra-takt eller var fjärde takt
+    common_mistakes:
+      - "Vrider hela ryggraden för andning — bara nacken"
+      - "Lyfter huvudet — vridning från rotationen"
+    cues:
+      - "Ena ögat under vattnet under andning"
+      - "Andas in genom en cocktailsugrör — kort, effektivt"
+    equipment: []
+    typical_distance_m: 50
+    related_drills: [bilateral_pattern_3_5_7]
+
+  - code: trickle_breath
+    name: "Trickle Breath"
+    category: breathing
+    difficulty: 1
+    intent: |
+      Träna kontinuerlig utandning i vattnet. Många simmare håller andan
+      mellan andetagen, vilket bygger CO2 och ger panic-känsla.
+      Trickle = jämn liten bubbel-utandning hela tiden under vattnet.
+    execution: |
+      1. Normal fri med fokus på utandning
+      2. När huvudet är under vattnet: kontinuerligt 'bbbbbb' med läpparna
+      3. Stark utandning precis innan andning
+      4. Snabb inandning, ner i vattnet, ny trickle
+    common_mistakes:
+      - "Håller andan — det är just det här som ska bort"
+      - "Stor inandning som tar för lång tid — den ska vara snabb"
+    cues:
+      - "Kontinuerlig bubbel-show under vattnet"
+      - "Andas in via 'sugrör' kort och effektivt"
+    equipment: []
+    typical_distance_m: 100
+    related_drills: [bilateral_pattern_3_5_7]
+
+  # ─────────────────────────────────────────────────────────────
+  # kick
+  # ─────────────────────────────────────────────────────────────
+
+  - code: vertical_kick
+    name: "Vertical Kick"
+    category: kick
+    difficulty: 2
+    intent: |
+      Kick i djupt vatten i vertikal position, armarna i kors över bröstet.
+      Bygger ren kickkraft och tvingar smal effektiv amplitud — om kicken
+      är bred, sjunker du.
+    execution: |
+      1. Djupt vatten (>2m), inte fötter i botten
+      2. Armarna i kors över bröstet, huvudet ovanför ytan
+      3. Kick smalt och snabbt nerifrån höften
+      4. 20 sekunder, 30 sekunder vila, upprepa 6-8 gånger
+    common_mistakes:
+      - "Bred amplitud — då sjunker du, smal är effektiv"
+      - "Knäna gör allt jobbet — sparken ska komma från höften"
+      - "Anspänd överkropp — slappna av allt utom benen"
+    cues:
+      - "Tummorna på axlarna, slappna av"
+      - "Snabba små piskningar, inte stora hugg"
+    equipment: []
+    typical_distance_m: 0
+    related_drills: [dolphin_kick, kick_streamline]
+
+  - code: dolphin_kick
+    name: "Underwater Dolphin Kick"
+    category: kick
+    difficulty: 3
+    intent: |
+      Streamline med dolphin-kick under vattnet. Bygger kärn- och
+      höftstyrka och tränar starka starter ut från vändning. Också
+      användbart i öppet vatten i krappig sjö.
+    execution: |
+      1. Streamline från vägg, händer låsta över huvudet
+      2. Dolphin-kick: vågrörelse från bröstkorgen genom höft till tår
+      3. Båda fötterna piskar tillsammans
+      4. 4-6 kicks ut från väggen, sedan break out till fri
+    common_mistakes:
+      - "Kickar med knäna istället för höften — vågen ska gå GENOM kroppen"
+      - "Tryck handen neråt — håll streamline absolut tight"
+      - "Stannar för länge undervatten och tvingas andas i panik"
+    cues:
+      - "Föreställ dig att du är en delfin"
+      - "Vågen börjar i bröstet och slutar i tårna"
+    equipment: []
+    typical_distance_m: 12
+    related_drills: [vertical_kick, kick_streamline]
+
+  - code: kick_streamline
+    name: "Streamline Kick"
+    category: kick
+    difficulty: 1
+    intent: |
+      Ren flutter-kick i streamline-position — armarna utsträckta över
+      huvudet, huvudet mellan armarna. Bygger kicktolerans och tvingar
+      god kroppsposition.
+    execution: |
+      1. Streamline från vägg, armarna sammanlåsta över huvudet
+      2. Ansiktet i vattnet, blicken neråt
+      3. Flutter-kick smal och kontinuerlig
+      4. Lyft huvudet kort för andning, sedan ner igen
+      5. 25-50m per repetition
+    common_mistakes:
+      - "Tappar streamline-position — armarna glider isär"
+      - "Stor kick som ger snabbhet på bekostnad av streamline"
+    cues:
+      - "Armarna är en pinne genom kroppen"
+      - "Smal kick, snabb takt"
+    equipment: []
+    typical_distance_m: 50
+    related_drills: [head_lead_balance, dolphin_kick]
+
+  - code: kickboard_flutter
+    name: "Kickboard Flutter"
+    category: kick
+    difficulty: 1
+    intent: |
+      Klassisk kickboard-kick. Inte tekniskt sofistikerad men effektiv
+      för att bygga ren kicktolerans utan att armarna stör.
+    execution: |
+      1. Kickboard framför, händer på framkanten
+      2. Armarna utsträckta, axlar avslappnade
+      3. Smal kontinuerlig flutter-kick från höften
+      4. Ansiktet kan vara i eller över vattnet (eget val)
+    common_mistakes:
+      - "Anspända axlar — släpp ner dem"
+      - "Kickar med knäna"
+      - "Stora plask — smal är snabbare"
+    cues:
+      - "Mindre vatten över ytan = mer framdrift"
+    equipment: [kickboard]
+    typical_distance_m: 50
+    related_drills: [kick_streamline]
+
+  - code: kick_underwater_streamline
+    name: "Underwater Streamline Kick"
+    category: kick
+    difficulty: 3
+    intent: |
+      Undervatten flutter-kick i streamline. Krävande på kondition och
+      andningskontroll. Bygger lungkapacitet och hård kick.
+    execution: |
+      1. Streamline från vägg, helt under vatten
+      2. Flutter eller dolphin-kick
+      3. 15m undervatten, sedan break out
+      4. 20s vila stående
+    common_mistakes:
+      - "Stretcher hur långt du klarar — säkerhet före distans, alltid"
+      - "Bred kick som bromsar — håll smalt"
+    cues:
+      - "Lugn, smal, effektiv"
+    equipment: []
+    typical_distance_m: 15
+    related_drills: [dolphin_kick, vertical_kick]
+    abort_conditions:
+      - "Aldrig tvinga längre distans — undervattenarbete har riskdimension"
+
+  # ─────────────────────────────────────────────────────────────
+  # speed_tempo
+  # ─────────────────────────────────────────────────────────────
+
+  - code: fingertip_drag
+    name: "Fingertip Drag"
+    category: speed_tempo
+    difficulty: 1
+    intent: |
+      Under recovery dras fingrarna längs vattenytan. Tränar hög armbåge
+      och avslappnad recovery — om armbågen sjunker, släpas fingrarna
+      under ytan.
+    execution: |
+      1. Normal fri
+      2. Under recovery: håll fingrarna mot vattenytan
+      3. Armbågen ska därför vara hög genom hela recovery
+      4. Övriga taget normalt
+    common_mistakes:
+      - "Lyfter axlarna istället för att hålla hög armbåge"
+      - "Sjunkande armbåge i recovery-slutet — håll hela vägen"
+    cues:
+      - "Lat hand, hög armbåge"
+    equipment: []
+    typical_distance_m: 50
+    related_drills: [zipper, shark_fin]
+
+  - code: stroke_count
+    name: "Stroke Count"
+    category: speed_tempo
+    difficulty: 1
+    intent: |
+      Räkna tag per längd och försök minska över passet. Mätbart sätt
+      att jobba på distance per stroke och teknisk effektivitet.
+    execution: |
+      1. Räkna tag per 25m (eller 50m i längre bassäng)
+      2. Notera siffran efter varje längd
+      3. Försök minska antalet utan att tappa pace
+      4. Logga snittet över passet
+    common_mistakes:
+      - "Glider för länge och tappar tempo — det är inte poängen"
+      - "Räknar olika mellan längder (med eller utan första taget)"
+    cues:
+      - "Lång och stark, inte snabb och korta"
+    equipment: []
+    typical_distance_m: 50
+    related_drills: [superman_glide, catch_drill]
+
+  - code: fast_swim_focus
+    name: "Fast Swim Focus"
+    category: speed_tempo
+    difficulty: 2
+    intent: |
+      Snabba korta repetitioner med fokus på att HÅLLA tekniken trots
+      farten. Sprint utan att bryta längd — distance per stroke ska
+      vara samma som vid lugn fri.
+    execution: |
+      1. 25m i 80-90% av max-fart
+      2. Räkna tag — det ska INTE öka jämfört med lugn fri
+      3. Om tag-antal ökar: du sprintar med teknik-bortfall
+      4. 30s vila, upprepa
+    common_mistakes:
+      - "Slår mer tag istället för att dra hårdare"
+      - "Tappar streamline för fart"
+    cues:
+      - "Snabb men lika lång"
+      - "Stark, inte forcerad"
+    equipment: []
+    typical_distance_m: 25
+    related_drills: [stroke_count, catch_drill]
+
+  - code: tempo_trainer_pace
+    name: "Tempo Trainer Pace"
+    category: speed_tempo
+    difficulty: 2
+    intent: |
+      Använd tempo trainer-beeper för att låsa stroke rate. Sätter
+      ett objektivt mått på takt — utan beep:en glider takten på
+      ofta omedvetet.
+    execution: |
+      1. Sätt tempo trainer till t.ex. 1.20s/tag
+      2. Sim normal fri, en hand i vattnet per beep
+      3. Justera takten över passet: 1.20 → 1.15 → 1.10 → 1.05
+      4. Märk vid vilken takt tekniken bryts
+    common_mistakes:
+      - "Forcerar takten genom kortare tag — det är inte poängen"
+      - "Ignorerar beep:en när det blir jobbigt"
+    cues:
+      - "Beep = hand i vatten"
+    equipment: [tempo_trainer]
+    typical_distance_m: 100
+    related_drills: [stroke_count, fast_swim_focus]

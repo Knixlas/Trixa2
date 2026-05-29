@@ -1,0 +1,101 @@
+# Översikt över träningsfaser (källa: 2.1 Översikt över träningsfaser)
+# Faserna i kronologisk ordning för en triathlonsäsong.
+
+phases:
+  prep:
+    name_sv: Förberedelsefas
+    name_en: Preparation Phase
+    order: 1
+    duration_weeks: [4, 6]
+    has_periods: false
+    goal: Skapa grundläggande kondition och styrka
+    content: Lågintensiva träningspass och grundläggande styrketräning
+    entry_rules:
+      # Alltid starta här om inte tiden till tävling kräver Byggfas-slut
+      # Vid <5h träning/vecka används alltid denna fas
+      always_start_if_low_volume: true
+      low_volume_threshold_hours: 5
+    next_phase: base
+
+  base:
+    name_sv: Grundträningsfas
+    name_en: Base Phase
+    order: 2
+    duration_weeks: [12, 20]
+    has_periods: true
+    periods:
+      - code: base_1
+        duration_weeks: [4, 6]
+      - code: base_2
+        duration_weeks: [4, 6]
+      - code: base_3
+        duration_weeks: [4, 6]
+    goal: Utveckla aerob kapacitet och uthållighet
+    content: Fokus på distans och lågintensiv träning
+    entry_criteria:
+      min_weekly_hours: 5  # simning + cykel + löpning sammanlagt
+      no_injuries: true
+      no_overtraining_signs: true
+    fallback_if_not_met: prep
+    next_phase: build
+
+  build:
+    name_sv: Byggfas
+    name_en: Build Phase
+    order: 3
+    duration_weeks: [8, 12]
+    has_periods: true
+    periods:
+      - code: build_1
+        duration_weeks: [4, 6]
+      - code: build_2
+        duration_weeks: [4, 6]
+    goal: Förbättra specifik kondition och tävlingsfärdigheter
+    content: Högre intensitet och fartträning
+    entry_criteria:
+      min_weekly_hours: 7
+      no_injuries: true
+      no_overtraining_signs: true
+    fallback_if_not_met: base
+    next_phase: peak
+
+  peak:
+    name_sv: Toppningsfas
+    name_en: Peak Phase
+    order: 4
+    duration_weeks: [2, 4]
+    has_periods: false
+    goal: Maximera formtoppen inför tävlingar
+    content: Specifika tävlingssimuleringar och mentala förberedelser
+    entry_criteria:
+      high_specific_fitness: true
+      race_proximity_weeks: [2, 4]
+      no_injuries: true
+      no_overtraining_signs: true
+    next_phase: race
+
+  race:
+    name_sv: Tävlingsfas
+    name_en: Race Phase
+    order: 5
+    duration_weeks: [1, 2]
+    has_periods: false
+    goal: Prestera på topp under tävling
+    content: Underhåll av form och specifika tävlingspass
+    entry_criteria:
+      athlete_feels_rested: true
+      race_proximity_weeks: [1, 2]
+      no_injuries: true
+    next_phase: transition
+
+  transition:
+    name_sv: Återhämtningsfas
+    name_en: Transition Phase
+    order: 6
+    duration_weeks: [2, 4]
+    has_periods: false
+    goal: Återhämta sig efter tävlingssäsongen
+    content: Aktiv vila, lätt träning och mental återhämtning
+    entry_criteria:
+      race_completed: true
+    next_phase: prep  # cykeln börjar om
