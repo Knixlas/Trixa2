@@ -878,6 +878,13 @@ def _schedule_workouts(
     day_dates = {day: week_start + timedelta(days=_DAY_INDEX[day]) for day in _DAYS}
     schedule: dict[str, ScheduledWorkout] = {}
 
+    def _sfw(w: dict, dt: date, is_long: bool = False) -> ScheduledWorkout:
+        """Skapa pass med rätt längd-skalning mot disciplinens faktiska veckotid."""
+        return _scheduled_from_workout(
+            w, dt, is_long=is_long,
+            discipline_hours=discipline_hours.get(w.get("discipline"), 6.0),
+        )
+
     # 0. Låsta pass — placera först, dessa rörs aldrig av algoritmen
     for lock in locked or []:
         day_name = _DAYS[lock.date.weekday()]
@@ -947,7 +954,7 @@ def _schedule_workouts(
                 continue
             # Tillåt långpass även om granne är samma disciplin —
             # långpasset är kärnan, det måste placeras
-            schedule[d] = _scheduled_from_workout(chosen, day_dates[d], is_long=True)
+            schedule[d] = _sfw(chosen, day_dates[d], is_long=True)
             if chosen in volume:
                 volume.remove(chosen)
             elif chosen in brick_pool:
@@ -967,7 +974,7 @@ def _schedule_workouts(
                 if d in schedule:
                     continue
                 if _can_place(schedule, d, disc):
-                    schedule[d] = _scheduled_from_workout(w, day_dates[d])
+                    schedule[d] = _sfw(w, day_dates[d])
                     pass_list.remove(w)
                     placed = True
                     break
@@ -975,7 +982,7 @@ def _schedule_workouts(
                 # Inget perfekt val — ta första lediga dag
                 for d in _DAYS:
                     if d not in schedule:
-                        schedule[d] = _scheduled_from_workout(w, day_dates[d])
+                        schedule[d] = _sfw(w, day_dates[d])
                         pass_list.remove(w)
                         break
 
@@ -1048,6 +1055,12 @@ def _ensure_minimum_workouts(
 
     Modifierar `schedule` in-place.
     """
+    def _sfw(w: dict, dt: date, is_long: bool = False) -> ScheduledWorkout:
+        return _scheduled_from_workout(
+            w, dt, is_long=is_long,
+            discipline_hours=discipline_hours.get(w.get("discipline"), 6.0),
+        )
+
     workout_count = sum(1 for w in schedule.values() if w.sport != "rest")
     free_days = [d for d in _DAYS if d not in schedule]
 
@@ -1088,9 +1101,7 @@ def _ensure_minimum_workouts(
             ]
             if candidates:
                 chosen = rng.choice(candidates)
-                schedule[d] = _scheduled_from_workout(
-                    chosen, day_dates[d], is_long=False
-                )
+                schedule[d] = _sfw(chosen, day_dates[d], is_long=False)
                 placed = True
                 break
 
@@ -1104,9 +1115,7 @@ def _ensure_minimum_workouts(
                 ]
                 if candidates:
                     chosen = rng.choice(candidates)
-                    schedule[d] = _scheduled_from_workout(
-                        chosen, day_dates[d], is_long=False
-                    )
+                    schedule[d] = _sfw(chosen, day_dates[d], is_long=False)
                     break
 
 
@@ -1114,10 +1123,19 @@ def _scheduled_from_workout(
     workout: dict,
     dt: date,
     is_long: bool = False,
+    discipline_hours: float = 6.0,
 ) -> ScheduledWorkout:
-    """Konvertera passbankens workout-dict → ScheduledWorkout."""
+    """Konvertera passbankens workout-dict → ScheduledWorkout.
+
+    discipline_hours = adeptens veckotid för passets disciplin; styr hur långt ett
+    parameterized långpass blir (cap = 50 % av disciplinens veckotid). Var tidigare
+    hårdkodat 6.0 → alla fick 6h-veckans längder (t.ex. 3h-cykel) oavsett volym.
+    """
     resolved = (
-        resolve_template(workout, {"duration_min": _pick_long_workout_duration(workout, 6.0, is_long)})
+        resolve_template(
+            workout,
+            {"duration_min": _pick_long_workout_duration(workout, discipline_hours, is_long)},
+        )
         if workout.get("parameterized")
         else workout
     )
