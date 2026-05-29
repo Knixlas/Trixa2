@@ -112,6 +112,41 @@ def logout(request: Request) -> Any:
     return resp
 
 
+@router.get("/signup", response_class=HTMLResponse)
+def signup_form(request: Request) -> HTMLResponse:
+    return _render("signup.html", {
+        "request": request, "error": "",
+        "require_code": bool(os.environ.get("TRIXA_SIGNUP_CODE")),
+    })
+
+
+@router.post("/signup")
+def signup_submit(
+    request: Request,
+    name: str = Form(""),
+    email: str = Form(...),
+    password: str = Form(...),
+    code: str = Form(""),
+) -> Any:
+    require_code = os.environ.get("TRIXA_SIGNUP_CODE")
+
+    def _err(msg: str) -> HTMLResponse:
+        return _render("signup.html", {
+            "request": request, "error": msg, "require_code": bool(require_code),
+        })
+
+    if require_code and code.strip() != require_code:
+        return _err("Fel eller saknad inbjudningskod.")
+    if len(password) < 8:
+        return _err("Lösenordet måste vara minst 8 tecken.")
+    session, error = supabase_auth.sign_up(email.strip(), password, name.strip() or None)
+    if error or not session:
+        return _err(error or "Kunde inte skapa kontot.")
+    resp = RedirectResponse(url="/ui/", status_code=303)
+    set_session_cookies(resp, session, secure=is_secure_request(request))
+    return resp
+
+
 def _monday_of(d: date_type) -> date_type:
     return d - timedelta(days=d.weekday())
 

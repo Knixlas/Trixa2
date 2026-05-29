@@ -57,6 +57,43 @@ def sign_in_password(email: str, password: str) -> dict | None:
     return _session_from(r.json())
 
 
+def sign_up(email: str, password: str, name: str | None = None) -> tuple[dict | None, str | None]:
+    """Skapa konto + logga in. Returnerar (session, fel-sträng).
+
+    Använder admin-create med email_confirm=True → kontot är förbekräftat så
+    ingen e-postbekräftelse/SMTP behövs, och vännen är inloggad direkt.
+    handle_new_user-triggern skapar profil-raden (id, name, email).
+    """
+    url, key = _base()
+    body: dict = {"email": email, "password": password, "email_confirm": True}
+    if name:
+        body["user_metadata"] = {"name": name}
+    try:
+        r = requests.post(
+            f"{url}/auth/v1/admin/users",
+            headers={"apikey": key, "Authorization": f"Bearer {key}", "Content-Type": "application/json"},
+            json=body,
+            timeout=_TIMEOUT,
+        )
+    except requests.RequestException:
+        return None, "Kunde inte nå inloggningstjänsten — försök igen."
+    if r.status_code in (200, 201):
+        session = sign_in_password(email, password)
+        if session and session.get("user_id"):
+            return session, None
+        return None, "Kontot skapades men inloggningen misslyckades — prova logga in."
+    msg = ""
+    try:
+        j = r.json() or {}
+        msg = str(j.get("msg") or j.get("error_description") or j.get("error") or "")
+    except ValueError:
+        pass
+    low = msg.lower()
+    if r.status_code in (409, 422) or any(k in low for k in ("already", "registered", "exists")):
+        return None, "Det finns redan ett konto med den e-posten — logga in i stället."
+    return None, "Kunde inte skapa kontot. Kontrollera uppgifterna och försök igen."
+
+
 def get_user_id(access_token: str) -> str | None:
     """Verifiera en access_token mot Supabase och returnera user-id, annars None."""
     if not access_token:

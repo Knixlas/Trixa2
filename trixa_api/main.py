@@ -82,7 +82,9 @@ async def auth_gate(request: Request, call_next):
     """
     request.state.user_id = None
     path = request.url.path
-    gated = path.startswith("/ui") and not path.startswith(("/ui/login", "/ui/logout"))
+    gated = path.startswith("/ui") and not path.startswith(
+        ("/ui/login", "/ui/logout", "/ui/signup")
+    )
     if not gated:
         return await call_next(request)
 
