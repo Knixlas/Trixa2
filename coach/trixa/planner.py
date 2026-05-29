@@ -1190,8 +1190,9 @@ def _upsert_training_week(
     )
     if res.data:
         week_id = res.data[0]["id"]
-        # Rensa gamla pass för veckan (idempotens)
-        client.table("workouts").delete().eq("week_id", week_id).execute()
+        # Rensa gamla genererade pass (idempotens) — men BEHÅLL adeptens egna
+        # pass (is_manual=true), de ska överleva en regenerering.
+        client.table("workouts").delete().eq("week_id", week_id).eq("is_manual", False).execute()
         return week_id
 
     create = (

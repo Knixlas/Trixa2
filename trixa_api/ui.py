@@ -580,6 +580,7 @@ def _fetch_current_week_data(
     # Lägg på beräknat week_start (måndag i ISO-veckan) för UI-actions
     week_monday = date_type.fromisocalendar(year, week_num, 1)
     week["week_start"] = week_monday.isoformat()
+    week["week_end"] = (week_monday + timedelta(days=6)).isoformat()
 
     # Plan-vs-actual: hämta aktiviteter för veckan (Garmin ELLER Strava). Strikt
     # framtida veckor saknar utfall — då hoppar vi över anropet (allt "planerat").
@@ -630,10 +631,12 @@ def _fetch_current_week_data(
             "category": category,
             "setting": setting,
             "duration_minutes": w.get("duration_minutes") or 0,
+            "distance": w.get("distance") or "",
             "intensity": w.get("intensity") or "",
             "notes": w.get("notes") or "",
             "steps": w.get("steps") or [],
             "coach_notes": w.get("coach_notes") or "",
+            "is_manual": w.get("is_manual", False),
             "status": w_status,
         })
     return week
@@ -1131,6 +1134,57 @@ def workout_swap_discipline(
         swap_workout_discipline_and_replan(workout_id, new_discipline)
     except ValueError as exc:
         raise HTTPException(404, str(exc))
+    return RedirectResponse(url="/ui/", status_code=303)
+
+
+@router.post("/workouts/custom", response_class=HTMLResponse)
+def workout_add_custom(
+    request: Request,
+    week_id: str = Form(...),
+    date: str = Form(...),
+    sport: str = Form(...),
+    distance: str = Form(""),
+    duration_minutes: int | None = Form(None),
+    description: str = Form(""),
+) -> Any:
+    """Lägg till ett adept-skapat 'eget pass' på en dag. Markeras is_manual=true
+    så det överlever regenerering av veckan, och matchas i plan-vs-actual."""
+    if sport not in ("swim", "bike", "run", "strength"):
+        raise HTTPException(400, "Gren måste vara swim, bike, run eller strength")
+    client = get_postgrest()
+    wk = client.table("training_weeks").select("plan_id").eq("id", week_id).limit(1).execute()
+    if not wk.data:
+        raise HTTPException(404, "Vecka saknas")
+    pl = (
+        client.table("training_plans")
+        .select("athlete_id")
+        .eq("id", wk.data[0]["plan_id"])
+        .limit(1)
+        .execute()
+    )
+    if not pl.data:
+        raise HTTPException(404, "Plan saknas")
+    title = (description or "").strip() or "Eget pass"
+    client.table("workouts").insert({
+        "week_id": week_id,
+        "athlete_id": pl.data[0]["athlete_id"],
+        "date": date,
+        "sport": sport,
+        "title": title,
+        "duration_minutes": duration_minutes,
+        "distance": (distance or "").strip() or None,
+        "notes": (description or "").strip() or None,
+        "is_manual": True,
+    }).execute()
+    return RedirectResponse(url="/ui/", status_code=303)
+
+
+@router.post("/workouts/{workout_id}/delete-custom", response_class=HTMLResponse)
+def workout_delete_custom(request: Request, workout_id: str) -> Any:
+    """Ta bort ett eget pass. Begränsat till is_manual=true — genererade pass
+    kan inte raderas den här vägen."""
+    client = get_postgrest()
+    client.table("workouts").delete().eq("id", workout_id).eq("is_manual", True).execute()
     return RedirectResponse(url="/ui/", status_code=303)
 
 

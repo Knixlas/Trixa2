@@ -51,16 +51,18 @@
       <div class="wk-main">
         <div class="workout-date">{{ w.date }} · {{ w.sport }}</div>
         <strong>{{ w.title }}</strong>
-        {% if w.status %}{% set sb = statusbadge.get(w.status.key, ['badge', '', 'var(--ink-3)']) %}
-        <div style="margin: 2px 0 6px;"><span class="{{ sb[0] }}" style="{{ sb[1] }}" title="{{ w.status.label }}">{{ w.status.emoji }} {{ w.status.label }}</span></div>
-        {% endif %}
+        <div style="margin: 2px 0 6px; display: flex; gap: 5px; flex-wrap: wrap;">
+          {% if w.status %}{% set sb = statusbadge.get(w.status.key, ['badge', '', 'var(--ink-3)']) %}
+          <span class="{{ sb[0] }}" style="{{ sb[1] }}" title="{{ w.status.label }}">{{ w.status.emoji }} {{ w.status.label }}</span>{% endif %}
+          {% if w.is_manual %}<span class="badge" style="background: var(--orchid-soft); color: var(--orchid);" title="Adept-skapat pass">✋ Eget pass</span>{% endif %}
+        </div>
         <div class="workout-meta">
           <code>{{ w.code }}</code> <span class="badge info">{{ w.category or w.sport }}</span>
           {% if w.setting == "outdoor" %}<span class="badge" style="background: var(--palm-soft); color: var(--palm-deep);"><i data-lucide="sun"></i>utomhus</span>
           {% elif w.setting == "indoor" %}<span class="badge" style="background: var(--pineapple-soft); color: var(--pineapple-deep);"><i data-lucide="home"></i>inomhus</span>
           {% elif w.setting == "either" %}<span class="badge">inne/ute</span>
           {% endif %}
-          <span>· {{ w.duration_minutes }} min · {{ w.intensity }}</span>
+          <span>· {{ w.duration_minutes }} min{% if w.distance %} · {{ w.distance }}{% endif %}{% if w.intensity %} · {{ w.intensity }}{% endif %}</span>
         </div>
 
         {# Faktiskt utfört (plan vs actual) under den alltid synliga plan-titeln #}
@@ -141,6 +143,13 @@
         </details>
         {% endif %}
 
+        {% if w.is_manual %}
+        <form method="post" action="/ui/workouts/{{ w.id }}/delete-custom"
+              onsubmit="return confirm('Ta bort eget pass?');" style="margin-top: 6px;">
+          <button type="submit" class="outline" style="font-size: 12px; padding: 4px 12px;">Ta bort eget pass</button>
+        </form>
+        {% endif %}
+
         {% if show_audit and w.coach_notes %}
         <details>
           <summary>Coach-noter / audit</summary>
@@ -150,6 +159,37 @@
       </div>
     </div>
     {% endfor %}
+
+    <details style="margin-top: 8px;">
+      <summary>+ Lägg till eget pass</summary>
+      <article>
+        <form method="post" action="/ui/workouts/custom">
+          <input type="hidden" name="week_id" value="{{ week.id }}">
+          <label>Dag
+            <input type="date" name="date" value="{{ week.week_start }}"
+                   min="{{ week.week_start }}" max="{{ week.week_end }}" required>
+          </label>
+          <label>Gren
+            <select name="sport" required>
+              <option value="swim">Simning</option>
+              <option value="bike">Cykel</option>
+              <option value="run">Löpning</option>
+              <option value="strength">Styrka</option>
+            </select>
+          </label>
+          <label>Sträcka (valfritt)
+            <input type="text" name="distance" placeholder="t.ex. 5 km eller 1500 m">
+          </label>
+          <label>Tid (min)
+            <input type="number" name="duration_minutes" min="0" placeholder="45">
+          </label>
+          <label>Beskrivning
+            <input type="text" name="description" placeholder="Kort beskrivning av passet">
+          </label>
+          <button type="submit">Lägg till pass</button>
+        </form>
+      </article>
+    </details>
   {% else %}
     <article style="text-align: center; padding: 24px;">
       <i data-lucide="palmtree" style="width: 34px; height: 34px; color: var(--ink-3);"></i>
