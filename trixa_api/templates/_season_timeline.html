@@ -54,6 +54,27 @@
       <span class="badge">ingen plan</span>.
       Fas-staplarna är en projektion — engine omprövar fasen varje vecka.
     </p>
+
+    {% if timeline.readiness %}{% set r = timeline.readiness %}
+    <div style="margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line);">
+      <p style="margin: 0; font-size: 13.5px;">
+        <strong><i data-lucide="trending-up" style="width:15px;height:15px;vertical-align:-2px;"></i>
+        Readiness:</strong> {{ r.current_hours }} h/v nu
+        {% if r.base_eta is not none and r.base_eta > 0 %}· base om ~{{ r.base_eta }} v{% endif %}
+        {% if r.build_eta is not none and r.build_eta > 0 %}· build om ~{{ r.build_eta }} v{% endif %}
+        (vid säker ~{{ r.ramp_pct }}%/v + avlastning)
+      </p>
+      <p style="margin: 4px 0 0; font-size: 13px; color: {{ 'var(--palm-deep)' if r.on_track else 'var(--coral)' }};">
+        {{ r.verdict }}
+      </p>
+      {% if r.ramp_flag %}
+      <div class="alert {{ r.ramp_flag.level }}" style="margin-top: 10px;">
+        <div class="ic"><i data-lucide="triangle-alert"></i></div>
+        <div class="alert-body"><strong>Upptrappningen är skarp</strong><p>{{ r.ramp_flag.msg }}</p></div>
+      </div>
+      {% endif %}
+    </div>
+    {% endif %}
   </article>
 </section>
 {% endif %}

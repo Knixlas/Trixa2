@@ -23,7 +23,7 @@ from coach.trixa.planner import (
     swap_workout_code,
     swap_workout_discipline_and_replan,
 )
-from trixa_api import season, supabase_auth
+from trixa_api import season, supabase_auth, readiness
 
 
 router = APIRouter(prefix="/ui", tags=["ui"])
@@ -193,6 +193,55 @@ def _decorate_timeline(timeline: dict, comp_map: dict, today, this_monday) -> No
             w["compliance_label"] = "planerad"
 
 
+def _add_week_hours(by_week: dict, day_iso: str, hours: float) -> None:
+    try:
+        d = date_type.fromisoformat(str(day_iso)[:10])
+    except (ValueError, TypeError):
+        return
+    iso = d.isocalendar()
+    by_week[(iso[0], iso[1])] = by_week.get((iso[0], iso[1]), 0.0) + hours
+
+
+def _weekly_hours_series(
+    client, garmin_id, strava_user_id, today, weeks: int = 6
+) -> list[float]:
+    """Veckovolym (h) för de senaste `weeks` AVSLUTADE veckorna, äldst→nyast.
+
+    Källagnostisk (Garmin/Strava), exkluderar innevarande (delvisa) vecka.
+    Underlag för readiness-projektion (snitt) + ramp-vakt (trend).
+    """
+    this_mon = today - timedelta(days=today.weekday())
+    start = (this_mon - timedelta(weeks=weeks)).isoformat()
+    by_week: dict[tuple[int, int], float] = {}
+    try:
+        if garmin_id:
+            res = (
+                client.schema("garmin_coach").table("activities")
+                .select("start_time, start_time_local, duration_sec")
+                .eq("athlete_id", garmin_id).gte("start_time", start).execute()
+            )
+            for a in res.data or []:
+                _add_week_hours(by_week, a.get("start_time_local") or a.get("start_time") or "",
+                                (a.get("duration_sec") or 0) / 3600.0)
+        elif strava_user_id:
+            res = (
+                client.table("strava_activities")
+                .select("date, duration_min")
+                .eq("user_id", strava_user_id).gte("date", start).execute()
+            )
+            for a in res.data or []:
+                _add_week_hours(by_week, a.get("date") or "", (a.get("duration_min") or 0) / 60.0)
+        else:
+            return []
+    except Exception:  # noqa: BLE001
+        return []
+    series: list[float] = []
+    for i in range(weeks, 0, -1):
+        iso = (this_mon - timedelta(weeks=i)).isocalendar()
+        series.append(round(by_week.get((iso[0], iso[1]), 0.0), 1))
+    return series
+
+
 def _build_season_context(client, athlete, today, this_monday) -> dict | None:
     """Bygg säsongs-tidslinjen för dashboarden, eller None om ingen tävling."""
     race_raw = athlete.get("race_date")
@@ -206,6 +255,9 @@ def _build_season_context(client, athlete, today, this_monday) -> dict | None:
     if not timeline:
         return None
 
+    garmin_id = athlete.get("garmin_athlete_id")
+    strava_user_id = None if garmin_id else athlete.get("user_id")
+
     comp_map: dict = {}
     try:
         plan_res = (
@@ -217,8 +269,6 @@ def _build_season_context(client, athlete, today, this_monday) -> dict | None:
             .execute()
         )
         if plan_res.data:
-            garmin_id = athlete.get("garmin_athlete_id")
-            strava_user_id = None if garmin_id else athlete.get("user_id")
             comp_map = _compliance_by_week(
                 client, plan_res.data[0]["id"], athlete["id"],
                 garmin_id, strava_user_id, today,
@@ -231,6 +281,23 @@ def _build_season_context(client, athlete, today, this_monday) -> dict | None:
     timeline["race_label"] = (
         season.race_label(race_d) or (athlete.get("race_type") or "Tävling").capitalize()
     )
+
+    # Readiness-projektion (skala upp säkert → när når man build, mot loppet?)
+    # + ramp-vakt mot för skarp faktisk upptrappning.
+    weeks_to_race = max((race_d - today).days // 7, 0)
+    series = _weekly_hours_series(client, garmin_id, strava_user_id, today, weeks=6)
+    recent = series[-4:] if series else []
+    current_h = round(sum(recent) / len(recent), 1) if recent else 0.0
+    proj = readiness.build_projection(current_h, weeks_to_race)
+    timeline["readiness"] = {
+        "current_hours": proj.current_hours,
+        "base_eta": proj.base_eta,
+        "build_eta": proj.build_eta,
+        "ramp_pct": proj.ramp_pct,
+        "on_track": proj.on_track,
+        "verdict": proj.verdict,
+        "ramp_flag": readiness.ramp_flag(series),
+    }
     return timeline
 
 
