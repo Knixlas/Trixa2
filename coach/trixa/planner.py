@@ -221,6 +221,35 @@ def _fetch_actual_weekly_hours(
     return total_sec / 3600.0 / weeks
 
 
+def _fetch_strava_weekly_hours(
+    client, strava_user_id: str, today: date, weeks: int = 4
+) -> float | None:
+    """Snitt-träningstimmar per vecka från public.strava_activities.
+
+    Faktisk-volym-källa för externa adepter (Strava) utan Garmin-koppling.
+    Strava lagrar duration_min + lokalt datum.
+    """
+    if not strava_user_id:
+        return None
+    start = (today - timedelta(weeks=weeks)).isoformat()
+    try:
+        res = (
+            client.table("strava_activities")
+            .select("duration_min")
+            .eq("user_id", strava_user_id)
+            .gte("date", start)
+            .execute()
+        )
+    except Exception:  # noqa: BLE001
+        return None
+    if not res.data:
+        return None
+    total_min = sum((row.get("duration_min") or 0) for row in res.data)
+    if total_min == 0:
+        return None
+    return total_min / 60.0 / weeks
+
+
 # Helpers för signal-beräkning (kopior av logik från coach/engine/garmin.py
 # men anpassade för postgrest-data istället för QueryFn).
 
@@ -1271,10 +1300,18 @@ def generate_week(
     weekly_report = _fetch_latest_weekly_report(client, athlete_id)
     recent_workouts = _fetch_recent_workouts(client, athlete_id, weeks_back=4)
 
-    # 2. Hämta Garmin-data (primärkälla för faktisk volym + OT-signaler)
+    # 2. Hämta aktivitetsdata (primärkälla för faktisk volym + OT-signaler).
+    # Garmin om kopplat, annars Strava (externa adepter). En källa per adept.
     garmin_id = athlete.get("garmin_athlete_id")
+    strava_user_id = None if garmin_id else athlete_user_id
     garmin_metrics = _fetch_garmin_metrics(client, garmin_id, today, days_back=28)
     actual_weekly_hours = _fetch_actual_weekly_hours(client, garmin_id, today, weeks=4)
+    if actual_weekly_hours is None and strava_user_id:
+        # Strava-adept: härled veckovolym ur strava_activities. (HRV/sömn/RHR
+        # saknas i Strava → OT-signaler faller tillbaka på profil/självskattning.)
+        actual_weekly_hours = _fetch_strava_weekly_hours(
+            client, strava_user_id, today, weeks=4
+        )
 
     # Bygg engine-input
     state = _build_athlete_state(
