@@ -948,6 +948,19 @@ def _schedule_workouts(
     place_with_neighbor_constraint(other)
     place_with_neighbor_constraint(brick_pool)  # om kvar (oplacerade brick)
 
+    # 6b. Hård regel: minst 5 pass per vecka (vila räknas inte).
+    # Om engine + partial-impact gett oss <5 pass, fyll tomma dagar med
+    # extra AE-volym i discipliner som inte har full impact. Frekvens är
+    # viktigare än tid — passen kan vara korta.
+    _ensure_minimum_workouts(
+        schedule=schedule,
+        day_dates=day_dates,
+        selected_so_far=selected,
+        discipline_hours=discipline_hours,
+        include_strength=include_strength,
+        min_total_workouts=5,
+    )
+
     # 7. Strength på en ledig kvalitetsdag (om aktiverad)
     if include_strength and strength_code and strength_code != "none":
         for d in ("wednesday", "friday", "tuesday", "thursday"):
@@ -965,6 +978,98 @@ def _schedule_workouts(
                 break
 
     return [schedule[d] for d in _DAYS if d in schedule]
+
+
+def _count_discipline_balance(
+    schedule: dict[str, ScheduledWorkout],
+) -> dict[str, int]:
+    """Räkna pass per disciplin i nuvarande schema (ignorerar rest/strength)."""
+    counts: dict[str, int] = {"swim": 0, "bike": 0, "run": 0}
+    for w in schedule.values():
+        if w.sport in counts:
+            counts[w.sport] += 1
+    return counts
+
+
+def _ensure_minimum_workouts(
+    schedule: dict[str, ScheduledWorkout],
+    day_dates: dict[str, date],
+    selected_so_far: list[dict],
+    discipline_hours: dict[str, float],
+    include_strength: bool,
+    min_total_workouts: int = 5,
+) -> None:
+    """Hård regel: minst N pass per vecka, fyll lediga dagar.
+
+    Strategi:
+      1. Om <N pass: fyll alla lediga dagar med extra AE-volym.
+      2. Vid varje placement: prioritera disciplin som har MINST pass
+         hittills (balansering mot discipline_hours-ratio).
+      3. Respektera båda-grannar-constraint när möjligt, fall tillbaka
+         till "valfri ledig dag" som sista utväg.
+
+    Modifierar `schedule` in-place.
+    """
+    workout_count = sum(1 for w in schedule.values() if w.sport != "rest")
+    free_days = [d for d in _DAYS if d not in schedule]
+
+    # Inga lediga dagar → kan inte fylla mer
+    if not free_days:
+        return
+    # Inte under min OCH inga lediga dagar att fylla med kvalitet
+    if workout_count >= min_total_workouts and not free_days:
+        return
+
+    pool = load_workouts()
+    # Bara discipliner som har positiv tid (inte blockerade av impact=full)
+    active_disciplines = [d for d, h in discipline_hours.items() if h > 0]
+    if not active_disciplines:
+        return
+
+    rng = random.Random(0)
+
+    for d in free_days:
+        # Räkna nuvarande balans — välj disciplin med MINST pass hittills.
+        # Vid lika, föredra den med mest timmar-budget.
+        counts = _count_discipline_balance(schedule)
+        active_counts = [(disc, counts.get(disc, 0)) for disc in active_disciplines]
+        # Sortera: (antal pass asc, timmar desc)
+        active_counts.sort(
+            key=lambda x: (x[1], -discipline_hours.get(x[0], 0))
+        )
+        preferred_order = [disc for disc, _ in active_counts]
+
+        placed = False
+        for disc in preferred_order:
+            if not _can_place(schedule, d, disc):
+                continue
+            candidates = [
+                w for w in pool
+                if w.get("category") == "AE"
+                and w.get("discipline") == disc
+            ]
+            if candidates:
+                chosen = rng.choice(candidates)
+                schedule[d] = _scheduled_from_workout(
+                    chosen, day_dates[d], is_long=False
+                )
+                placed = True
+                break
+
+        # Om ingen disciplin passade granne-constraint, ta första aktiva
+        if not placed:
+            for disc in preferred_order:
+                candidates = [
+                    w for w in pool
+                    if w.get("category") == "AE"
+                    and w.get("discipline") == disc
+                ]
+                if candidates:
+                    chosen = rng.choice(candidates)
+                    schedule[d] = _scheduled_from_workout(
+                        chosen, day_dates[d], is_long=False
+                    )
+                    break
 
 
 def _scheduled_from_workout(
