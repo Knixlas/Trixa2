@@ -31,8 +31,12 @@
       <div class="workout-date">{{ w.date }} ({{ w.sport }})</div>
       <strong>{{ w.title }}</strong>
       <div class="workout-meta">
-        <code>{{ w.code }}</code> · <span class="badge">{{ w.category or w.sport }}</span> ·
-        {{ w.duration_minutes }} min · {{ w.intensity }}
+        <code>{{ w.code }}</code> · <span class="badge">{{ w.category or w.sport }}</span>
+        {% if w.setting == "outdoor" %}<span class="badge" style="background: #d1fae5; color: #065f46;">utomhus</span>
+        {% elif w.setting == "indoor" %}<span class="badge" style="background: #fef3c7; color: #92400e;">inomhus</span>
+        {% elif w.setting == "either" %}<span class="badge" style="background: #e5e7eb; color: #374151;">inne/ute</span>
+        {% endif %}
+        · {{ w.duration_minutes }} min · {{ w.intensity }}
       </div>
 
       {% if w.notes %}

@@ -180,12 +180,22 @@ def _fetch_current_week_data(client, athlete_id: str, year: int, week_num: int) 
         .execute()
     )
     workouts = workouts_res.data or []
+    # Bygg passbank-index för setting-uppslag (cache:ad i process)
+    from coach.engine.loader import load_workouts
+    pool = {w["code"]: w for w in load_workouts()}
+
     # Mappa workouts till template-vänligt format med DB-id för edit-actions
     week["workouts"] = []
     for w in workouts:
         code = w.get("title_simple") or w["title"]
-        # Härled kategori från koden (format: <CAT><N>_<disc>_<NN> eller <CAT>_<disc>_template)
         category = code.split("_")[0][:2] if "_" in code else ""
+        # Slå upp setting från passbank (indoor/outdoor/either)
+        wd = pool.get(code) or {}
+        setting = wd.get("setting") or ("either" if w["sport"] != "rest" else "")
+        if wd.get("requires_trainer"):
+            setting = "indoor"
+        elif wd.get("outdoor_only"):
+            setting = "outdoor"
         week["workouts"].append({
             "id": w["id"],
             "date": w["date"],
@@ -193,6 +203,7 @@ def _fetch_current_week_data(client, athlete_id: str, year: int, week_num: int) 
             "title": w["title"],
             "code": code,
             "category": category,
+            "setting": setting,
             "duration_minutes": w.get("duration_minutes") or 0,
             "intensity": w.get("intensity") or "",
             "notes": w.get("notes") or "",
