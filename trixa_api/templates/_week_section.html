@@ -45,6 +45,24 @@
         · {{ w.duration_minutes }} min · {{ w.intensity }}
       </div>
 
+      {# Faktiskt utfört (plan vs actual) — visas under den alltid synliga
+         plan-titeln för passerade 🟢/🟡-pass. Klick expanderar full data. #}
+      {% if w.status and w.status.actual %}
+      <details style="margin: 0.25rem 0; border-left: 3px solid {{ w.status.fg }}; padding-left: 0.5rem;">
+        <summary style="font-size: 0.875rem; color: {{ w.status.fg }}; cursor: pointer;">
+          {{ w.status.actual.summary }}
+        </summary>
+        <ul style="font-size: 0.8125rem; color: var(--pico-muted-color); margin: 0.375rem 0;">
+          <li>Aktivitet: {{ w.status.actual.name or "—" }}{% if w.status.actual.activity_type %} ({{ w.status.actual.activity_type }}){% endif %}</li>
+          <li>Tid: {{ w.status.actual.duration_min }} min</li>
+          {% if w.status.actual.avg_hr %}<li>Puls: {{ w.status.actual.avg_hr }} snitt{% if w.status.actual.max_hr %} / {{ w.status.actual.max_hr }} max{% endif %} bpm</li>{% endif %}
+          {% if w.status.actual.distance_km %}<li>Distans: {{ w.status.actual.distance_km }} km</li>{% endif %}
+          {% if w.status.actual.normalized_power %}<li>Effekt: {{ w.status.actual.normalized_power }} W NP{% if w.status.actual.avg_power %} (snitt {{ w.status.actual.avg_power }} W){% endif %}</li>{% endif %}
+          {% if w.status.actual.training_load %}<li>Träningslast: TSS {{ w.status.actual.training_load }}</li>{% endif %}
+        </ul>
+      </details>
+      {% endif %}
+
       {% if w.notes %}
       <details>
         <summary>Syfte</summary>
