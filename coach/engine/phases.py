@@ -43,6 +43,8 @@ class PhaseRecommendation:
     period: str | None  # t.ex. "base_2", None om fasen saknar perioder
     reason: str
     unmet_criteria: list[str] = field(default_factory=list)
+    optimal_phase: PhaseCode | None = None  # vad en idealisk periodisering vore
+    behind: bool = False  # True om phase capats under optimal (ligger efter)
 
 
 # ---------- Publika funktioner ----------
@@ -112,92 +114,139 @@ def check_transition_ready(
     return len(unmet) == 0, unmet
 
 
-def determine_phase(state: AthleteState) -> PhaseRecommendation:
-    """Rekommendera vilken fas adepten ska vara i.
+# ---------- Optimal-plan-modell ----------
+#
+# Top-down: optimal fas räknas bakåt från race-datum, sedan capas den av vad
+# adeptens faktiska volym/hälsa bär. De flesta adepter (särskilt externa) kommer
+# in MITT i säsongen — då är "börja i prep och avancera uppåt" fel. Allt
+# deterministiskt, ingen LLM.
 
-    Beslutsordning (deterministisk):
-    1. Om tävling är genomförd nyligen → transition.
-    2. Om tävlingen är inom 1-2 veckor → race.
-    3. Om tävlingen är inom 2-4 veckor och hög specifik fitness → peak.
-    4. Om låg träningstid (<5h/vecka) → prep.
-    5. Om current_phase är satt och övergångskriterier är uppfyllda → nästa fas.
-    6. Annars stanna i current_phase, eller fall tillbaka till prep om inget annat passar.
+_PHASE_ORDER: list[PhaseCode] = ["prep", "base", "build", "peak", "race", "transition"]
+
+
+def _phase_rank(phase: PhaseCode) -> int:
+    return _PHASE_ORDER.index(phase)
+
+
+def _optimal_phase_for_race(weeks_until_race: int | None) -> PhaseCode:
+    """Fasen en idealisk periodisering vore i, givet veckor till tävling.
+
+    Räknat bakåt från loppet med fas-längderna (min) i phases.yaml. Utan
+    tävling → base (generell grundträning), capas sedan av readiness.
     """
-    phases = load_yaml("phases.yaml")["phases"]
+    if weeks_until_race is None:
+        return "base"
+    w = weeks_until_race
+    if w <= 2:
+        return "race"
+    if w <= 4:
+        return "peak"
+    if w <= 12:
+        return "build"
+    if w <= 24:
+        return "base"
+    return "prep"
 
+
+def _sustainable_phase(state: AthleteState) -> PhaseCode:
+    """Högsta uthållighetsfas som adeptens faktiska volym/hälsa bär just nu."""
+    phases = load_yaml("phases.yaml")["phases"]
+    if state.has_injury or state.has_overtraining_signs:
+        return "prep"  # backa av vid skada/överträning
+    hours = state.weekly_training_hours
+    build_min = phases["build"]["entry_criteria"]["min_weekly_hours"]
+    base_min = phases["base"]["entry_criteria"]["min_weekly_hours"]
+    if hours >= build_min:
+        return "build"
+    if hours >= base_min:
+        return "base"
+    return "prep"
+
+
+def _weeks_str(state: AthleteState) -> str:
+    w = state.weeks_until_next_race
+    return f"{w} v till tävling" if w is not None else "ingen tävling satt"
+
+
+def determine_phase(state: AthleteState) -> PhaseRecommendation:
+    """Rekommendera fas: optimal-givet-race capad av faktisk readiness.
+
+    Deterministisk beslutsordning:
+    1. Nyligen genomförd tävling → transition.
+    2. Optimal fas = räkna bakåt från race-datum (race/peak/build/base/prep).
+    3. Tajming-svans (peak/race): tapra mot loppet oavsett volym; skada/OT → transition.
+    4. Uthållighetsregion (prep/base/build): capa optimal till vad volymen bär.
+       Ligger nuläget under optimalt → behind=True (planen anpassas nedåt, och
+       avvikelsen exponeras för coach/Nils).
+    """
     # 1. Nyligen genomförd tävling
     if (
         state.last_race_completed_within_days is not None
         and state.last_race_completed_within_days <= 14
     ):
         return PhaseRecommendation(
-            phase="transition",
-            period=None,
+            phase="transition", period=None, optimal_phase="transition",
             reason="Tävling nyligen genomförd — återhämtning prioriterad",
         )
 
-    # 2. Tävlingsfas (1-2 veckor)
-    if state.weeks_until_next_race is not None and 1 <= state.weeks_until_next_race <= 2:
+    optimal = _optimal_phase_for_race(state.weeks_until_next_race)
+
+    # 2/3. Tajming-driven svans — tapra mot loppet oavsett volym
+    if optimal == "race":
         if state.has_injury:
             return PhaseRecommendation(
-                phase="transition",
-                period=None,
+                phase="transition", period=None, optimal_phase="race", behind=True,
                 reason="Skada nära tävling — skadeprevention över prestation",
             )
         return PhaseRecommendation(
-            phase="race",
-            period=None,
+            phase="race", period=None, optimal_phase="race",
             reason=f"Tävlingen är {state.weeks_until_next_race} v bort",
         )
-
-    # 3. Toppningsfas (2-4 veckor)
-    if state.weeks_until_next_race is not None and 2 < state.weeks_until_next_race <= 4:
-        if state.has_overtraining_signs or state.has_injury:
+    if optimal == "peak":
+        if state.has_injury or state.has_overtraining_signs:
             return PhaseRecommendation(
-                phase="transition",
-                period=None,
+                phase="transition", period=None, optimal_phase="peak", behind=True,
                 reason="Tecken på överträning eller skada inför toppning",
             )
         return PhaseRecommendation(
-            phase="peak",
-            period=None,
+            phase="peak", period=None, optimal_phase="peak",
             reason=f"Tävlingen är {state.weeks_until_next_race} v bort — toppningsfas",
         )
 
-    # 4. Låg träningsvolym → alltid prep
-    prep_threshold = phases["prep"]["entry_rules"]["low_volume_threshold_hours"]
-    if state.weekly_training_hours < prep_threshold:
-        return PhaseRecommendation(
-            phase="prep",
-            period=None,
-            reason=f"Veckotimmar {state.weekly_training_hours:.1f} < {prep_threshold}h",
-        )
+    # 4. Uthållighetsregion: capa optimal till vad volymen/hälsan bär
+    sustainable = _sustainable_phase(state)
+    if _phase_rank(optimal) <= _phase_rank(sustainable):
+        phase: PhaseCode = optimal
+    else:
+        phase = sustainable
+    behind = _phase_rank(phase) < _phase_rank(optimal)
+    period = _first_period(phase)
 
-    # 5. Försök avancera från current_phase
-    if state.current_phase:
-        ready, unmet = check_transition_ready(state.current_phase, state)
-        if ready:
-            next_code = phases[state.current_phase].get("next_phase")
-            if next_code:
-                next_period = _first_period(next_code)
-                return PhaseRecommendation(
-                    phase=next_code,
-                    period=next_period,
-                    reason=f"Kriterier för övergång från {state.current_phase} uppfyllda",
-                )
-        # Stanna kvar
+    if behind:
+        phases = load_yaml("phases.yaml")["phases"]
+        unmet: list[str] = []
+        if state.has_injury:
+            unmet.append("Skada närvarande")
+        if state.has_overtraining_signs:
+            unmet.append("Tecken på överträning")
+        opt_min = phases.get(optimal, {}).get("entry_criteria", {}).get("min_weekly_hours")
+        if opt_min is not None and state.weekly_training_hours < opt_min:
+            unmet.append(
+                f"För låg volym för {optimal}: "
+                f"{state.weekly_training_hours:.1f} < {opt_min} h/v"
+            )
         return PhaseRecommendation(
-            phase=state.current_phase,
-            period=_current_period_estimate(state),
-            reason="Stanna kvar — övergångskriterier ej uppfyllda",
+            phase=phase, period=period, optimal_phase=optimal, behind=True,
             unmet_criteria=unmet,
+            reason=(
+                f"Optimalt vore {optimal} ({_weeks_str(state)}), men nuläget bär "
+                f"{phase} — planen anpassas nedåt."
+            ),
         )
 
-    # 6. Fallback: ingen fas angiven, börja från prep
     return PhaseRecommendation(
-        phase="prep",
-        period=None,
-        reason="Ingen tidigare fas angiven — börja med Förberedelsefas",
+        phase=phase, period=period, optimal_phase=optimal,
+        reason=f"Optimal fas {phase} givet {_weeks_str(state)}; volymen bär den.",
     )
 
 

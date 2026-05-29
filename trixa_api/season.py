@@ -61,43 +61,29 @@ def build_phase_timeline(today: date, race_date: date | None) -> dict | None:
     if total_weeks < 1:
         return None
 
-    # Tail-regler speglar determine_phase(): race för weeks_until_race ≤ 2
-    # (inkl. tävlingsveckan), peak för 3-4. Resten är uthållighetsfaser.
-    phase_by_index: list[str | None] = []
-    endurance_indices: list[int] = []
-    for i in range(total_weeks):
-        wur = (total_weeks - 1) - i
+    # Optimal fas per vecka = räkna bakåt från loppet, SAMMA mappning som
+    # engine.phases._optimal_phase_for_race (race ≤2 v, peak 3-4, build 5-12,
+    # base 13-24, prep >24). Tidslinjen visar alltså den OPTIMALA planen; vad
+    # adepten faktiskt klarar (capad fas) syns som "Aktuell fas" i dashboarden.
+    def _optimal(wur: int) -> str:
         if wur <= 2:
-            phase_by_index.append("race")
-        elif wur <= 4:
-            phase_by_index.append("peak")
-        else:
-            phase_by_index.append(None)
-            endurance_indices.append(i)
+            return "race"
+        if wur <= 4:
+            return "peak"
+        if wur <= 12:
+            return "build"
+        if wur <= 24:
+            return "base"
+        return "prep"
 
-    # Fördela uthållighetsveckorna på prep/base/build proportionellt mot
-    # fasernas min-längder. När gott om tid finns återskapas naturliga längder;
-    # vid tidsbrist komprimeras de proportionellt.
-    n_end = len(endurance_indices)
-    mins = {p: phases[p]["duration_weeks"][0] for p in ("prep", "base", "build")}
-    total_min = sum(mins.values()) or 1
-    if n_end:
-        prep_n = round(n_end * mins["prep"] / total_min)
-        base_n = round(n_end * mins["base"] / total_min)
-        build_n = n_end - prep_n - base_n
-        if build_n < 0:  # avrundnings-skydd
-            build_n = 0
-            base_n = n_end - prep_n
-        seq = (["prep"] * prep_n) + (["base"] * base_n) + (["build"] * build_n)
-        for pos, idx in enumerate(endurance_indices):
-            phase_by_index[idx] = seq[pos] if pos < len(seq) else "build"
+    phase_by_index = [_optimal((total_weeks - 1) - i) for i in range(total_weeks)]
 
     # Bygg vecko-lista
     weeks = []
     for i in range(total_weeks):
         wm = start + timedelta(weeks=i)
         iso = wm.isocalendar()
-        ph = phase_by_index[i] or "build"
+        ph = phase_by_index[i]
         weeks.append({
             "index": i,
             "monday": wm,

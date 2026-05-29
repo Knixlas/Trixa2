@@ -23,37 +23,36 @@ def divider(s):
     print(f"\n{'=' * 60}\n{s}\n{'=' * 60}")
 
 
-# ---- Test 1: fasidentifiering ----
+# ---- Test 1: fasidentifiering (optimal-modell: optimal capad av readiness) ----
 
-divider("1. Låg volym → prep")
+divider("1. Låg volym, ingen tävling → prep (capad)")
 rec = determine_phase(AthleteState(weekly_training_hours=3.0))
-print(f"  → {rec.phase}: {rec.reason}")
+print(f"  → {rec.phase} (optimal {rec.optimal_phase}, behind={rec.behind}): {rec.reason}")
 
-divider("2. I base, redo för build")
+divider("2. Tävling 11v bort, 8.4h volym → build (Johan)")
 rec = determine_phase(AthleteState(
-    weekly_training_hours=8.0,
-    current_phase="base",
-    weeks_in_current_phase=14,
+    weekly_training_hours=8.4,
+    weeks_until_next_race=11,
 ))
-print(f"  → {rec.phase} ({rec.period}): {rec.reason}")
+print(f"  → {rec.phase} ({rec.period}, optimal {rec.optimal_phase}, behind={rec.behind}): {rec.reason}")
+assert rec.phase == "build" and not rec.behind, "Johan borde hamna i build utan behind"
 
-divider("3. I base + skada → stanna kvar")
+divider("3. Tävling 11v bort, 1.6h volym → prep + behind (Niklas)")
 rec = determine_phase(AthleteState(
-    weekly_training_hours=8.0,
-    current_phase="base",
-    weeks_in_current_phase=14,
-    has_injury=True,
+    weekly_training_hours=1.6,
+    weeks_until_next_race=11,
 ))
-print(f"  → {rec.phase} ({rec.period}): {rec.reason}")
+print(f"  → {rec.phase} (optimal {rec.optimal_phase}, behind={rec.behind}): {rec.reason}")
 print(f"  Brister: {rec.unmet_criteria}")
+assert rec.phase == "prep" and rec.optimal_phase == "build" and rec.behind, "Niklas borde capas till prep + behind"
 
 divider("4. Tävling 3v bort → peak")
 rec = determine_phase(AthleteState(
     weekly_training_hours=10.0,
-    current_phase="build",
     weeks_until_next_race=3,
 ))
-print(f"  → {rec.phase}: {rec.reason}")
+print(f"  → {rec.phase} (optimal {rec.optimal_phase}): {rec.reason}")
+assert rec.phase == "peak", "3v bort borde ge peak"
 
 # ---- Test 2: passtyper ----
 

@@ -564,6 +564,8 @@ def _run_engine(
             "period": phase_rec.period,
             "reason": phase_rec.reason,
             "unmet_criteria": list(phase_rec.unmet_criteria),
+            "optimal_phase": phase_rec.optimal_phase,
+            "behind": phase_rec.behind,
         },
         "categories": categories,
         "discipline_hours": discipline_hours,

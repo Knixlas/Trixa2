@@ -233,6 +233,8 @@ def dashboard(request: Request) -> HTMLResponse:
     decisions = _run_engine(state, _build_ot_signals(athlete, None), 1, 6)
     phase = decisions["phase_recommendation"]["phase"]
     period = decisions["phase_recommendation"]["period"]
+    optimal_phase = decisions["phase_recommendation"].get("optimal_phase")
+    behind = decisions["phase_recommendation"].get("behind", False)
 
     # Berika båda veckorna med alternativ-listor
     _enrich_with_alternatives(this_week, phase, period)
@@ -248,6 +250,8 @@ def dashboard(request: Request) -> HTMLResponse:
         "next_week": next_week,
         "alerts": alerts_res.data or [],
         "phase": phase,
+        "optimal_phase": optimal_phase,
+        "behind": behind,
         "this_monday": this_monday.isoformat(),
         "next_monday": next_monday.isoformat(),
         "timeline": timeline,
