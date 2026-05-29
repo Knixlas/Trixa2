@@ -1305,8 +1305,12 @@ def generate_week(
 
     # 2. Hämta aktivitetsdata (primärkälla för faktisk volym + OT-signaler).
     # Garmin om kopplat, annars Strava (externa adepter). En källa per adept.
-    garmin_id = athlete.get("garmin_athlete_id")
-    strava_user_id = None if garmin_id else athlete_user_id
+    if athlete.get("use_strava"):
+        garmin_id = None
+        strava_user_id = athlete_user_id
+    else:
+        garmin_id = athlete.get("garmin_athlete_id")
+        strava_user_id = None if garmin_id else athlete_user_id
     garmin_metrics = _fetch_garmin_metrics(client, garmin_id, today, days_back=28)
     actual_weekly_hours = _fetch_actual_weekly_hours(client, garmin_id, today, weeks=4)
     if actual_weekly_hours is None and strava_user_id:

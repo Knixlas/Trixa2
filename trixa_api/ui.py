@@ -23,7 +23,7 @@ from coach.trixa.planner import (
     swap_workout_code,
     swap_workout_discipline_and_replan,
 )
-from trixa_api import season, supabase_auth, readiness
+from trixa_api import season, supabase_auth, readiness, strava_client
 
 
 router = APIRouter(prefix="/ui", tags=["ui"])
@@ -145,6 +145,69 @@ def signup_submit(
     resp = RedirectResponse(url="/ui/", status_code=303)
     set_session_cookies(resp, session, secure=is_secure_request(request))
     return resp
+
+
+# ---------- Strava-koppling (utförda pass — robustare än Garmin) ----------
+
+
+def _strava_redirect_uri(request: Request) -> str:
+    scheme = "https" if is_secure_request(request) else request.url.scheme
+    host = request.headers.get("host") or request.url.netloc
+    return f"{scheme}://{host}/ui/strava/callback"
+
+
+@router.get("/strava/connect")
+def strava_connect(request: Request) -> Any:
+    uid = _current_user_id(request)
+    if not uid:
+        return RedirectResponse("/ui/login", status_code=303)
+    if not strava_client.creds_configured():
+        return RedirectResponse("/ui/settings?strava=noconfig", status_code=303)
+    url = strava_client.authorize_url(
+        _strava_redirect_uri(request), strava_client.sign_state(uid)
+    )
+    return RedirectResponse(url, status_code=303)
+
+
+@router.get("/strava/callback")
+def strava_callback(
+    request: Request, code: str = "", state: str = "", error: str = ""
+) -> Any:
+    uid = _current_user_id(request)
+    if error or not code or strava_client.verify_state(state) != uid:
+        return RedirectResponse("/ui/settings?strava=error", status_code=303)
+    client = get_postgrest()
+    try:
+        tok = strava_client.exchange_code(code, _strava_redirect_uri(request))
+        strava_client.save_tokens(
+            client, uid, tok["access_token"], tok["refresh_token"],
+            tok["expires_at"], (tok.get("athlete") or {}).get("id"), tok.get("scope"),
+        )
+        client.table("athlete_profiles").update({"use_strava": True}).eq("user_id", uid).execute()
+        strava_client.sync_recent(client, uid, days=45)
+    except Exception:  # noqa: BLE001
+        return RedirectResponse("/ui/settings?strava=error", status_code=303)
+    return RedirectResponse("/ui/settings?strava=connected", status_code=303)
+
+
+@router.post("/strava/sync")
+def strava_sync(request: Request) -> Any:
+    uid = _current_user_id(request)
+    client = get_postgrest()
+    try:
+        strava_client.sync_recent(client, uid, days=45)
+    except Exception:  # noqa: BLE001
+        return RedirectResponse("/ui/settings?strava=error", status_code=303)
+    return RedirectResponse("/ui/settings?strava=synced", status_code=303)
+
+
+@router.post("/strava/disconnect")
+def strava_disconnect(request: Request) -> Any:
+    uid = _current_user_id(request)
+    client = get_postgrest()
+    strava_client.delete_tokens(client, uid)
+    client.table("athlete_profiles").update({"use_strava": False}).eq("user_id", uid).execute()
+    return RedirectResponse("/ui/settings?strava=disconnected", status_code=303)
 
 
 def _monday_of(d: date_type) -> date_type:
@@ -358,10 +421,15 @@ def dashboard(request: Request) -> HTMLResponse:
     this_iso = this_monday.isocalendar()
     next_iso = next_monday.isocalendar()
 
-    # Primärkälla per adept: garmin_athlete_id → Garmin, annars Strava (user_id).
-    garmin_id = athlete.get("garmin_athlete_id")
-    strava_user_id = None if garmin_id else athlete.get("user_id")
+    # Primärkälla per adept: har adepten valt Strava (use_strava) → Strava,
+    # annars Garmin om kopplat, annars Strava (för Strava-only-vänner).
     uid = athlete.get("user_id")
+    if athlete.get("use_strava"):
+        garmin_id = None
+        strava_user_id = uid
+    else:
+        garmin_id = athlete.get("garmin_athlete_id")
+        strava_user_id = None if garmin_id else uid
     this_week = _fetch_current_week_data(
         client, athlete["id"], this_iso[0], this_iso[1], garmin_id, strava_user_id, today, uid
     )
@@ -1037,14 +1105,14 @@ _DISCIPLINES_FOR_IMPACT = [
 
 
 @router.get("/settings", response_class=HTMLResponse)
-def settings_view(request: Request, saved: bool = False) -> HTMLResponse:
+def settings_view(request: Request, saved: bool = False, strava: str = "") -> HTMLResponse:
     user_id = _current_user_id(request)
     client = get_postgrest()
     a_res = (
         client.table("athlete_profiles")
         .select(
             "sports, long_bike_day, long_run_day, preferred_rest_days,"
-            " equipment, preferred_settings"
+            " equipment, preferred_settings, use_strava, garmin_athlete_id"
         )
         .eq("user_id", user_id)
         .execute()
@@ -1056,6 +1124,22 @@ def settings_view(request: Request, saved: bool = False) -> HTMLResponse:
     athlete["sports"] = athlete.get("sports") or ["swim", "bike", "run"]
     athlete["equipment"] = athlete.get("equipment") or {}
     athlete["preferred_settings"] = athlete.get("preferred_settings") or {}
+
+    # Strava-anslutningsstatus
+    tok = client.table("strava_tokens").select("athlete_id").eq("user_id", user_id).limit(1).execute()
+    last = (
+        client.table("strava_activities").select("date")
+        .eq("user_id", user_id).order("date", desc=True).limit(1).execute()
+    )
+    strava_status = {
+        "connected": bool(tok.data),
+        "athlete_id": tok.data[0]["athlete_id"] if tok.data else None,
+        "use_strava": athlete.get("use_strava", False),
+        "has_garmin": bool(athlete.get("garmin_athlete_id")),
+        "last_activity": last.data[0]["date"] if last.data else None,
+        "configured": strava_client.creds_configured(),
+        "flash": strava,
+    }
     return _render(
         "settings.html",
         {
@@ -1069,6 +1153,7 @@ def settings_view(request: Request, saved: bool = False) -> HTMLResponse:
                 ("run", "Löpning"),
             ],
             "saved": saved,
+            "strava": strava_status,
         },
     )
 
