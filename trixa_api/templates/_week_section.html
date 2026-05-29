@@ -26,8 +26,17 @@
   <h2>{{ week_label }}{% if week %} — {{ week.week_start }}{% endif %}</h2>
 
   {% if week and week.workouts %}
-    <p><strong>Fas:</strong> {{ week.phase }} | <strong>Pass:</strong> {{ week.workouts | length }}</p>
+    <p>
+      {% if week.phase %}<strong>Fas:</strong> {{ week.phase }} | {% endif %}<strong>Pass:</strong> {{ week.workouts | length }}
+      {% if week.plan_source == "coach" %}
+      <span class="badge" style="background: var(--lagoon-soft); color: var(--lagoon-deep);"
+            title="Planen kommer från din coach (Nils), inte den automatiska generatorn">coachens plan</span>
+      {% else %}
+      <span class="badge" title="Automatiskt genererad av Trixa-motorn">genererad</span>
+      {% endif %}
+    </p>
 
+    {% if week.plan_source != "coach" %}
     <details>
       <summary>Regenerera denna vecka</summary>
       <article style="margin-top: 0.5rem;">
@@ -42,6 +51,7 @@
         </form>
       </article>
     </details>
+    {% endif %}
 
     {% for w in week.workouts %}
     <div class="workout">
@@ -105,7 +115,7 @@
         </details>
         {% endif %}
 
-        {% if w.sport in ("swim", "bike", "run") %}
+        {% if w.sport in ("swim", "bike", "run") and week.plan_source != "coach" %}
         <details>
           <summary>Ändra detta pass</summary>
           <article style="margin-top: 0.5rem; font-size: 0.875rem;">
@@ -160,6 +170,7 @@
     </div>
     {% endfor %}
 
+    {% if week.plan_source != "coach" and week.id %}
     <details style="margin-top: 8px;">
       <summary>+ Lägg till eget pass</summary>
       <article>
@@ -190,6 +201,7 @@
         </form>
       </article>
     </details>
+    {% endif %}
   {% else %}
     <article style="text-align: center; padding: 24px;">
       <i data-lucide="palmtree" style="width: 34px; height: 34px; color: var(--ink-3);"></i>

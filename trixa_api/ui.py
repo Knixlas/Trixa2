@@ -182,7 +182,7 @@ _COMPLIANCE_LABEL = {
 }
 
 
-def _compliance_by_week(client, plan_id, athlete_id, garmin_id, strava_user_id, today) -> dict:
+def _compliance_by_week(client, plan_id, athlete_id, garmin_id, strava_user_id, today, user_id=None) -> dict:
     """Följsamhets-bucket per genererad, passerad vecka. Nyckel: (iso_year, iso_week)."""
     try:
         weeks_res = (
@@ -201,7 +201,7 @@ def _compliance_by_week(client, plan_id, athlete_id, garmin_id, strava_user_id, 
         monday = date_type.fromisocalendar(y, wn, 1)
         if monday > today:
             continue  # framtida genererad vecka — ingen följsamhet att visa
-        wk = _fetch_current_week_data(client, athlete_id, y, wn, garmin_id, strava_user_id, today)
+        wk = _fetch_current_week_data(client, athlete_id, y, wn, garmin_id, strava_user_id, today, user_id)
         if wk and wk.get("workouts"):
             bucket = season.compliance_bucket(wk["workouts"], today)
             if bucket:
@@ -306,7 +306,7 @@ def _build_season_context(client, athlete, today, this_monday) -> dict | None:
         if plan_res.data:
             comp_map = _compliance_by_week(
                 client, plan_res.data[0]["id"], athlete["id"],
-                garmin_id, strava_user_id, today,
+                garmin_id, strava_user_id, today, athlete.get("user_id"),
             )
     except Exception:  # noqa: BLE001
         comp_map = {}
@@ -361,11 +361,12 @@ def dashboard(request: Request) -> HTMLResponse:
     # Primärkälla per adept: garmin_athlete_id → Garmin, annars Strava (user_id).
     garmin_id = athlete.get("garmin_athlete_id")
     strava_user_id = None if garmin_id else athlete.get("user_id")
+    uid = athlete.get("user_id")
     this_week = _fetch_current_week_data(
-        client, athlete["id"], this_iso[0], this_iso[1], garmin_id, strava_user_id, today
+        client, athlete["id"], this_iso[0], this_iso[1], garmin_id, strava_user_id, today, uid
     )
     next_week = _fetch_current_week_data(
-        client, athlete["id"], next_iso[0], next_iso[1], garmin_id, strava_user_id, today
+        client, athlete["id"], next_iso[0], next_iso[1], garmin_id, strava_user_id, today, uid
     )
 
     # Hämta alerts
@@ -705,6 +706,35 @@ def _fetch_strava_week_activities(
     return by_date
 
 
+# Svenska sportnamn i planned_sessions (coach/Nils) → Trixas discipliner.
+_PLANNED_SV_SPORT = {
+    "Cykel": "bike", "Löpning": "run", "Lopning": "run",
+    "Simning": "swim", "Sim": "swim", "Styrka": "strength",
+    "Vila": "rest", "Yoga": "rest", "Promenad": "rest", "Vandring": "rest",
+}
+
+
+def _fetch_planned_sessions_week(client, user_id, week_monday):
+    """Coachens/Nils plan (public.planned_sessions) för veckan, eller None."""
+    if not user_id:
+        return None
+    start = week_monday.isoformat()
+    end = (week_monday + timedelta(days=6)).isoformat()
+    try:
+        res = (
+            client.table("planned_sessions")
+            .select("id, date, sport, title, details, purpose, duration_min, steps")
+            .eq("user_id", user_id)
+            .gte("date", start)
+            .lte("date", end)
+            .order("date")
+            .execute()
+        )
+    except Exception:  # noqa: BLE001
+        return None
+    return res.data or None
+
+
 def _fetch_current_week_data(
     client,
     athlete_id: str,
@@ -713,93 +743,105 @@ def _fetch_current_week_data(
     garmin_athlete_id: str | None = None,
     strava_user_id: str | None = None,
     today: date_type | None = None,
+    user_id: str | None = None,
 ) -> dict | None:
-    plan_res = (
-        client.table("training_plans")
-        .select("id")
-        .eq("athlete_id", athlete_id)
-        .eq("is_active", True)
-        .limit(1)
-        .execute()
-    )
-    if not plan_res.data:
-        return None
-    plan_id = plan_res.data[0]["id"]
+    """Veckans plan + plan-vs-actual.
 
-    week_res = (
-        client.table("training_weeks")
-        .select("*")
-        .eq("plan_id", plan_id)
-        .eq("year", year)
-        .eq("week_number", week_num)
-        .limit(1)
-        .execute()
-    )
-    if not week_res.data:
-        return None
-    week = week_res.data[0]
-    # Lägg på beräknat week_start (måndag i ISO-veckan) för UI-actions
-    week_monday = date_type.fromisocalendar(year, week_num, 1)
-    week["week_start"] = week_monday.isoformat()
-    week["week_end"] = (week_monday + timedelta(days=6)).isoformat()
-
-    # Plan-vs-actual: hämta aktiviteter för veckan (Garmin ELLER Strava). Strikt
-    # framtida veckor saknar utfall — då hoppar vi över anropet (allt "planerat").
+    Planerad källa: COACHENS plan (planned_sessions) när den finns, annars
+    Trixa2:s engine-plan (training_weeks/workouts). Utfört: Garmin/Strava.
+    """
     if today is None:
         today = date_type.today()
+    week_monday = date_type.fromisocalendar(year, week_num, 1)
+
+    # Utfört (Garmin ELLER Strava) — hoppas över för rena framtidsveckor
     activities_by_date: dict[str, list[dict]] = {}
     if (garmin_athlete_id or strava_user_id) and week_monday <= today:
         activities_by_date = _fetch_week_activities(
             client, garmin_athlete_id, strava_user_id, week_monday
         )
 
-    workouts_res = (
-        client.table("workouts")
-        .select("*")
-        .eq("week_id", week["id"])
-        .order("date")
-        .execute()
-    )
-    workouts = workouts_res.data or []
-    # Bygg passbank-index för setting-uppslag (cache:ad i process)
-    from coach.engine.loader import load_workouts
-    pool = {w["code"]: w for w in load_workouts()}
+    # Coachens plan har företräde
+    coach_sessions = _fetch_planned_sessions_week(client, user_id, week_monday)
 
-    # Mappa workouts till template-vänligt format med DB-id för edit-actions
-    week["workouts"] = []
-    for w in workouts:
-        code = w.get("title_simple") or w["title"]
-        category = code.split("_")[0][:2] if "_" in code else ""
-        # Slå upp setting från passbank (indoor/outdoor/either)
-        wd = pool.get(code) or {}
-        setting = wd.get("setting") or ("either" if w["sport"] != "rest" else "")
-        if wd.get("requires_trainer"):
-            setting = "indoor"
-        elif wd.get("outdoor_only"):
-            setting = "outdoor"
-        w_status = _compute_status(
-            w["date"], w["sport"], code,
-            w.get("duration_minutes") or 0,
-            activities_by_date.get(str(w["date"])[:10], []),
-            today,
+    # Engine-plan (training_weeks/workouts) — kan saknas
+    phase = None
+    week_id = None
+    engine_workouts: list[dict] = []
+    plan_res = (
+        client.table("training_plans").select("id")
+        .eq("athlete_id", athlete_id).eq("is_active", True).limit(1).execute()
+    )
+    if plan_res.data:
+        week_res = (
+            client.table("training_weeks").select("*")
+            .eq("plan_id", plan_res.data[0]["id"])
+            .eq("year", year).eq("week_number", week_num).limit(1).execute()
         )
-        week["workouts"].append({
-            "id": w["id"],
-            "date": w["date"],
-            "sport": w["sport"],
-            "title": w["title"],
-            "code": code,
-            "category": category,
-            "setting": setting,
-            "duration_minutes": w.get("duration_minutes") or 0,
-            "distance": w.get("distance") or "",
-            "intensity": w.get("intensity") or "",
-            "notes": w.get("notes") or "",
-            "steps": w.get("steps") or [],
-            "coach_notes": w.get("coach_notes") or "",
-            "is_manual": w.get("is_manual", False),
-            "status": w_status,
-        })
+        if week_res.data:
+            phase = week_res.data[0].get("phase")
+            week_id = week_res.data[0]["id"]
+            wres = (
+                client.table("workouts").select("*")
+                .eq("week_id", week_id).order("date").execute()
+            )
+            engine_workouts = wres.data or []
+
+    if not coach_sessions and not engine_workouts:
+        return None
+
+    week = {
+        "id": week_id,
+        "week_start": week_monday.isoformat(),
+        "week_end": (week_monday + timedelta(days=6)).isoformat(),
+        "phase": phase,
+        "plan_source": "coach" if coach_sessions else "engine",
+        "workouts": [],
+    }
+
+    def _status(d, sport, code, dur):
+        return _compute_status(
+            d, sport, code, dur, activities_by_date.get(str(d)[:10], []), today
+        )
+
+    if coach_sessions:
+        for ps in coach_sessions:
+            sport = _PLANNED_SV_SPORT.get(
+                ps.get("sport"), (ps.get("sport") or "").strip().lower()
+            )
+            title = ps.get("title") or "Pass"
+            dur = ps.get("duration_min") or 0
+            week["workouts"].append({
+                "id": ps.get("id"), "date": ps["date"], "sport": sport,
+                "title": title, "code": "", "category": "", "setting": "",
+                "duration_minutes": dur, "distance": "",
+                "intensity": ps.get("purpose") or "",
+                "notes": ps.get("details") or "", "steps": ps.get("steps") or [],
+                "coach_notes": "", "is_manual": False,
+                "status": _status(ps["date"], sport, title, dur),
+            })
+    else:
+        from coach.engine.loader import load_workouts
+        pool = {w["code"]: w for w in load_workouts()}
+        for w in engine_workouts:
+            code = w.get("title_simple") or w["title"]
+            category = code.split("_")[0][:2] if "_" in code else ""
+            wd = pool.get(code) or {}
+            setting = wd.get("setting") or ("either" if w["sport"] != "rest" else "")
+            if wd.get("requires_trainer"):
+                setting = "indoor"
+            elif wd.get("outdoor_only"):
+                setting = "outdoor"
+            week["workouts"].append({
+                "id": w["id"], "date": w["date"], "sport": w["sport"],
+                "title": w["title"], "code": code, "category": category,
+                "setting": setting, "duration_minutes": w.get("duration_minutes") or 0,
+                "distance": w.get("distance") or "", "intensity": w.get("intensity") or "",
+                "notes": w.get("notes") or "", "steps": w.get("steps") or [],
+                "coach_notes": w.get("coach_notes") or "",
+                "is_manual": w.get("is_manual", False),
+                "status": _status(w["date"], w["sport"], code, w.get("duration_minutes") or 0),
+            })
     return week
 
 
