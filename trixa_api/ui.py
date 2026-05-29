@@ -674,7 +674,14 @@ def _compute_status(
     if w_date > today:
         return {**_STATUS["planned"], "key": "planned", "actual": None}
     if w_date == today:
-        return {**_STATUS["today"], "key": "today", "actual": None}
+        # Visa även dagens utförda pass (om något loggats) — behåll "Idag"-badgen.
+        actual = None
+        if sport != "rest" and day_activities:
+            sport_hits = [a for a in day_activities if _sport_matches(sport, code, a.get("_sport"))]
+            pool = sport_hits or day_activities
+            best = min(pool, key=lambda a: abs(a["_dur_min"] - (plan_min or 0)))
+            actual = _build_actual(best, best.get("_sport") or sport)
+        return {**_STATUS["today"], "key": "today", "actual": actual}
 
     # --- Passerat datum ---
     if sport == "rest":

@@ -383,6 +383,10 @@ def _weeks_until_race(athlete: dict, today: date) -> int | None:
     return delta_days // 7
 
 
+# Planera alltid minst så här många timmar/vecka, oavsett faktisk historik.
+MIN_PLANNED_WEEKLY_HOURS = 5.0
+
+
 def _build_athlete_state(
     athlete: dict,
     weekly_report: dict | None,
@@ -406,6 +410,9 @@ def _build_athlete_state(
         weekly_hours = actual_weekly_hours
     else:
         weekly_hours = declared
+    # Golv: planera ALLTID minst 5 h/v, oavsett vad historiken visar. Att fördela
+    # 1,7 h över en vecka blir meningslöst — minst en base-nivå (5 h) prescriberas.
+    weekly_hours = max(weekly_hours, MIN_PLANNED_WEEKLY_HOURS)
 
     # OT-tecken från Garmin (snabb-koll innan full assessment)
     has_ot = False
