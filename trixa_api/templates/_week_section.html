@@ -53,6 +53,12 @@
     </details>
     {% endif %}
 
+    {% if week.exercise_suggestions %}
+    <datalist id="ex-{{ week.week_start }}">
+      {% for ex in week.exercise_suggestions %}<option value="{{ ex }}">{% endfor %}
+    </datalist>
+    {% endif %}
+
     {% for w in week.workouts %}
     <div class="workout">
       <div class="wk-disc" style="background: {{ disc.get(w.sport, disc['rest'])[1] }};">
@@ -88,6 +94,54 @@
             {% if w.status.actual.normalized_power %}<li>Effekt: {{ w.status.actual.normalized_power }} W NP{% if w.status.actual.avg_power %} (snitt {{ w.status.actual.avg_power }} W){% endif %}</li>{% endif %}
             {% if w.status.actual.training_load %}<li>Träningslast: TSS {{ w.status.actual.training_load }}</li>{% endif %}
           </ul>
+        </details>
+        {% endif %}
+
+        {# Styrkelogg — set/reps/vikt/ansträngning mot styrkepasset #}
+        {% if w.sport == "strength" %}
+        <details {% if w.logged_exercises %}open{% endif %} style="margin-top: 8px;">
+          <summary>Logga styrka{% if w.logged_exercises %} ({{ w.logged_exercises | length }})  {% endif %}</summary>
+          <article style="margin-top: 6px;">
+            {% if w.planned_exercises %}
+            <p style="font-size: 12.5px; color: var(--ink-3); margin: 0 0 8px;"><strong>Planerat:</strong>
+              {% for ex in w.planned_exercises %}{{ ex.name }}{% if ex.sets %} {{ ex.sets }}×{{ ex.reps or ex.unit or "?" }}{% endif %}{% if ex.weight_from %} @{{ ex.weight_from }}kg{% endif %}{% if not loop.last %} · {% endif %}{% endfor %}
+            </p>
+            {% endif %}
+            {% if w.logged_exercises %}
+            {% set em = {1: '💚 lätt', 2: '💛 medel', 3: '🟠 tung', 4: '❤️ max', -1: '⏭️ hoppade'} %}
+            <ul style="font-size: 13px; margin: 0 0 10px; padding: 0; list-style: none;">
+              {% for lg in w.logged_exercises %}
+              <li style="display: flex; align-items: center; gap: 8px; padding: 3px 0; border-bottom: 1px dashed var(--line);">
+                <strong>{{ lg.exercise_name }}</strong>
+                <span style="color: var(--ink-3);">{% if lg.sets %}{{ lg.sets }}×{{ lg.reps or "?" }}{% endif %}{% if lg.weight_from %} @ {{ lg.weight_from }} kg{% endif %} · {{ em.get(lg.effort, "•") }}</span>
+                <form method="post" action="/ui/strength/remove" style="margin-left: auto;">
+                  <input type="hidden" name="log_id" value="{{ lg.id }}">
+                  <button type="submit" class="outline" style="font-size: 11px; padding: 2px 9px;">×</button>
+                </form>
+              </li>
+              {% endfor %}
+            </ul>
+            {% endif %}
+            <form method="post" action="/ui/strength/log" class="grid" style="align-items: end; gap: 0 10px;">
+              <input type="hidden" name="session_date" value="{{ w.date }}">
+              <label style="grid-column: 1 / -1;">Övning
+                <input type="text" name="exercise_name" list="ex-{{ week.week_start }}" required placeholder="t.ex. Knäböj">
+              </label>
+              <label>Set <input type="number" name="sets" min="0" placeholder="3"></label>
+              <label>Reps <input type="number" name="reps" min="0" placeholder="12"></label>
+              <label>Vikt (kg) <input type="number" name="weight_from" min="0" step="0.5" placeholder="40"></label>
+              <label>Ansträngning
+                <select name="effort">
+                  <option value="1">Lätt</option>
+                  <option value="2" selected>Medel</option>
+                  <option value="3">Tung</option>
+                  <option value="4">Max</option>
+                  <option value="-1">Hoppade över</option>
+                </select>
+              </label>
+              <button type="submit" style="grid-column: 1 / -1;">Logga övning</button>
+            </form>
+          </article>
         </details>
         {% endif %}
 

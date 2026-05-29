@@ -210,6 +210,51 @@ def strava_disconnect(request: Request) -> Any:
     return RedirectResponse("/ui/settings?strava=disconnected", status_code=303)
 
 
+# ---------- Styrkelogg (set/reps/vikt/ansträngning mot styrkepassen) ----------
+
+
+@router.post("/strength/log")
+def strength_log(
+    request: Request,
+    session_date: str = Form(...),
+    exercise_name: str = Form(...),
+    sets: int | None = Form(None),
+    reps: int | None = Form(None),
+    weight_from: float | None = Form(None),
+    effort: int = Form(2),
+) -> Any:
+    """Logga en utförd styrkeövning. Upsert på (user, datum, övningsnamn)."""
+    uid = _current_user_id(request)
+    name = (exercise_name or "").strip()
+    if not uid or not name or not session_date:
+        raise HTTPException(400, "exercise_name och session_date krävs")
+    if effort not in (-1, 1, 2, 3, 4):
+        effort = 2
+    client = get_postgrest()
+    row = {
+        "user_id": uid, "session_date": session_date, "exercise_name": name,
+        "sets": sets, "reps": reps, "weight_from": weight_from, "effort": effort,
+    }
+    existing = (
+        client.table("exercise_logs").select("id")
+        .eq("user_id", uid).eq("session_date", session_date)
+        .eq("exercise_name", name).execute()
+    )
+    if existing.data:
+        client.table("exercise_logs").update(row).eq("id", existing.data[0]["id"]).execute()
+    else:
+        client.table("exercise_logs").insert(row).execute()
+    return RedirectResponse("/ui/", status_code=303)
+
+
+@router.post("/strength/remove")
+def strength_remove(request: Request, log_id: str = Form(...)) -> Any:
+    uid = _current_user_id(request)
+    client = get_postgrest()
+    client.table("exercise_logs").delete().eq("id", log_id).eq("user_id", uid).execute()
+    return RedirectResponse("/ui/", status_code=303)
+
+
 def _monday_of(d: date_type) -> date_type:
     return d - timedelta(days=d.weekday())
 
@@ -791,7 +836,7 @@ def _fetch_planned_sessions_week(client, user_id, week_monday):
     try:
         res = (
             client.table("planned_sessions")
-            .select("id, date, sport, title, details, purpose, duration_min, steps")
+            .select("id, date, sport, title, details, purpose, duration_min, steps, exercises")
             .eq("user_id", user_id)
             .gte("date", start)
             .lte("date", end)
@@ -801,6 +846,40 @@ def _fetch_planned_sessions_week(client, user_id, week_monday):
     except Exception:  # noqa: BLE001
         return None
     return res.data or None
+
+
+def _attach_strength_logs(client, week: dict, user_id: str) -> None:
+    """Lägg loggade styrkeövningar (exercise_logs) på styrkepassen i veckan,
+    plus en datalist med adeptens tidigare övningsnamn (för snabb inmatning)."""
+    if not user_id:
+        return
+    strength = [w for w in week["workouts"] if w["sport"] == "strength"]
+    if not strength:
+        return
+    try:
+        logs = (
+            client.table("exercise_logs")
+            .select("id, session_date, exercise_name, sets, reps, weight_from, effort")
+            .eq("user_id", user_id)
+            .gte("session_date", week["week_start"])
+            .lte("session_date", week["week_end"])
+            .execute()
+        )
+        prev = (
+            client.table("exercise_logs").select("exercise_name")
+            .eq("user_id", user_id).limit(500).execute()
+        )
+    except Exception:  # noqa: BLE001
+        return
+    by_date: dict[str, list[dict]] = {}
+    for lg in logs.data or []:
+        by_date.setdefault(str(lg.get("session_date"))[:10], []).append(lg)
+    week["exercise_suggestions"] = sorted({
+        (r.get("exercise_name") or "").strip()
+        for r in (prev.data or []) if (r.get("exercise_name") or "").strip()
+    })
+    for w in strength:
+        w["logged_exercises"] = by_date.get(str(w["date"])[:10], [])
 
 
 def _fetch_current_week_data(
@@ -886,6 +965,7 @@ def _fetch_current_week_data(
                 "intensity": ps.get("purpose") or "",
                 "notes": ps.get("details") or "", "steps": ps.get("steps") or [],
                 "coach_notes": "", "is_manual": False,
+                "planned_exercises": ps.get("exercises") or [],
                 "status": _status(ps["date"], sport, title, dur),
             })
     else:
@@ -908,8 +988,11 @@ def _fetch_current_week_data(
                 "notes": w.get("notes") or "", "steps": w.get("steps") or [],
                 "coach_notes": w.get("coach_notes") or "",
                 "is_manual": w.get("is_manual", False),
+                "planned_exercises": [],
                 "status": _status(w["date"], w["sport"], code, w.get("duration_minutes") or 0),
             })
+
+    _attach_strength_logs(client, week, user_id)
     return week
 
 
