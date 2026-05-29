@@ -92,7 +92,7 @@ _COMPLIANCE_LABEL = {
 }
 
 
-def _compliance_by_week(client, plan_id, athlete_id, garmin_id, today) -> dict:
+def _compliance_by_week(client, plan_id, athlete_id, garmin_id, strava_user_id, today) -> dict:
     """Följsamhets-bucket per genererad, passerad vecka. Nyckel: (iso_year, iso_week)."""
     try:
         weeks_res = (
@@ -111,7 +111,7 @@ def _compliance_by_week(client, plan_id, athlete_id, garmin_id, today) -> dict:
         monday = date_type.fromisocalendar(y, wn, 1)
         if monday > today:
             continue  # framtida genererad vecka — ingen följsamhet att visa
-        wk = _fetch_current_week_data(client, athlete_id, y, wn, garmin_id, today)
+        wk = _fetch_current_week_data(client, athlete_id, y, wn, garmin_id, strava_user_id, today)
         if wk and wk.get("workouts"):
             bucket = season.compliance_bucket(wk["workouts"], today)
             if bucket:
@@ -162,9 +162,11 @@ def _build_season_context(client, athlete, today, this_monday) -> dict | None:
             .execute()
         )
         if plan_res.data:
+            garmin_id = athlete.get("garmin_athlete_id")
+            strava_user_id = None if garmin_id else athlete.get("user_id")
             comp_map = _compliance_by_week(
                 client, plan_res.data[0]["id"], athlete["id"],
-                athlete.get("garmin_athlete_id"), today,
+                garmin_id, strava_user_id, today,
             )
     except Exception:  # noqa: BLE001
         comp_map = {}
@@ -199,12 +201,14 @@ def dashboard(request: Request) -> HTMLResponse:
     this_iso = this_monday.isocalendar()
     next_iso = next_monday.isocalendar()
 
+    # Primärkälla per adept: garmin_athlete_id → Garmin, annars Strava (user_id).
     garmin_id = athlete.get("garmin_athlete_id")
+    strava_user_id = None if garmin_id else athlete.get("user_id")
     this_week = _fetch_current_week_data(
-        client, athlete["id"], this_iso[0], this_iso[1], garmin_id, today
+        client, athlete["id"], this_iso[0], this_iso[1], garmin_id, strava_user_id, today
     )
     next_week = _fetch_current_week_data(
-        client, athlete["id"], next_iso[0], next_iso[1], garmin_id, today
+        client, athlete["id"], next_iso[0], next_iso[1], garmin_id, strava_user_id, today
     )
 
     # Hämta alerts
@@ -274,6 +278,17 @@ _ACTIVITY_SPORT_MAP = {
     "open_water_swimming": "swim",
     "strength": "strength",
     "strength_training": "strength",
+}
+
+# Strava activity_type → Trixas disciplin. Strava-tabellen lagrar mest svenska
+# namn (gamla Trixas SPORT_MAP) men även råa engelska för otäckta typer.
+# Allt som inte är swim/bike/run/strength → None (matchar ingen planerad disciplin).
+_STRAVA_TYPE_TO_SPORT = {
+    "Lopning": "run", "Löpning": "run", "Run": "run", "TrailRun": "run", "VirtualRun": "run",
+    "Cykel": "bike", "Ride": "bike", "VirtualRide": "bike", "EBikeRide": "bike",
+    "MountainBikeRide": "bike", "GravelRide": "bike",
+    "Sim": "swim", "Swim": "swim", "OpenWaterSwim": "swim",
+    "Styrka": "strength", "WeightTraining": "strength", "Workout": "strength",
 }
 
 # Statusdefinitioner: emoji + label + badge-färger. Färgerna ligger inline här
@@ -415,6 +430,26 @@ def _compute_status(
 
 
 def _fetch_week_activities(
+    client,
+    garmin_athlete_id: str | None,
+    strava_user_id: str | None,
+    week_monday: date_type,
+) -> dict[str, list[dict]]:
+    """Källagnostisk aktivitetsläsning för veckan, grupperad på lokalt datum.
+
+    En adept har EN primärkälla: har den ett garmin_athlete_id läses
+    garmin_coach.activities, annars Strava (public.strava_activities för
+    externa vänner). Båda normaliseras till samma dict-form som
+    `_compute_status`/`_build_actual` konsumerar.
+    """
+    if garmin_athlete_id:
+        return _fetch_garmin_week_activities(client, garmin_athlete_id, week_monday)
+    if strava_user_id:
+        return _fetch_strava_week_activities(client, strava_user_id, week_monday)
+    return {}
+
+
+def _fetch_garmin_week_activities(
     client, garmin_athlete_id: str, week_monday: date_type
 ) -> dict[str, list[dict]]:
     """Hämta Garmin-aktiviteter för veckan, grupperade på lokalt datum.
@@ -422,8 +457,6 @@ def _fetch_week_activities(
     Hämtar ett dygn extra i varje ände (UTC-fönster) och bucketar på lokal
     starttid, så aktiviteter nära midnatt hamnar på rätt kalenderdag.
     """
-    if not garmin_athlete_id:
-        return {}
     win_start = (week_monday - timedelta(days=1)).isoformat()
     win_end = (week_monday + timedelta(days=8)).isoformat()
     try:
@@ -455,12 +488,69 @@ def _fetch_week_activities(
     return by_date
 
 
+def _normalize_strava_activity(row: dict) -> dict:
+    """En strava_activities-rad → samma form som garmin-grenen producerar.
+
+    Strava saknar max_hr, training_load (TSS) och normalized_power — de blir
+    None och utelämnas då snyggt i actual-raden.
+    """
+    dur_min = float(row.get("duration_min") or 0)
+    dist_km = row.get("distance_km")
+    return {
+        "_sport": _STRAVA_TYPE_TO_SPORT.get(row.get("type")),
+        "_dur_min": dur_min,
+        "activity_name": row.get("name"),
+        "activity_type": row.get("type"),
+        "duration_sec": int(round(dur_min * 60)),
+        "avg_hr": row.get("avg_hr"),
+        "max_hr": None,
+        "training_load": None,
+        "distance_m": round(float(dist_km) * 1000) if dist_km else None,
+        "normalized_power": None,
+        "avg_power": row.get("avg_power"),
+        "start_time_local": row.get("date"),  # date-granularitet (lokalt datum)
+    }
+
+
+def _fetch_strava_week_activities(
+    client, strava_user_id: str, week_monday: date_type
+) -> dict[str, list[dict]]:
+    """Hämta Strava-aktiviteter (public.strava_activities) för veckan.
+
+    Strava-raden har bara `date` (lokalt datum, ingen tid), så vi filtrerar
+    direkt på kalenderveckan utan UTC-marginal.
+    """
+    week_start = week_monday.isoformat()
+    week_end = (week_monday + timedelta(days=7)).isoformat()
+    try:
+        res = (
+            client.table("strava_activities")
+            .select("date, type, name, duration_min, distance_km, avg_hr, avg_power")
+            .eq("user_id", strava_user_id)
+            .gte("date", week_start)
+            .lt("date", week_end)
+            .order("date")
+            .execute()
+        )
+    except Exception:  # noqa: BLE001
+        return {}
+
+    by_date: dict[str, list[dict]] = {}
+    for row in res.data or []:
+        day = str(row.get("date"))[:10] if row.get("date") else None
+        if not day:
+            continue
+        by_date.setdefault(day, []).append(_normalize_strava_activity(row))
+    return by_date
+
+
 def _fetch_current_week_data(
     client,
     athlete_id: str,
     year: int,
     week_num: int,
     garmin_athlete_id: str | None = None,
+    strava_user_id: str | None = None,
     today: date_type | None = None,
 ) -> dict | None:
     plan_res = (
@@ -491,13 +581,15 @@ def _fetch_current_week_data(
     week_monday = date_type.fromisocalendar(year, week_num, 1)
     week["week_start"] = week_monday.isoformat()
 
-    # Plan-vs-actual: hämta Garmin-aktiviteter för veckan. Strikt framtida
-    # veckor saknar utfall — då hoppar vi över anropet (allt blir "planerat").
+    # Plan-vs-actual: hämta aktiviteter för veckan (Garmin ELLER Strava). Strikt
+    # framtida veckor saknar utfall — då hoppar vi över anropet (allt "planerat").
     if today is None:
         today = date_type.today()
     activities_by_date: dict[str, list[dict]] = {}
-    if garmin_athlete_id and week_monday <= today:
-        activities_by_date = _fetch_week_activities(client, garmin_athlete_id, week_monday)
+    if (garmin_athlete_id or strava_user_id) and week_monday <= today:
+        activities_by_date = _fetch_week_activities(
+            client, garmin_athlete_id, strava_user_id, week_monday
+        )
 
     workouts_res = (
         client.table("workouts")
