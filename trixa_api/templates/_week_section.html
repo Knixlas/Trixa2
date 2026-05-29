@@ -28,7 +28,13 @@
 
     {% for w in week.workouts %}
     <div class="workout">
-      <div class="workout-date">{{ w.date }} ({{ w.sport }})</div>
+      <div class="workout-date">
+        {{ w.date }} ({{ w.sport }})
+        {% if w.status %}
+        <span class="badge" style="background: {{ w.status.bg }}; color: {{ w.status.fg }};"
+              title="{{ w.status.label }}">{{ w.status.emoji }} {{ w.status.label }}</span>
+        {% endif %}
+      </div>
       <strong>{{ w.title }}</strong>
       <div class="workout-meta">
         <code>{{ w.code }}</code> · <span class="badge">{{ w.category or w.sport }}</span>

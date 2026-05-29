@@ -102,8 +102,13 @@ def dashboard(request: Request) -> HTMLResponse:
     this_iso = this_monday.isocalendar()
     next_iso = next_monday.isocalendar()
 
-    this_week = _fetch_current_week_data(client, athlete["id"], this_iso[0], this_iso[1])
-    next_week = _fetch_current_week_data(client, athlete["id"], next_iso[0], next_iso[1])
+    garmin_id = athlete.get("garmin_athlete_id")
+    this_week = _fetch_current_week_data(
+        client, athlete["id"], this_iso[0], this_iso[1], garmin_id, today
+    )
+    next_week = _fetch_current_week_data(
+        client, athlete["id"], next_iso[0], next_iso[1], garmin_id, today
+    )
 
     # Hämta alerts
     alerts_res = (
@@ -144,7 +149,219 @@ def dashboard(request: Request) -> HTMLResponse:
     })
 
 
-def _fetch_current_week_data(client, athlete_id: str, year: int, week_num: int) -> dict | None:
+# ---------- Plan vs actual: matchning mot Garmin-aktiviteter ----------
+#
+# Ren, deterministisk matchning. Inga LLM-anrop. Statusen per pass räknas ut
+# från passets datum vs idag + matchande aktivitet i garmin_coach.activities.
+
+# Garmins activity_type → Trixas disciplin. Okända typer (other, multi_sport)
+# mappas till None och matchar därför ingen planerad disciplin.
+_ACTIVITY_SPORT_MAP = {
+    "running": "run",
+    "trail_running": "run",
+    "treadmill_running": "run",
+    "indoor_running": "run",
+    "track_running": "run",
+    "cycling": "bike",
+    "road_biking": "bike",
+    "mountain_biking": "bike",
+    "gravel_cycling": "bike",
+    "indoor_cycling": "bike",
+    "virtual_ride": "bike",
+    "swimming": "swim",
+    "lap_swimming": "swim",
+    "open_water_swimming": "swim",
+    "strength": "strength",
+    "strength_training": "strength",
+}
+
+# Statusdefinitioner: emoji + label + badge-färger. Färgerna ligger inline här
+# (inte i base.html) för att hålla hela ändringen i UI-skiktets två filer.
+_STATUS = {
+    "done":        {"emoji": "🟢", "label": "Genomförd",          "bg": "#d1fae5", "fg": "#065f46"},
+    "deviated":    {"emoji": "🟡", "label": "Avviken",            "bg": "#fef3c7", "fg": "#92400e"},
+    "missed":      {"emoji": "🔴", "label": "Missad",             "bg": "#fee2e2", "fg": "#991b1b"},
+    "planned":     {"emoji": "🔵", "label": "Planerad",           "bg": "#dbeafe", "fg": "#1e40af"},
+    "today":       {"emoji": "⚪", "label": "Idag",               "bg": "#e5e7eb", "fg": "#374151"},
+    "rest_ok":     {"emoji": "🟢", "label": "Vila hållen",        "bg": "#d1fae5", "fg": "#065f46"},
+    "rest_broken": {"emoji": "🟡", "label": "Tränade på vilodag", "bg": "#fef3c7", "fg": "#92400e"},
+}
+
+_DURATION_TOLERANCE = 0.30  # ±30 % räknas som "genomförd som planerat"
+
+
+def _activity_local_date(act: dict) -> str | None:
+    """ISO-datumsträng (YYYY-MM-DD) för aktivitetens lokala starttid."""
+    raw = act.get("start_time_local") or act.get("start_time")
+    if not raw:
+        return None
+    return str(raw)[:10]
+
+
+def _is_brick(code: str, sport: str) -> bool:
+    """Brick-pass (cykel+löpning) matchar både cycling OCH running.
+
+    Bricks finns inte i passbanken än, men kodprefixen är reserverade så att
+    matchningen blir rätt den dag de läggs till.
+    """
+    if sport == "brick":
+        return True
+    c = (code or "").upper()
+    return c.startswith(("BAE", "BTE", "BSS", "BME", "BMF", "BAC"))
+
+
+def _sport_matches(plan_sport: str, code: str, activity_sport: str | None) -> bool:
+    if activity_sport is None:
+        return False
+    if _is_brick(code, plan_sport):
+        return activity_sport in ("bike", "run")
+    return activity_sport == plan_sport
+
+
+def _within_duration_tolerance(plan_min: float, actual_min: float) -> bool:
+    """True om faktisk tid ligger inom ±30 % av planerad."""
+    if not plan_min or plan_min <= 0:
+        return True  # inget planerat tidsmått → bedöm bara på disciplin
+    lo = plan_min * (1 - _DURATION_TOLERANCE)
+    hi = plan_min * (1 + _DURATION_TOLERANCE)
+    return lo <= actual_min <= hi
+
+
+def _build_actual(act: dict, sport: str) -> dict:
+    """Plocka ut faktiska siffror + bygg en kompakt sammanfattningsrad."""
+    dur_min = round((act.get("duration_sec") or 0) / 60)
+    avg_hr = act.get("avg_hr")
+    load = act.get("training_load")
+    dist_m = act.get("distance_m")
+    np_watt = act.get("normalized_power")
+    avg_power = act.get("avg_power")
+    dist_km = round(float(dist_m) / 1000, 1) if dist_m else None
+    watts = np_watt or avg_power
+
+    parts = [f"{dur_min} min"]
+    if avg_hr:
+        parts.append(f"{avg_hr} bpm")
+    if sport == "bike" and watts:
+        parts.append(f"{watts} W")
+    if dist_km:
+        parts.append(f"{dist_km} km")
+    if load:
+        parts.append(f"TSS {round(float(load))}")
+
+    return {
+        "summary": "Genomfört: " + " · ".join(parts),
+        "name": act.get("activity_name"),
+        "activity_type": act.get("activity_type"),
+        "duration_min": dur_min,
+        "avg_hr": avg_hr,
+        "max_hr": act.get("max_hr"),
+        "training_load": round(float(load)) if load else None,
+        "distance_km": dist_km,
+        "normalized_power": np_watt,
+        "avg_power": avg_power,
+    }
+
+
+def _compute_status(
+    w_date_iso: str,
+    sport: str,
+    code: str,
+    plan_min: float,
+    day_activities: list[dict],
+    today: date_type,
+) -> dict:
+    """Plan-vs-actual-status för ett pass. Ren funktion, inga sidoeffekter.
+
+    Varje element i `day_activities` förväntas ha precomputed `_sport` (mappad
+    disciplin) och `_dur_min` (float minuter) — se `_fetch_week_activities`.
+    """
+    try:
+        w_date = date_type.fromisoformat(str(w_date_iso)[:10])
+    except (ValueError, TypeError):
+        return {**_STATUS["planned"], "key": "planned", "actual": None}
+
+    if w_date > today:
+        return {**_STATUS["planned"], "key": "planned", "actual": None}
+    if w_date == today:
+        return {**_STATUS["today"], "key": "today", "actual": None}
+
+    # --- Passerat datum ---
+    if sport == "rest":
+        if day_activities:
+            # Tränade på en planerad vilodag → avvikelse, visa vad som gjordes.
+            best = min(day_activities, key=lambda a: a["_dur_min"])
+            return {
+                **_STATUS["rest_broken"], "key": "rest_broken",
+                "actual": _build_actual(best, best.get("_sport") or ""),
+            }
+        return {**_STATUS["rest_ok"], "key": "rest_ok", "actual": None}
+
+    if not day_activities:
+        return {**_STATUS["missed"], "key": "missed", "actual": None}
+
+    # Välj bästa matchande aktivitet: föredra rätt disciplin, sedan närmast tid.
+    sport_hits = [a for a in day_activities if _sport_matches(sport, code, a.get("_sport"))]
+    pool = sport_hits or day_activities
+    best = min(pool, key=lambda a: abs(a["_dur_min"] - (plan_min or 0)))
+
+    sport_ok = _sport_matches(sport, code, best.get("_sport"))
+    dur_ok = _within_duration_tolerance(plan_min, best["_dur_min"])
+    actual = _build_actual(best, best.get("_sport") or sport)
+
+    if sport_ok and dur_ok:
+        return {**_STATUS["done"], "key": "done", "actual": actual}
+    return {**_STATUS["deviated"], "key": "deviated", "actual": actual}
+
+
+def _fetch_week_activities(
+    client, garmin_athlete_id: str, week_monday: date_type
+) -> dict[str, list[dict]]:
+    """Hämta Garmin-aktiviteter för veckan, grupperade på lokalt datum.
+
+    Hämtar ett dygn extra i varje ände (UTC-fönster) och bucketar på lokal
+    starttid, så aktiviteter nära midnatt hamnar på rätt kalenderdag.
+    """
+    if not garmin_athlete_id:
+        return {}
+    win_start = (week_monday - timedelta(days=1)).isoformat()
+    win_end = (week_monday + timedelta(days=8)).isoformat()
+    try:
+        res = (
+            client.schema("garmin_coach")
+            .table("activities")
+            .select(
+                "start_time, start_time_local, activity_type, activity_name,"
+                " duration_sec, avg_hr, max_hr, training_load, distance_m,"
+                " normalized_power, avg_power"
+            )
+            .eq("athlete_id", garmin_athlete_id)
+            .gte("start_time", win_start)
+            .lt("start_time", win_end)
+            .order("start_time")
+            .execute()
+        )
+    except Exception:  # noqa: BLE001
+        return {}
+
+    by_date: dict[str, list[dict]] = {}
+    for act in res.data or []:
+        day = _activity_local_date(act)
+        if not day:
+            continue
+        act["_sport"] = _ACTIVITY_SPORT_MAP.get(act.get("activity_type"))
+        act["_dur_min"] = (act.get("duration_sec") or 0) / 60.0
+        by_date.setdefault(day, []).append(act)
+    return by_date
+
+
+def _fetch_current_week_data(
+    client,
+    athlete_id: str,
+    year: int,
+    week_num: int,
+    garmin_athlete_id: str | None = None,
+    today: date_type | None = None,
+) -> dict | None:
     plan_res = (
         client.table("training_plans")
         .select("id")
@@ -170,7 +387,16 @@ def _fetch_current_week_data(client, athlete_id: str, year: int, week_num: int) 
         return None
     week = week_res.data[0]
     # Lägg på beräknat week_start (måndag i ISO-veckan) för UI-actions
-    week["week_start"] = date_type.fromisocalendar(year, week_num, 1).isoformat()
+    week_monday = date_type.fromisocalendar(year, week_num, 1)
+    week["week_start"] = week_monday.isoformat()
+
+    # Plan-vs-actual: hämta Garmin-aktiviteter för veckan. Strikt framtida
+    # veckor saknar utfall — då hoppar vi över anropet (allt blir "planerat").
+    if today is None:
+        today = date_type.today()
+    activities_by_date: dict[str, list[dict]] = {}
+    if garmin_athlete_id and week_monday <= today:
+        activities_by_date = _fetch_week_activities(client, garmin_athlete_id, week_monday)
 
     workouts_res = (
         client.table("workouts")
@@ -196,6 +422,12 @@ def _fetch_current_week_data(client, athlete_id: str, year: int, week_num: int) 
             setting = "indoor"
         elif wd.get("outdoor_only"):
             setting = "outdoor"
+        w_status = _compute_status(
+            w["date"], w["sport"], code,
+            w.get("duration_minutes") or 0,
+            activities_by_date.get(str(w["date"])[:10], []),
+            today,
+        )
         week["workouts"].append({
             "id": w["id"],
             "date": w["date"],
@@ -209,6 +441,7 @@ def _fetch_current_week_data(client, athlete_id: str, year: int, week_num: int) 
             "notes": w.get("notes") or "",
             "steps": w.get("steps") or [],
             "coach_notes": w.get("coach_notes") or "",
+            "status": w_status,
         })
     return week
 
