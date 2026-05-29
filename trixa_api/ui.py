@@ -23,6 +23,7 @@ from coach.trixa.planner import (
     swap_workout_code,
     swap_workout_discipline_and_replan,
 )
+from trixa_api import season
 
 
 router = APIRouter(prefix="/ui", tags=["ui"])
@@ -81,6 +82,99 @@ def _enrich_with_alternatives(week_data: dict | None, phase: str, period: str | 
             w["alternatives"] = []
 
 
+# ---------- Säsongs-tidslinje (fas-staplar + följsamhet bakåt) ----------
+
+# Vecko-cellernas följsamhetsfärger (mättare än fas-staplarna, så raden läses
+# som en egen "hur gick det"-axel).
+_COMPLIANCE_CELL = {"green": "#34d399", "yellow": "#fbbf24", "red": "#f87171"}
+_COMPLIANCE_LABEL = {
+    "green": "bra följsamhet", "yellow": "ok följsamhet", "red": "låg följsamhet",
+}
+
+
+def _compliance_by_week(client, plan_id, athlete_id, garmin_id, today) -> dict:
+    """Följsamhets-bucket per genererad, passerad vecka. Nyckel: (iso_year, iso_week)."""
+    try:
+        weeks_res = (
+            client.table("training_weeks")
+            .select("year, week_number")
+            .eq("plan_id", plan_id)
+            .execute()
+        )
+    except Exception:  # noqa: BLE001
+        return {}
+    out: dict = {}
+    for row in weeks_res.data or []:
+        y, wn = row.get("year"), row.get("week_number")
+        if y is None or wn is None:
+            continue
+        monday = date_type.fromisocalendar(y, wn, 1)
+        if monday > today:
+            continue  # framtida genererad vecka — ingen följsamhet att visa
+        wk = _fetch_current_week_data(client, athlete_id, y, wn, garmin_id, today)
+        if wk and wk.get("workouts"):
+            bucket = season.compliance_bucket(wk["workouts"], today)
+            if bucket:
+                out[(y, wn)] = bucket
+    return out
+
+
+def _decorate_timeline(timeline: dict, comp_map: dict, today, this_monday) -> None:
+    """Lägg på vecko-cellernas färg/etikett (compliance bakåt, faint framåt)."""
+    for w in timeline["weeks"]:
+        bucket = comp_map.get((w["iso_year"], w["iso_week"]))
+        w["is_current"] = w["monday"] == this_monday
+        w["monday_iso"] = w["monday"].isoformat()
+        if bucket:
+            w["cell_bg"] = _COMPLIANCE_CELL[bucket]
+            w["compliance_label"] = _COMPLIANCE_LABEL[bucket]
+        elif w["monday"] <= today:
+            w["cell_bg"] = "#d1d5db"  # passerad/pågående utan plan-data
+            w["compliance_label"] = "ingen plan"
+        else:
+            w["cell_bg"] = "#eef2f7"  # framtid
+            w["compliance_label"] = "planerad"
+
+
+def _build_season_context(client, athlete, today, this_monday) -> dict | None:
+    """Bygg säsongs-tidslinjen för dashboarden, eller None om ingen tävling."""
+    race_raw = athlete.get("race_date")
+    if not race_raw:
+        return None
+    try:
+        race_d = date_type.fromisoformat(str(race_raw)[:10])
+    except (ValueError, TypeError):
+        return None
+    timeline = season.build_phase_timeline(today, race_d)
+    if not timeline:
+        return None
+
+    comp_map: dict = {}
+    try:
+        plan_res = (
+            client.table("training_plans")
+            .select("id")
+            .eq("athlete_id", athlete["id"])
+            .eq("is_active", True)
+            .limit(1)
+            .execute()
+        )
+        if plan_res.data:
+            comp_map = _compliance_by_week(
+                client, plan_res.data[0]["id"], athlete["id"],
+                athlete.get("garmin_athlete_id"), today,
+            )
+    except Exception:  # noqa: BLE001
+        comp_map = {}
+
+    _decorate_timeline(timeline, comp_map, today, this_monday)
+    timeline["race_date"] = race_d.isoformat()
+    timeline["race_label"] = (
+        season.race_label(race_d) or (athlete.get("race_type") or "Tävling").capitalize()
+    )
+    return timeline
+
+
 @router.get("/", response_class=HTMLResponse)
 def dashboard(request: Request) -> HTMLResponse:
     user_id = _current_user_id(request)
@@ -93,6 +187,7 @@ def dashboard(request: Request) -> HTMLResponse:
         return _render("dashboard.html", {
             "request": request, "athlete": None,
             "this_week": None, "next_week": None, "alerts": [],
+            "timeline": None,
         })
 
     # Hämta båda veckorna från DB
@@ -137,6 +232,9 @@ def dashboard(request: Request) -> HTMLResponse:
     _enrich_with_alternatives(this_week, phase, period)
     _enrich_with_alternatives(next_week, phase, period)
 
+    # Säsongs-tidslinje: fas-staplar bakåt från race + följsamhet per vecka
+    timeline = _build_season_context(client, athlete, today, this_monday)
+
     return _render("dashboard.html", {
         "request": request,
         "athlete": athlete,
@@ -146,6 +244,7 @@ def dashboard(request: Request) -> HTMLResponse:
         "phase": phase,
         "this_monday": this_monday.isoformat(),
         "next_monday": next_monday.isoformat(),
+        "timeline": timeline,
     })
 
 

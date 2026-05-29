@@ -1,0 +1,42 @@
+{# Säsongs-tidslinje: fas-staplar (längd ∝ fasens veckor) + tävlings-milstolpe
+   + veckorad färgad efter följsamhet bakåt i tiden. Förväntar `timeline`
+   (None → renderas inte). Projektion, inte sparad plan — se trixa_api/season.py. #}
+{% if timeline %}
+<section>
+  <h2>Säsong → {{ timeline.race_label }}</h2>
+  <p style="font-size: 0.875rem; color: var(--pico-muted-color); margin-top: -0.5rem;">
+    {{ timeline.total_weeks }} v till start ({{ timeline.race_date }}) ·
+    ideal periodisering {{ timeline.ideal_weeks }} v{% if timeline.ideal_weeks > timeline.total_weeks %} — komprimerad{% endif %}
+  </p>
+
+  {# Fas-staplar: flex-vikt = antal veckor, så bredden speglar fas-längden #}
+  <div style="display: flex; gap: 2px; margin: 0.75rem 0 0.25rem;">
+    {% for b in timeline.bars %}
+    <div title="{{ b.label }} — {{ b.weeks }} v"
+         style="flex: {{ b.weeks }}; min-width: 0; background: {{ b.bg }}; color: {{ b.fg }};
+                padding: 0.4rem 0.2rem; border-radius: 5px; text-align: center;
+                font-size: 0.7rem; line-height: 1.25; overflow: hidden;">
+      <strong style="white-space: nowrap;">{% if b.phase == "race" %}🏁 {% endif %}{{ b.label }}</strong><br>{{ b.weeks }} v
+    </div>
+    {% endfor %}
+  </div>
+
+  {# Veckorad: en cell per vecka, färgad efter följsamhet (bakåt) #}
+  <div style="display: flex; gap: 2px;">
+    {% for w in timeline.weeks %}
+    <div title="v{{ w.iso_week }} · {{ w.monday_iso }} · {{ w.phase_label }} · {{ w.compliance_label }}"
+         style="flex: 1; height: 12px; border-radius: 2px; background: {{ w.cell_bg }};
+                {% if w.is_current %}outline: 2px solid var(--pico-primary); outline-offset: 1px;{% endif %}"></div>
+    {% endfor %}
+  </div>
+
+  <p style="font-size: 0.7rem; color: var(--pico-muted-color); margin-top: 0.6rem;">
+    Veckoraden = följsamhet bakåt:
+    <span style="background: #34d399; padding: 0 .35rem; border-radius: 3px;">grön bra</span>
+    <span style="background: #fbbf24; padding: 0 .35rem; border-radius: 3px;">gul ok</span>
+    <span style="background: #f87171; padding: 0 .35rem; border-radius: 3px;">röd låg</span>
+    <span style="background: #d1d5db; padding: 0 .35rem; border-radius: 3px;">ingen plan</span>.
+    Fas-staplarna är en projektion — engine omprövar fasen varje vecka.
+  </p>
+</section>
+{% endif %}
