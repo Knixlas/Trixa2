@@ -11,7 +11,7 @@ Trixa väljer (default lör för cykel, sön för löpning, mån som vila).</p>
 
   <fieldset>
     <legend>Aktiva discipliner</legend>
-    <p style="font-size: 0.875rem; color: var(--pico-muted-color);">
+    <p style="font-size: 0.875rem; color: var(--ink-3); margin-top: 0;">
       Vilka grenar Trixa ska schemalägga för dig. Trixa fungerar för
       både triatleter och rena löpare/cyklister/simmare.
     </p>
@@ -27,30 +27,26 @@ Trixa väljer (default lör för cykel, sön för löpning, mån som vila).</p>
   <fieldset>
     <legend>Långpass</legend>
 
-    <label for="long_bike_day">
-      Dag för cykel-långpass
-      <select id="long_bike_day" name="long_bike_day">
-        <option value="">— spelar ingen roll —</option>
-        {% for day, label in days %}
-        <option value="{{ day }}" {% if athlete.long_bike_day == day %}selected{% endif %}>{{ label }}</option>
-        {% endfor %}
-      </select>
-    </label>
+    <label for="long_bike_day">Dag för cykel-långpass</label>
+    <select id="long_bike_day" name="long_bike_day">
+      <option value="">— spelar ingen roll —</option>
+      {% for day, label in days %}
+      <option value="{{ day }}" {% if athlete.long_bike_day == day %}selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
 
-    <label for="long_run_day">
-      Dag för löp-långpass
-      <select id="long_run_day" name="long_run_day">
-        <option value="">— spelar ingen roll —</option>
-        {% for day, label in days %}
-        <option value="{{ day }}" {% if athlete.long_run_day == day %}selected{% endif %}>{{ label }}</option>
-        {% endfor %}
-      </select>
-    </label>
+    <label for="long_run_day">Dag för löp-långpass</label>
+    <select id="long_run_day" name="long_run_day">
+      <option value="">— spelar ingen roll —</option>
+      {% for day, label in days %}
+      <option value="{{ day }}" {% if athlete.long_run_day == day %}selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
   </fieldset>
 
   <fieldset>
     <legend>Utrustning</legend>
-    <p style="font-size: 0.875rem; color: var(--pico-muted-color);">
+    <p style="font-size: 0.875rem; color: var(--ink-3); margin-top: 0;">
       Vilken utrustning du HAR. Pass som kräver saknad utrustning filtreras bort.
     </p>
     <label>
@@ -79,26 +75,25 @@ Trixa väljer (default lör för cykel, sön för löpning, mån som vila).</p>
       Pulsband (separat HR-rem, inte bara klockan)
     </label>
 
-    <label for="pool_type">Pool-tillgång
-      <select id="pool_type" name="pool_type">
-        <option value="none" {% if athlete.equipment.pool_type == "none" %}selected{% endif %}>Ingen pool</option>
-        <option value="25m" {% if athlete.equipment.pool_type == "25m" %}selected{% endif %}>25-meter</option>
-        <option value="50m" {% if athlete.equipment.pool_type == "50m" %}selected{% endif %}>50-meter</option>
-        <option value="open_water" {% if athlete.equipment.pool_type == "open_water" %}selected{% endif %}>Öppet vatten</option>
-      </select>
-    </label>
+    <label for="pool_type">Pool-tillgång</label>
+    <select id="pool_type" name="pool_type">
+      <option value="none" {% if athlete.equipment.pool_type == "none" %}selected{% endif %}>Ingen pool</option>
+      <option value="25m" {% if athlete.equipment.pool_type == "25m" %}selected{% endif %}>25-meter</option>
+      <option value="50m" {% if athlete.equipment.pool_type == "50m" %}selected{% endif %}>50-meter</option>
+      <option value="open_water" {% if athlete.equipment.pool_type == "open_water" %}selected{% endif %}>Öppet vatten</option>
+    </select>
   </fieldset>
 
   <fieldset>
     <legend>Inomhus eller utomhus (per disciplin)</legend>
-    <p style="font-size: 0.875rem; color: var(--pico-muted-color);">
+    <p style="font-size: 0.875rem; color: var(--ink-3); margin-top: 0;">
       Säsongs-preferens. Trixa föredrar matchande pass men faller tillbaka
       om inga finns. Skiljer sig från utrustning ovan — du KAN ha trainer
       men föredra utomhus juni-september.
     </p>
     {% for disc, label in disciplines_for_setting %}
-    <div class="grid" style="grid-template-columns: 1fr 1fr 1fr 1fr; gap: 0.5rem; align-items: center;">
-      <strong>{{ label }}</strong>
+    <div class="rating-row">
+      <strong style="min-width: 120px;">{{ label }}</strong>
       {% set current = athlete.preferred_settings.get(disc, "any") %}
       <label><input type="radio" name="setting_{{ disc }}" value="any" {% if current == "any" %}checked{% endif %}> Spelar ingen roll</label>
       <label><input type="radio" name="setting_{{ disc }}" value="indoor" {% if current == "indoor" %}checked{% endif %}> Inomhus</label>
@@ -109,7 +104,7 @@ Trixa väljer (default lör för cykel, sön för löpning, mån som vila).</p>
 
   <fieldset>
     <legend>Vilodagar</legend>
-    <p style="font-size: 0.875rem; color: var(--pico-muted-color);">
+    <p style="font-size: 0.875rem; color: var(--ink-3); margin-top: 0;">
       Markera dagar där du föredrar vila. Trixa låser dessa innan schemaläggning.
       Lämna alla tomma = ingen fast vilodag (Trixa väljer).
     </p>
@@ -122,13 +117,14 @@ Trixa väljer (default lör för cykel, sön för löpning, mån som vila).</p>
     {% endfor %}
   </fieldset>
 
-  <button type="submit">Spara</button>
+  <button type="submit"><i data-lucide="check"></i> Spara</button>
 </form>
 
 {% if saved %}
-<article style="background: #d1fae5; border-color: #059669;">
-  <p><strong>Sparat.</strong> Nästa veckogenerering använder dessa val.</p>
-</article>
+<div class="alert" style="background: var(--palm-soft); margin-top: 16px;">
+  <div class="ic" style="background: var(--palm);"><i data-lucide="check"></i></div>
+  <div class="alert-body"><strong>Sparat.</strong><p>Nästa veckogenerering använder dessa val.</p></div>
+</div>
 {% endif %}
 
 {% endblock %}

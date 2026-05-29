@@ -124,6 +124,8 @@ def _decorate_timeline(timeline: dict, comp_map: dict, today, this_monday) -> No
     for w in timeline["weeks"]:
         bucket = comp_map.get((w["iso_year"], w["iso_week"]))
         w["is_current"] = w["monday"] == this_monday
+        w["future"] = w["monday"] > today
+        w["compliance"] = bucket  # rå bucket ("green"/"yellow"/"red"/None) för temat
         w["monday_iso"] = w["monday"].isoformat()
         if bucket:
             w["cell_bg"] = _COMPLIANCE_CELL[bucket]

@@ -2,17 +2,35 @@
 {% block title %}Trixa — dashboard{% endblock %}
 {% block content %}
 
+{% set phasemap = {
+  'prep':       ['Förberedelse', 'var(--phase-prep)',       'sprout'],
+  'base':       ['Grundträning', 'var(--phase-base)',       'waves'],
+  'build':      ['Bygg',         'var(--phase-build)',      'trending-up'],
+  'peak':       ['Toppning',     'var(--phase-peak)',       'sun'],
+  'race':       ['Tävling',      'var(--phase-race)',       'trophy'],
+  'transition': ['Återhämtning', 'var(--phase-transition)', 'palmtree']
+} %}
+{% set alerticon = {'info': 'info', 'warning': 'triangle-alert', 'critical': 'octagon-alert'} %}
+
 <h1>Hej {{ athlete.name or "adept" }}</h1>
 
 {% if athlete %}
 <section>
-  <h2>Status</h2>
-  <p>
-    <strong>Mål:</strong> {{ athlete.goal }} ({{ athlete.time_goal or "ingen måltid satt" }})<br>
-    <strong>Tävling:</strong> {{ athlete.race_date or "—" }} ({{ athlete.race_type or "—" }})<br>
-    <strong>Veckotimmar (mål):</strong> {{ athlete.weekly_hours }}h<br>
-    <strong>Aktuell fas:</strong> {{ phase }}
-  </p>
+  <article>
+    <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 6px;">
+      <h3 style="margin: 0;">Status</h3>
+      {% if phase %}
+      {% set p = phasemap.get(phase, phasemap['base']) %}
+      <span class="phase-pill" style="background: {{ p[1] }};"><i data-lucide="{{ p[2] }}"></i>{{ p[0] }}</span>
+      {% endif %}
+    </div>
+    <p style="margin: 0;">
+      <strong>Mål:</strong> {{ athlete.goal }} ({{ athlete.time_goal or "ingen måltid satt" }})<br>
+      <strong>Tävling:</strong> {{ athlete.race_date or "—" }} ({{ athlete.race_type or "—" }})<br>
+      <strong>Veckotimmar (mål):</strong> {{ athlete.weekly_hours }}h<br>
+      <strong>Aktuell fas:</strong> {{ phase }}
+    </p>
+  </article>
 </section>
 {% endif %}
 
@@ -23,8 +41,11 @@
   <h2>Aktuella varningar</h2>
   {% for alert in alerts %}
   <div class="alert {{ alert.severity }}">
-    <strong><span class="badge {{ alert.severity }}">{{ alert.severity }}</span> {{ alert.title }}</strong>
-    <p>{{ alert.body | trim }}</p>
+    <div class="ic"><i data-lucide="{{ alerticon.get(alert.severity, 'info') }}"></i></div>
+    <div class="alert-body">
+      <strong>{{ alert.title }}</strong>
+      <p>{{ alert.body | trim }}</p>
+    </div>
   </div>
   {% endfor %}
 </section>

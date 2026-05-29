@@ -27,7 +27,7 @@
     -{{ plan.plan_adjustment.intensity_reduction_pct }}% intensitet,
     +{{ plan.plan_adjustment.extra_rest_days }} vilodagar
     {% if plan.plan_adjustment.consider_medical_consultation %}
-    <br><strong style="color: #dc2626;">Överväg läkarkontakt.</strong>
+    <br><strong style="color: var(--coral);">Överväg läkarkontakt.</strong>
     {% endif %}
   </article>
   {% endif %}
@@ -35,25 +35,37 @@
 
 <section>
   <h2>Pass</h2>
+  {% set disc = {
+    'swim':['waves','var(--lagoon)'], 'bike':['bike','var(--pineapple)'],
+    'run':['footprints','var(--hibiscus)'], 'strength':['dumbbell','var(--palm)'],
+    'rest':['moon','var(--ink-3)']
+  } %}
   {% for w in plan.workouts %}
   <div class="workout">
-    <div class="workout-date">{{ w.date }}</div>
-    <strong>{{ w.title }}</strong> <span class="badge">{{ w.sport }}</span>
-    <span class="badge">{{ w.category }}</span>
-    <div class="workout-meta">
-      <code>{{ w.code }}</code> · {{ w.duration_minutes }} min · {{ w.intensity }}
+    <div class="wk-disc" style="background: {{ disc.get(w.sport, disc['rest'])[1] }};">
+      <i data-lucide="{{ disc.get(w.sport, disc['rest'])[0] }}"></i>
     </div>
-    {% if w.details_markdown %}
-    <details open>
-      <summary>Upplägg, zoner och utförande</summary>
-      <pre style="white-space: pre-wrap; font-family: inherit; font-size: 0.875rem; background: var(--pico-card-background-color); padding: 0.75rem; border-radius: 4px;">{{ w.details_markdown | trim }}</pre>
-    </details>
-    {% elif w.notes %}
-    <details>
-      <summary>Syfte</summary>
-      <pre style="white-space: pre-wrap; font-family: inherit;">{{ w.notes | trim }}</pre>
-    </details>
-    {% endif %}
+    <div class="wk-main">
+      <div class="workout-date">{{ w.date }}</div>
+      <strong>{{ w.title }}</strong>
+      <div class="workout-meta">
+        <span class="badge">{{ w.sport }}</span>
+        <span class="badge info">{{ w.category }}</span>
+        <code>{{ w.code }}</code>
+        <span>· {{ w.duration_minutes }} min · {{ w.intensity }}</span>
+      </div>
+      {% if w.details_markdown %}
+      <details open>
+        <summary>Upplägg, zoner och utförande</summary>
+        <pre style="white-space: pre-wrap; font-family: inherit; font-size: 0.875rem;">{{ w.details_markdown | trim }}</pre>
+      </details>
+      {% elif w.notes %}
+      <details>
+        <summary>Syfte</summary>
+        <pre style="white-space: pre-wrap; font-family: inherit;">{{ w.notes | trim }}</pre>
+      </details>
+      {% endif %}
+    </div>
   </div>
   {% endfor %}
 </section>

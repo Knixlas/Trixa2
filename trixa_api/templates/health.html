@@ -2,6 +2,12 @@
 {% block title %}Hälsa — Trixa{% endblock %}
 {% block content %}
 
+{% set disc = {
+  'swim':['waves','var(--lagoon)','Simning'], 'bike':['bike','var(--pineapple)','Cykel'],
+  'run':['footprints','var(--hibiscus)','Löpning'], 'strength':['dumbbell','var(--palm)','Styrka']
+} %}
+{% set impcolor = {'none':'var(--ink-3)', 'partial':'var(--mango)', 'full':'var(--coral)'} %}
+
 <h1>Hälsotillstånd</h1>
 
 <p>Strukturerad skaderapport. Trixa läser detta deterministiskt — hård impact
@@ -12,34 +18,37 @@ Partial impact byter hårda pass mot lugna AE-pass i den disciplinen.</p>
 
 {% if concerns %}
 {% for c in concerns %}
-<article style="margin-bottom: 1rem;">
-  <header>
-    <strong>{{ c.name or "(utan namn)" }}</strong>
+<article>
+  <div style="display: flex; align-items: center; gap: 9px; flex-wrap: wrap;">
+    <strong style="font-size: 15.5px;">{{ c.name or "(utan namn)" }}</strong>
     <span class="badge {{ 'critical' if c.severity >= 4 else 'warning' if c.severity >= 2 else 'info' }}">
       severity {{ c.severity or "—" }}/5
     </span>
-    {% if c.needs_followup %}<span class="badge warning">behöver follow-up</span>{% endif %}
-  </header>
+    {% if c.needs_followup %}<span class="badge warning"><i data-lucide="flag"></i>behöver follow-up</span>{% endif %}
+  </div>
 
-  {% if c.location %}<p><strong>Kroppsdel:</strong> {{ c.location }}</p>{% endif %}
-  {% if c.since_date %}<p><strong>Sedan:</strong> {{ c.since_date }}</p>{% endif %}
-  {% if c.follow_up_by %}<p><strong>Följs upp av:</strong> {{ c.follow_up_by }}</p>{% endif %}
+  <p style="margin: 8px 0 0; font-size: 13.5px;">
+    {% if c.location %}<strong>Kroppsdel:</strong> {{ c.location }}{% endif %}
+    {% if c.since_date %} &nbsp;·&nbsp; <strong>Sedan:</strong> {{ c.since_date }}{% endif %}
+    {% if c.follow_up_by %} &nbsp;·&nbsp; <strong>Följs upp av:</strong> {{ c.follow_up_by }}{% endif %}
+  </p>
 
-  <p><strong>Impact per disciplin:</strong></p>
-  <ul style="font-size: 0.875rem;">
-    {% set impacts = c.impact_per_discipline or {} %}
-    <li>Simning: <code>{{ impacts.swim or "none" }}</code></li>
-    <li>Cykel: <code>{{ impacts.bike or "none" }}</code></li>
-    <li>Löpning: <code>{{ impacts.run or "none" }}</code></li>
-    <li>Styrka: <code>{{ impacts.strength or "none" }}</code></li>
-  </ul>
+  {% set impacts = c.impact_per_discipline or {} %}
+  <div style="display: flex; gap: 16px; flex-wrap: wrap; margin-top: 10px;">
+    {% for key, meta in disc.items() %}
+    <span style="display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px;">
+      <i data-lucide="{{ meta[0] }}" style="width: 14px; height: 14px; color: {{ meta[1] }};"></i>
+      <span style="font-weight: 700; color: {{ impcolor.get(impacts.get(key, 'none'), 'var(--ink-3)') }};">{{ impacts.get(key) or "none" }}</span>
+    </span>
+    {% endfor %}
+  </div>
 
   {% if c.notes %}<details><summary>Noter</summary><p>{{ c.notes }}</p></details>{% endif %}
 
-  <form method="post" action="/ui/health/remove" style="margin-top: 0.5rem;"
+  <form method="post" action="/ui/health/remove" style="margin-top: 0.75rem;"
         onsubmit="return confirm('Ta bort concern {{ c.name }}?');">
     <input type="hidden" name="index" value="{{ loop.index0 }}">
-    <button type="submit" class="secondary outline" style="font-size: 0.75rem;">Ta bort</button>
+    <button type="submit" class="secondary" style="font-size: 13px; padding: 8px 14px;"><i data-lucide="trash-2"></i> Ta bort</button>
   </form>
 </article>
 {% endfor %}
@@ -50,75 +59,78 @@ Partial impact byter hårda pass mot lugna AE-pass i den disciplinen.</p>
 <h2>Lägg till concern</h2>
 
 <form method="post" action="/ui/health/add">
-  <label for="name">Namn (kort beskrivning)
+  <fieldset>
+    <legend>Ny concern</legend>
+    <label for="name">Namn (kort beskrivning)</label>
     <input type="text" id="name" name="name" required
            placeholder="T.ex. Hälsporre höger, IT-band vänster, ryggskott...">
-  </label>
 
-  <div class="grid">
-    <label for="location">Kroppsdel
-      <select id="location" name="location">
-        <option value="">— ej angiven —</option>
-        {% for loc, label in locations %}
-        <option value="{{ loc }}">{{ label }}</option>
-        {% endfor %}
-      </select>
-    </label>
+    <div class="grid">
+      <div>
+        <label for="location">Kroppsdel</label>
+        <select id="location" name="location">
+          <option value="">— ej angiven —</option>
+          {% for loc, label in locations %}
+          <option value="{{ loc }}">{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
+        <label for="severity">Severity (1-5)</label>
+        <select id="severity" name="severity">
+          <option value="1">1 — knappt märkbar</option>
+          <option value="2" selected>2 — irriterande</option>
+          <option value="3">3 — påverkar träning</option>
+          <option value="4">4 — kraftigt begränsande</option>
+          <option value="5">5 — helt blockerande</option>
+        </select>
+      </div>
+    </div>
 
-    <label for="severity">Severity (1-5)
-      <select id="severity" name="severity">
-        <option value="1">1 — knappt märkbar</option>
-        <option value="2" selected>2 — irriterande</option>
-        <option value="3">3 — påverkar träning</option>
-        <option value="4">4 — kraftigt begränsande</option>
-        <option value="5">5 — helt blockerande</option>
-      </select>
-    </label>
-  </div>
-
-  <label for="since_date">Sedan (datum)
+    <label for="since_date">Sedan (datum)</label>
     <input type="date" id="since_date" name="since_date">
-  </label>
+  </fieldset>
 
   <fieldset>
     <legend>Impact per disciplin</legend>
-    <p style="font-size: 0.875rem; color: var(--pico-muted-color);">
+    <p style="font-size: 0.875rem; color: var(--ink-3); margin-top: 0;">
       <code>full</code> = Trixa skippar disciplinen helt denna vecka.<br>
       <code>partial</code> = Trixa byter hårda pass mot lugna AE-pass i den disciplinen.<br>
       <code>none</code> = ingen påverkan på passval.
     </p>
-    {% for disc, label in disciplines %}
-    <div class="grid" style="grid-template-columns: 1fr 1fr 1fr 1fr; gap: 0.5rem; align-items: center;">
-      <strong>{{ label }}</strong>
-      <label><input type="radio" name="impact_{{ disc }}" value="none" checked> none</label>
-      <label><input type="radio" name="impact_{{ disc }}" value="partial"> partial</label>
-      <label><input type="radio" name="impact_{{ disc }}" value="full"> full</label>
+    {% for d, label in disciplines %}
+    <div class="rating-row">
+      <strong style="min-width: 120px; display: inline-flex; align-items: center; gap: 7px;">
+        <i data-lucide="{{ disc[d][0] }}" style="width: 16px; height: 16px; color: {{ disc[d][1] }};"></i>{{ label }}</strong>
+      <label><input type="radio" name="impact_{{ d }}" value="none" checked> none</label>
+      <label><input type="radio" name="impact_{{ d }}" value="partial"> partial</label>
+      <label><input type="radio" name="impact_{{ d }}" value="full"> full</label>
     </div>
     {% endfor %}
   </fieldset>
 
-  <label>
-    <input type="checkbox" name="needs_followup" value="1">
-    Behöver follow-up med fysio / läkare / annan
-  </label>
-
-  <label for="follow_up_by">Följs upp av (om relevant)
+  <fieldset>
+    <legend>Uppföljning</legend>
+    <label>
+      <input type="checkbox" name="needs_followup" value="1">
+      Behöver follow-up med fysio / läkare / annan
+    </label>
+    <label for="follow_up_by">Följs upp av (om relevant)</label>
     <input type="text" id="follow_up_by" name="follow_up_by"
            placeholder="T.ex. fysio, ortoped, naprapat...">
-  </label>
-
-  <label for="notes">Noter (kontext för coach)
+    <label for="notes">Noter (kontext för coach)</label>
     <textarea id="notes" name="notes" rows="3"
               placeholder="Hur kändes det när det började? Vad förvärrar/förbättrar?"></textarea>
-  </label>
+  </fieldset>
 
-  <button type="submit">Lägg till concern</button>
+  <button type="submit"><i data-lucide="plus"></i> Lägg till concern</button>
 </form>
 
 {% if added %}
-<article style="background: #d1fae5; border-color: #059669; margin-top: 1rem;">
-  <p><strong>Concern tillagd.</strong> Påverkar nästa veckogenerering.</p>
-</article>
+<div class="alert" style="background: var(--palm-soft); margin-top: 16px;">
+  <div class="ic" style="background: var(--palm);"><i data-lucide="check"></i></div>
+  <div class="alert-body"><strong>Concern tillagd.</strong><p>Påverkar nästa veckogenerering.</p></div>
+</div>
 {% endif %}
 
 {% endblock %}

@@ -13,10 +13,12 @@ för lokal dev utan auth (osäkert för produktion).
 from __future__ import annotations
 
 from datetime import date as date_type
+from pathlib import Path
 from typing import Any
 
 from fastapi import Depends, FastAPI, HTTPException, Query, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from coach.engine.loader import load_workouts, load_drills
 from coach.trixa.db import get_postgrest
@@ -52,6 +54,13 @@ app.add_middleware(
 
 # Mounta UI-routes (publikt — egen auth kommer i framtid)
 app.include_router(ui_router)
+
+# Servera temat (trixa.css m.m.) — tropical-temats stylesheet ligger i trixa_api/static
+app.mount(
+    "/static",
+    StaticFiles(directory=str(Path(__file__).resolve().parent / "static")),
+    name="static",
+)
 
 
 @app.get("/")

@@ -9,8 +9,8 @@ till nästa planering. Strukturerad data — Trixa kan inte tolka fritext-prosa,
 så håll dig till skattningarna och checkboxarna.</p>
 
 {% if existing %}
-<article style="background: var(--pico-card-background-color);">
-  <p><em>Du har redan rapporterat för denna vecka ({{ existing.submitted_at[:10] }}). Submitten nedan skriver över befintliga värden.</em></p>
+<article>
+  <p style="margin: 0;"><em>Du har redan rapporterat för denna vecka ({{ existing.submitted_at[:10] }}). Submitten nedan skriver över befintliga värden.</em></p>
 </article>
 {% endif %}
 
@@ -18,7 +18,8 @@ så håll dig till skattningarna och checkboxarna.</p>
   <input type="hidden" name="week_start" value="{{ week_start }}">
 
   <fieldset>
-    <legend>Skattningar (1 = sämst, 5 = bäst)</legend>
+    <legend>Skattningar</legend>
+    <p style="font-size: 0.875rem; color: var(--ink-3); margin-top: 0;">1 = sämst, 5 = bäst</p>
 
     {% for field, label in [("sleep_quality", "Sömnkvalitet"), ("motivation", "Motivation"), ("soreness", "Återhämtning (5 = ingen ömhet)"), ("energy", "Energi"), ("stress", "Lugnt liv (5 = lågt stresstryck)")] %}
     <div class="rating-row">
@@ -58,18 +59,21 @@ så håll dig till skattningarna och checkboxarna.</p>
     </label>
   </fieldset>
 
-  <label for="notes">
-    Övrigt (fri text, läses av Nils — Trixa ignorerar)
+  <fieldset>
+    <legend>Övrigt</legend>
+    <label for="notes">Fri text — läses av Nils, Trixa ignorerar</label>
     <textarea id="notes" name="notes" rows="3" placeholder="T.ex. konferens på torsdag, golf-helg, axeln knastrar lite...">{{ existing.notes if existing else "" }}</textarea>
-  </label>
+  </fieldset>
 
-  <button type="submit">Skicka rapport</button>
+  <button type="submit"><i data-lucide="send"></i> Skicka rapport</button>
 </form>
 
 {% if submitted %}
-<article style="background: #d1fae5; border-color: #059669;">
-  <p><strong>Tack — rapport sparad.</strong> Trixa läser detta vid nästa veckogenerering.</p>
-</article>
+<div class="alert" style="background: var(--palm-soft); margin-top: 16px;">
+  <div class="ic" style="background: var(--palm);"><i data-lucide="check"></i></div>
+  <div class="alert-body"><strong>Tack — rapport sparad.</strong>
+    <p>Trixa läser detta vid nästa veckogenerering.</p></div>
+</div>
 {% endif %}
 
 {% endblock %}
