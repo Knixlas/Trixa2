@@ -12,19 +12,28 @@ för lokal dev utan auth (osäkert för produktion).
 
 from __future__ import annotations
 
+import os
 from datetime import date as date_type
 from pathlib import Path
 from typing import Any
 
-from fastapi import Depends, FastAPI, HTTPException, Query, status
+from fastapi import Depends, FastAPI, HTTPException, Query, Request, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
+from starlette.concurrency import run_in_threadpool
 
 from coach.engine.loader import load_workouts, load_drills
 from coach.trixa.db import get_postgrest
 from coach.trixa.planner import generate_week, render_plan_markdown
+from trixa_api import supabase_auth
 from trixa_api.auth import require_api_token
-from trixa_api.ui import router as ui_router
+from trixa_api.ui import (
+    router as ui_router,
+    _DEFAULT_USER_ID,
+    set_session_cookies,
+    is_secure_request,
+)
 from trixa_api.schemas import (
     AlertResponse,
     AthleteResponse,
@@ -61,6 +70,42 @@ app.mount(
     StaticFiles(directory=str(Path(__file__).resolve().parent / "static")),
     name="static",
 )
+
+
+@app.middleware("http")
+async def auth_gate(request: Request, call_next):
+    """Skyddar adept-webben (/ui): kräver giltig Supabase-session, annars → /ui/login.
+
+    /api har egen token-auth, /ui/login + /ui/logout + /static + /health är öppna.
+    Förnyar utgången access_token tyst via refresh-token. Dev-escape:
+    TRIXA_ALLOW_NO_AUTH=1 (aldrig i prod).
+    """
+    request.state.user_id = None
+    path = request.url.path
+    gated = path.startswith("/ui") and not path.startswith(("/ui/login", "/ui/logout"))
+    if not gated:
+        return await call_next(request)
+
+    if os.environ.get("TRIXA_ALLOW_NO_AUTH") == "1":
+        request.state.user_id = _DEFAULT_USER_ID
+        return await call_next(request)
+
+    access = request.cookies.get("sb_access")
+    refresh = request.cookies.get("sb_refresh")
+    uid = await run_in_threadpool(supabase_auth.get_user_id, access) if access else None
+    renewed = None
+    if uid is None and refresh:
+        renewed = await run_in_threadpool(supabase_auth.refresh_session, refresh)
+        if renewed:
+            uid = renewed.get("user_id")
+    if not uid:
+        return RedirectResponse(url="/ui/login", status_code=303)
+
+    request.state.user_id = uid
+    response = await call_next(request)
+    if renewed:
+        set_session_cookies(response, renewed, secure=is_secure_request(request))
+    return response
 
 
 @app.get("/")

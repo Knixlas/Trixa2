@@ -23,7 +23,7 @@ from coach.trixa.planner import (
     swap_workout_code,
     swap_workout_discipline_and_replan,
 )
-from trixa_api import season
+from trixa_api import season, supabase_auth
 
 
 router = APIRouter(prefix="/ui", tags=["ui"])
@@ -52,9 +52,64 @@ _DEFAULT_USER_ID = os.environ.get(
 )
 
 
-def _current_user_id(request: Request) -> str:
-    """Hämta aktiv adept-id. För MVP: env-default. Senare: JWT/cookie."""
-    return request.cookies.get("trixa_user_id") or _DEFAULT_USER_ID
+def _current_user_id(request: Request) -> str | None:
+    """Inloggad adept-id. Sätts av auth-middleware (main.py) från Supabase-sessionen.
+    None om ingen giltig session — skyddade /ui-routes når aldrig hit oinloggat."""
+    return getattr(request.state, "user_id", None)
+
+
+# ---------- Auth: Supabase-session via HttpOnly-cookies ----------
+
+
+def set_session_cookies(response, session: dict, secure: bool = True) -> None:
+    """Sätt access/refresh som HttpOnly-cookies. secure=True i prod (https)."""
+    common = {"httponly": True, "samesite": "lax", "secure": secure, "path": "/"}
+    if session.get("access_token"):
+        response.set_cookie("sb_access", session["access_token"], max_age=3600, **common)
+    if session.get("refresh_token"):
+        response.set_cookie(
+            "sb_refresh", session["refresh_token"], max_age=60 * 60 * 24 * 30, **common
+        )
+
+
+def clear_session_cookies(response) -> None:
+    response.delete_cookie("sb_access", path="/")
+    response.delete_cookie("sb_refresh", path="/")
+
+
+def is_secure_request(request: Request) -> bool:
+    """True om förfrågan kom via https. Respekterar X-Forwarded-Proto (Railway
+    terminerar TLS i proxyn, så request.url.scheme är http internt)."""
+    return request.headers.get("x-forwarded-proto", request.url.scheme) == "https"
+
+
+@router.get("/login", response_class=HTMLResponse)
+def login_form(request: Request) -> HTMLResponse:
+    return _render("login.html", {"request": request, "error": ""})
+
+
+@router.post("/login")
+def login_submit(
+    request: Request,
+    email: str = Form(...),
+    password: str = Form(...),
+) -> Any:
+    session = supabase_auth.sign_in_password(email.strip(), password)
+    if not session or not session.get("user_id"):
+        return _render(
+            "login.html",
+            {"request": request, "error": "Fel e-post eller lösenord — försök igen."},
+        )
+    resp = RedirectResponse(url="/ui/", status_code=303)
+    set_session_cookies(resp, session, secure=is_secure_request(request))
+    return resp
+
+
+@router.get("/logout")
+def logout(request: Request) -> Any:
+    resp = RedirectResponse(url="/ui/login", status_code=303)
+    clear_session_cookies(resp)
+    return resp
 
 
 def _monday_of(d: date_type) -> date_type:
