@@ -92,11 +92,11 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           SUPABASE_USER_ID: ${{ secrets.SUPABASE_USER_ID }}
-        run: |
-          YESTERDAY=$(date -u -d 'yesterday' +%Y-%m-%d)
-          TODAY=$(date -u +%Y-%m-%d)
-          python sync.py activities --limit 10
-          python sync.py daily --from "$YESTERDAY" --to "$TODAY"
+        # Slå samman till EN process — sync.py full loggar in en gång
+        # och kör profile + activities + daily i samma session. Tidigare
+        # körde vi activities + daily separat = 2 token-refresh per cron
+        # vilket Garmin upplever som suspekt och invaliderar tokens snabbare.
+        run: python sync.py full --activities 10 --days 1
 
       - name: Run manual sync (workflow_dispatch)
         if: github.event_name == 'workflow_dispatch'
