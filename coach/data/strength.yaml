@@ -1,0 +1,114 @@
+# Styrketräning per träningsfas (källa: 3.5 Styrketräning i Olika Träningsfaser)
+# VIKTIGT: Anpassa alltid övningarna för att undvika att belasta skadade kroppsdelar.
+
+protocol_types:
+  AA: Anatomical Adaptation
+  MT: Max Transition
+  MS: Max Strength
+  SM: Strength Maintenance
+
+# Styrkeprotokoll per fas. Volymen anges som intervall (low, high).
+strength_by_phase:
+
+  prep:
+    protocol: AA
+    goal: Skapa grundläggande styrka och uthållighet
+    intensity: light_to_moderate
+    reps: [12, 15]
+    sets: [2, 3]
+    focus: Teknik och korrekt utförande
+    exercises:
+      bodyweight:
+        - armhävningar
+        - knäböj
+        - utfallssteg
+      core:
+        - plankan
+        - sidoplankan
+        - rygglyft
+      stability:
+        - balansövningar på bosuboll
+        - enbensstående med hantlar
+
+  base:
+    protocol_by_period:
+      base_1:
+        first_half: MT   # första halvan
+        second_half: MS  # andra halvan
+      base_2: MS
+      base_3: MS
+    goal: Utveckla grundläggande styrka och förbättra uthållighet
+    intensity: light_to_moderate
+    reps: [10, 12]
+    sets: [3, 4]
+    focus: Öka muskeluthållighet och förbättra stabilitet
+    exercises:
+      compound:
+        - marklyft
+        - bänkpress
+        - rodd
+      core:
+        - russian twists
+        - leg raises
+      legs:
+        - benpress
+        - vadpress
+        - utfall med vikt
+
+  build:
+    protocol: SM   # men med fokus på styrkebygge enligt 2.2.3
+    goal: Förbättra specifik styrka och kraftutveckling
+    intensity: moderate_to_heavy
+    reps: [6, 8]
+    sets: [4, 5]
+    focus: Bygga styrka och explosivitet, förbättra muskelkraft
+    note: Ange alltid set, repetitioner och vikter för varje övning.
+    exercises:
+      explosive:
+        - kettlebell svingar
+        - boxhopp
+      heavy_compound:
+        - knäböj
+        - marklyft
+        - militärpress
+      isolation:
+        - hamstring curls
+        - biceps curls
+        - triceps extensions
+
+  peak:
+    protocol: SM
+    goal: Bevara styrka och minska skaderisken
+    intensity: light_to_moderate
+    reps: [8, 10]
+    sets: [2, 3]
+    focus: Bevara styrka utan att trötta ut musklerna; rörlighet och skadeprevention
+    note: Minska vikter och volym jämfört med tidigare faser.
+    exercises:
+      maintenance:
+        - knäböj med kroppsvikt
+        - hantelpress
+      mobility:
+        - dynamiska stretchövningar
+        - yoga
+      core:
+        - plankan
+        - russian twists
+
+  race:
+    protocol: SM
+    goal: Minimal belastning, bibehåll skärpa
+    intensity: very_light
+    reps: [8, 10]
+    sets: [1, 2]
+    focus: Bibehåll rörelsemönster utan att trötta ut
+    note: Mycket lätt belastning, högst ett kort pass under fasen.
+
+  transition:
+    protocol: light_maintenance
+    goal: Bibehåll muskeltonus och förebygg skador
+    intensity: very_light
+    reps: [10, 15]
+    sets: [1, 2]
+    focus: Kroppsviktsövningar och lätta vikter
+    note: Inkludera gärna alternativa former (yoga, pilates).

@@ -1,0 +1,227 @@
+# Simpass — Tempo (TE)
+#
+# TE1 — Tempo Intervals: intervaller i Z3, högre fart än Z2 men sustainable.
+# Bygger förmågan att hålla "lite-snabbare-än-IM-pace" över längre samlade set.
+#
+# Skalning vid större budget: fler intervaller eller längre absorbtion i Z1-Z2.
+# Aldrig "mer Z3" som absorberare — då blir det glidning, inte tempoträning.
+
+workouts:
+
+  - code: TE1_swim_01
+    discipline: swim
+    category: TE
+    type_code: TE1
+    name: "4×300 Z3"
+    parametrized: true
+    parameters:
+      duration_min:
+        default: 45
+        range: [30, 70]
+        description: "Skala till veckans budget"
+    phase_appropriate: [base_2, base_3, build_1, build_2]
+    intent: |
+      Klassisk Z3-set. Tempot är "bekvämt obekvämt" — du vet att du
+      jobbar, men du behöver inte skrika. Bygger tempotålighet
+      och förmågan att hålla pace även när det ackumuleras.
+    main_set:
+      - segment: warmup
+        duration_pct: 0.15
+        zone: 1
+        description: "Sista 100m i nedre Z2"
+      - segment: drills
+        sets: {default: 4, range: [3, 5]}
+        distance_m: 50
+        rest_sec: 15
+        drills: [single_arm, fingertip_drag, six_kick_switch]
+      - segment: build
+        sets: {default: 4, range: [3, 5]}
+        distance_m: 50
+        rest_sec: 10
+        description: "Build-up: starta Z1, sluta Z3 — väcker tempokänslan"
+      - segment: main
+        sets: {default: 4, range: [3, 6]}
+        distance_m: 300
+        zone: 3
+        rest_sec: 30
+        description: "Jämn Z3. Andas på 3. Pace ska vara samma på alla fyra."
+      - segment: continuous
+        duration_pct: 0.05
+        zone: 1
+        description: "Aktiv recovery efter setet — lugn fri"
+      - segment: cooldown
+        duration_pct: 0.10
+        zone: 1
+    total_distance_m: 2400
+    total_duration_min:
+      estimated: 45
+      flexible_range: [30, 70]
+    zone_refs: [Z1, Z2, Z3]
+    equipment: []
+    abort_conditions:
+      - "Om interval 3 är mer än +3s/100m långsammare än interval 1 → kör interval 4 i Z2"
+
+  - code: TE1_swim_02
+    discipline: swim
+    category: TE
+    type_code: TE1
+    name: "6×200 Z3 kort vila"
+    parametrized: true
+    parameters:
+      duration_min:
+        default: 40
+        range: [30, 65]
+        description: "Skala till veckans budget"
+    phase_appropriate: [base_3, build_1, build_2]
+    intent: |
+      Kortare Z3-intervaller med pressande vila. Den korta vilan
+      gör att pulsen aldrig sjunker helt — du tränar
+      återhämtningsförmågan parallellt med tempotåligheten.
+    main_set:
+      - segment: warmup
+        duration_pct: 0.15
+        zone: 1
+      - segment: drills
+        sets: {default: 4, range: [3, 5]}
+        distance_m: 50
+        rest_sec: 15
+        drills: [single_arm, six_kick_switch]
+      - segment: main
+        sets: {default: 6, range: [4, 10]}
+        distance_m: 200
+        zone: 3
+        rest_sec: 20
+        description: "Disciplinerad pace, ingen acceleration på sista 50"
+      - segment: continuous
+        duration_pct: 0.05
+        zone: 1
+        description: "Aktiv recovery efter setet"
+      - segment: cooldown
+        duration_pct: 0.08
+        zone: 1
+    total_distance_m: 2400
+    total_duration_min:
+      estimated: 40
+      flexible_range: [30, 65]
+    zone_refs: [Z1, Z3]
+    equipment: []
+
+  - code: TE1_swim_03
+    discipline: swim
+    category: TE
+    type_code: TE1
+    name: "Tempo-pyramid 100-200-300-400-300-200-100"
+    parametrized: true
+    parameters:
+      duration_min:
+        default: 50
+        range: [40, 65]
+        description: "Skala till veckans budget — smal range då pyramidens struktur är poängen"
+    phase_appropriate: [base_3, build_1, build_2]
+    intent: |
+      Z3-pyramid. Mental och fysisk variation — du vet att 400:an
+      är toppen, allt efter är lättare på papperet. Bra pass för
+      att hitta tempokänslan inför längre tävlingar.
+    main_set:
+      - segment: warmup
+        duration_pct: 0.13
+        zone: 1
+      - segment: drills
+        sets: {default: 4, range: [3, 5]}
+        distance_m: 50
+        rest_sec: 15
+      - segment: main
+        sets: 1
+        distance_m: 100
+        zone: 3
+        rest_sec: 20
+      - segment: main
+        sets: 1
+        distance_m: 200
+        zone: 3
+        rest_sec: 25
+      - segment: main
+        sets: 1
+        distance_m: 300
+        zone: 3
+        rest_sec: 30
+      - segment: main
+        sets: 1
+        distance_m: 400
+        zone: 3
+        rest_sec: 35
+      - segment: main
+        sets: 1
+        distance_m: 300
+        zone: 3
+        rest_sec: 30
+      - segment: main
+        sets: 1
+        distance_m: 200
+        zone: 3
+        rest_sec: 25
+      - segment: main
+        sets: 1
+        distance_m: 100
+        zone: 3
+        rest_sec: 0
+      - segment: cooldown
+        duration_pct: 0.08
+        zone: 1
+    total_distance_m: 2400
+    total_duration_min:
+      estimated: 50
+      flexible_range: [40, 65]
+    zone_refs: [Z1, Z3]
+    equipment: []
+    coach_notes: |
+      Håll noga koll på att 100:orna inte skenar in i Z4. Lockelsen är
+      stor när det känns lätt. Pyramidens poäng är jämn Z3 hela vägen.
+      Smal range — pyramidens struktur är passet. Kan inte skalas brett.
+
+  - code: TE1_swim_04
+    discipline: swim
+    category: TE
+    type_code: TE1
+    name: "2×800 Z3"
+    parametrized: true
+    parameters:
+      duration_min:
+        default: 50
+        range: [40, 75]
+        description: "Skala till veckans budget"
+    phase_appropriate: [build_1, build_2]
+    intent: |
+      Längre Z3-intervaller. Förbereder för långdistansens tempokrav
+      — IM-simning ligger nära Z2 men du behöver buffer att gå upp
+      i Z3 i strömmande vatten eller drafting.
+    main_set:
+      - segment: warmup
+        duration_pct: 0.15
+        zone: 1
+      - segment: build
+        sets: {default: 4, range: [3, 5]}
+        distance_m: 50
+        rest_sec: 15
+        description: "Build från Z1 till Z3, väck tempo"
+      - segment: main
+        sets: {default: 2, range: [1, 3]}
+        distance_m: 800
+        zone: 3
+        rest_sec: 60
+        description: "Lång och tålmodig. Negative split om möjligt."
+      - segment: continuous
+        duration_pct: 0.05
+        zone: 1
+        description: "Aktiv recovery efter setet"
+      - segment: cooldown
+        duration_pct: 0.08
+        zone: 1
+    total_distance_m: 2400
+    total_duration_min:
+      estimated: 50
+      flexible_range: [40, 75]
+    zone_refs: [Z1, Z3]
+    equipment: []
+    abort_conditions:
+      - "Om split 2 av första 800:an är mer än +5s/100m långsammare än split 1 → korta andra 800:an till 500m"

@@ -1,0 +1,18 @@
+# Nixpacks-konfig för Trixa.
+#
+# Tvingar Python 3.12 (3.14 har wheel-issues för flera deps).
+# pip install läses från requirements.txt automatiskt.
+
+[phases.setup]
+# python312Full inkluderar pip + venv. Bara "python312" tappar pip.
+nixPkgs = ["python312Full", "gcc"]
+
+[phases.install]
+cmds = [
+  "python -m venv /opt/venv",
+  ". /opt/venv/bin/activate && pip install --upgrade pip",
+  ". /opt/venv/bin/activate && pip install -r requirements.txt",
+]
+
+[start]
+cmd = ". /opt/venv/bin/activate && uvicorn trixa_api.main:app --host 0.0.0.0 --port $PORT"

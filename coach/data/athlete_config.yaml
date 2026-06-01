@@ -1,0 +1,87 @@
+# Atletkonfiguration - Niklas
+# ============================
+# Allt det personliga som planeringen behover veta.
+# Anvands av engine/ for att rakna ut zoner, faser, belastning.
+#
+# Iteration 0 (2026-05-23): forsta utkast med uppskattade troskelvarden.
+# Kommer kalibreras med backfilled data fran Garmin.
+
+# -------------------------------------------------------------
+# Identitet
+# -------------------------------------------------------------
+identity:
+  display_name: Niklas
+  birth_year: 1975          # justera
+  sex: male
+  height_cm: 180            # justera
+  weight_kg: 80             # justera
+
+# -------------------------------------------------------------
+# Troskel- och testvarden
+# Datum sa vi vet hur gamla siffrorna ar.
+# -------------------------------------------------------------
+thresholds:
+  # === Cykling ===
+  ftp_watts: 198                       # 60-min max effekt
+  ftp_test_date: 2026-05-23
+  ftp_source: estimate                 # estimate | test | race
+  # LTHR-bike (Lactate Threshold HR cykel): puls vid ~60-min max effort på cykel
+  # Brukar ligga 5-10 bpm lagre an AT-run for uthallighetstranade.
+  lthr_bike: 162                       # uppskattning fran AT-run 170 minus 8
+  lthr_bike_test_date:                 # satts vid riktigt FTP-test
+  lthr_bike_source: estimate
+
+  # === Lopning ===
+  # AT (Anaerob Troskel, LT2): pace vid hard sustained effort (~10K-tempo)
+  threshold_pace_run_sec_per_km: 315   # 5:15/km
+  threshold_hr_run: 170                # AT-puls (uppskattad)
+  # LT (Aerob Troskel, LT1): "all-day pace", pratbart
+  lactate_threshold_pace_run_sec_per_km: 405   # 6:45/km
+  lactate_threshold_hr_run:             # uppskattas senare, runt 155-160 vagt
+  pace_run_test_date: 2026-05-23
+  pace_run_source: estimate
+
+  # === Simning ===
+  css_sec_per_100m: 135                # 2:15/100m
+  css_test_date: 2026-05-23
+  css_source: estimate
+
+  # === Generellt ===
+  max_hr: 185                          # justera om uppmatt
+  resting_hr: 48                       # justera fran Garmin-snitt
+
+# -------------------------------------------------------------
+# Tillganglighet
+# -------------------------------------------------------------
+schedule:
+  routine_days: 7                      # 7 eller 9-dagars rutin (Friel for 50+)
+  weekly_hours_target: 12              # genomsnittlig traningstid per vecka
+  preferred_rest_days: [monday]
+  available_days:
+    monday: true
+    tuesday: true
+    wednesday: true
+    thursday: true
+    friday: true
+    saturday: true
+    sunday: true
+  long_workout_day: saturday
+  brick_day: sunday
+
+# -------------------------------------------------------------
+# Forutsattningar och begransningar
+# -------------------------------------------------------------
+constraints:
+  group_workouts: []
+  injuries: []
+  unavailable_sports: []
+
+# -------------------------------------------------------------
+# Utrustning
+# -------------------------------------------------------------
+equipment:
+  power_meter_bike: true
+  power_meter_run: false
+  trainer: true
+  treadmill: false
+  hr_strap: true

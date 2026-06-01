@@ -1,0 +1,136 @@
+# Identifiering och hantering av överträning (källa: 3.4)
+# Signalerna är kategoriserade. Tröskelvärden är riktvärden för poängsättning
+# och kan justeras per adept i athlete_config.yaml om så önskas.
+
+categories:
+  physical:
+    name: Fysiska tecken
+    indicators:
+      - id: persistent_muscle_fatigue
+        label: Ihållande muskeltrötthet
+      - id: performance_drop
+        label: Minskad prestation
+      - id: elevated_resting_hr
+        label: Förhöjd vilopuls
+      - id: injury_risk
+        label: Ökad skaderisk eller faktisk skada
+  mental:
+    name: Mentala tecken
+    indicators:
+      - id: motivation_loss
+        label: Minskad motivation
+      - id: sleep_problems
+        label: Sömnproblem
+      - id: irritability
+        label: Irritabilitet
+      - id: depression_or_anxiety
+        label: Känslor av depression eller ångest
+  performance:
+    name: Prestationstecken
+    indicators:
+      - id: cannot_reach_prior_levels
+        label: Oförmåga att uppnå tidigare träningsnivåer
+      - id: poor_recovery
+        label: Försämrad återhämtning
+      - id: endurance_loss
+        label: Minskad uthållighet
+
+# Numeriska tröskelvärden för objektiv data (anpassa per adept vid behov).
+# Mätbara från Garmin → Supabase-pipen.
+thresholds:
+  resting_hr:
+    # Förhöjd vilopuls = bpm över 7-dagars baseline
+    elevated_bpm_over_baseline: 5
+    severely_elevated_bpm_over_baseline: 10
+  hrv:
+    # Sänkt HRV jämfört med 7-dagars rullande snitt (%)
+    decreased_pct_vs_baseline: 10
+    severely_decreased_pct_vs_baseline: 20
+  sleep:
+    # Sömnpoäng (0-100 från Garmin) — låg flera dagar i rad
+    low_score_threshold: 60
+    consecutive_low_days_flag: 3
+  readiness:
+    # Garmin Body Battery / Readiness Score (0-100). Subjektiv mätning av
+    # återhämtningsstatus baserad på sömn, HRV-trend, stress, aktivitet.
+    low_threshold: 60       # under 60 = trött, en flagga
+    severely_low_threshold: 40  # under 40 = utmattad, severe-flagga
+  performance:
+    # Hur många % under förväntad prestation (puls/watt/pace) räknas som droppe
+    drop_pct_vs_expected: 5
+  consecutive_high_load_weeks: 3  # >3 tunga veckor i rad utan vilovecka
+
+# Bedömningsnivåer baserat på antal flaggor.
+# Räknas över alla kategorier sammanlagt.
+assessment_levels:
+  none:
+    min_flags: 0
+    max_flags: 0
+  early:
+    min_flags: 1
+    max_flags: 2
+    label: Tidiga tecken — observera och justera lätt
+  moderate:
+    min_flags: 3
+    max_flags: 5
+    label: Tydliga tecken — minska belastning och öka återhämtning
+  severe:
+    min_flags: 6
+    max_flags: 99
+    label: Allvarliga tecken — aktiv återhämtning och eventuellt läkarkontakt
+
+# Åtgärdsmallar per bedömningsnivå.
+actions_by_level:
+
+  early:
+    volume_reduction_pct: 10
+    intensity_reduction_pct: 10
+    extra_rest_days: 0
+    add_recovery_practices:
+      - stretching
+      - foam rolling
+    communication_tone: empathetic_check_in
+    example_message: >
+      Jag märker tendenser till trötthet i veckans data. Hur känner du dig fysiskt och mentalt?
+      Vi tar det lite lugnare nästa vecka för säkerhets skull.
+
+  moderate:
+    volume_reduction_pct: 25
+    intensity_reduction_pct: 30
+    extra_rest_days: 1
+    add_recovery_practices:
+      - stretching
+      - foam rolling
+      - massage
+      - extra sömn
+    swap_to_low_intensity: true
+    communication_tone: validating_and_supportive
+    example_message: >
+      Vi ska minska din träningstid och intensitet nästa vecka för att ge din kropp tid att återhämta sig.
+      Jag lägger in en extra vilodag och fler lågintensiva pass.
+
+  severe:
+    volume_reduction_pct: 50
+    intensity_reduction_pct: 100  # ta bort all hård träning
+    extra_rest_days: 2
+    add_recovery_practices:
+      - aktiv vila
+      - lätta promenader
+      - stretching
+      - massage
+    swap_to_low_intensity: true
+    consider_medical_consultation: true
+    communication_tone: caring_and_firm
+    example_message: >
+      Kroppen säger ifrån. Vi pausar all hård träning den här veckan och fokuserar helt på återhämtning.
+      Om symptomen håller i sig är det värt att prata med en läkare eller fysioterapeut.
+
+# Gradvis återgång efter perioden av minskad belastning.
+recovery_protocol:
+  reassess_after_days: 7
+  gradual_return_increment_pct: 10  # öka volym med max 10% per vecka när återhämtad
+  return_criteria:
+    - vilopuls tillbaka till baseline
+    - sömnkvalitet återställd
+    - motivation och energi återställd
+    - inga kvarvarande muskelvärk eller skador

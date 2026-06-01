@@ -1,0 +1,160 @@
+# Detaljerad fasinformation (källa: 2.2.1–2.2.6)
+# Per fas: träningsfokus, max passlängd, fördelning, hård-träning-tak, vilka passtyper.
+
+# Standardfördelning mellan discipliner (gäller där inget annat anges).
+default_discipline_split:
+  run: 0.35
+  bike: 0.45
+  swim: 0.20
+
+# Hård träning definieras som aktiv tid i Zon 3 eller högre.
+hard_training_zone_threshold: 3
+
+phase_details:
+
+  prep:
+    training_focus:
+      - Lågintensiv träning för aerob grunduthållighet
+      - Teknik och rörelseekonomi i alla tre discipliner
+      - Grundläggande styrketräning (förberedelse av muskler/leder)
+    max_session_minutes:
+      run: 60
+      bike: 90
+    long_session_share_of_discipline: [0.40, 0.50]
+    discipline_split:
+      run: 0.35
+      bike: 0.45
+      swim: 0.20
+    hard_training_rule:
+      mode: absolute_share
+      max_share_of_total: 0.10
+      bike_run_split: [0.50, 0.50]
+    workout_types:
+      - { code: AE, constraint: always }
+      - { code: SS, constraint: always }
+    strength_protocol: AA
+
+  base:
+    training_focus:
+      - Aerob utveckling genom längre pass med lägre intensitet
+      - Fortsatt teknikförbättring
+      - Gradvis ökning av volym och intensitet
+    max_session_minutes:
+      run: 90
+      bike: 120
+    long_session_share_of_discipline: [0.40, 0.50]
+    discipline_split:
+      run: 0.35
+      bike: 0.45
+      swim: 0.20
+    hard_training_rule:
+      mode: weekly_delta_cap
+      max_increase_vs_prev_week: 0.10
+    workout_types:
+      - { code: AE, constraint: always }
+      - { code: SS, constraint: always }
+      - { code: MF, constraint: period_only, periods: [base_2, base_3] }
+      - { code: ME, constraint: not_last_week }
+      - { code: BW, constraint: not_last_week }
+      - { code: T,  constraint: last_week_only }
+    strength_protocol_by_period:
+      base_1:
+        first_half: MT
+        second_half: MS
+      base_2: MS
+      base_3: MS
+
+  build:
+    training_focus:
+      - Ökad intensitet för förbättrad anaerob kapacitet
+      - Tävlingsspecifik träning och simuleringar
+      - Teknikförfining i alla tre discipliner
+    max_session_minutes:
+      run: 150
+      bike: 300  # 5 timmar
+    long_session_share_of_discipline: [0.40, 0.50]
+    discipline_split:
+      run: 0.35
+      bike: 0.45
+      swim: 0.20
+    hard_training_rule:
+      mode: weekly_delta_cap
+      max_increase_vs_prev_week: 0.10
+    workout_types:
+      - { code: AE, constraint: always }
+      - { code: MF, constraint: not_last_week }
+      - { code: SS, constraint: always }
+      - { code: ME, constraint: not_last_week }
+      - { code: AC, constraint: not_last_week }
+      - { code: BW, constraint: always }
+      - { code: T,  constraint: last_week_only }
+    strength_protocol: SM
+    strength_note: Ange alltid set, repetitioner och vikter för varje övning.
+
+  peak:
+    training_focus:
+      - Minskad totalvolym för återhämtning
+      - Bibehållen intensitet för skärpa
+      - Tävlingsspecifik finslipning
+      - Mental förberedelse (visualisering)
+    max_session_minutes: null  # ej specificerat — använd dynamisk reduktion
+    long_session_share_of_discipline: [0.40, 0.50]
+    discipline_split:
+      run: 0.35
+      bike: 0.45
+      swim: 0.20
+    hard_training_rule:
+      mode: reduce
+      note: Minska hård träning för att undvika överbelastning
+    volume_reduction_rule:
+      mode: halve_each_week_vs_7week_avg
+      reference_weeks: 7
+      factor_per_week: 0.5
+    workout_types:
+      - { code: ME, constraint: not_last_week }
+      - { code: BW, constraint: not_last_week }
+    strength_protocol: SM
+    strength_note: Minska vikter och volym jämfört med tidigare faser.
+
+  race:
+    training_focus:
+      - Bibehållen toppform utan överbelastning
+      - Tävlingsspecifik förberedelse och teknikfinslipning
+      - Intensifierad mental förberedelse
+      - Prioriterad vila och återhämtning
+    max_session_minutes: null  # individuellt anpassat
+    discipline_split: null      # anpassas efter tävlingens krav
+    hard_training_rule:
+      mode: minimal
+      note: Kortare pass med specifika mål, lätt intensitet
+    workout_types:
+      - { code: SS, constraint: always, note: korta intensiva pass för skärpa }
+      - { code: AE, constraint: always, note: lätta pass för rörlighet och teknik }
+    nutrition:
+      carb_loading:
+        days_before: [2, 3]
+        grams_per_kg_per_day: 10
+      race_day:
+        pre_start_minutes: 15
+        pre_start_intake: gel eller lite sportdryck
+        during_race_carbs_per_hour_g: 90
+
+  transition:
+    training_focus:
+      - Aktiv vila med lätt, varierad träning
+      - Mental återhämtning och reflektion
+      - Skadeprevention (stretching, lätta övningar)
+      - Gradvis uppbyggnad inför nästa cykel
+    max_session_minutes: null
+    discipline_split: null  # flexibel, baserad på adeptens preferenser
+    hard_training_rule:
+      mode: none
+    workout_types:
+      - { code: AE, constraint: always, note: lugn intensitet }
+      - { code: SS, constraint: always, note: teknikövningar utan hög intensitet }
+    alternative_activities:
+      - yoga
+      - pilates
+      - lätt styrketräning
+    strength_protocol: light_maintenance
+    strength_note: Kroppsviktsövningar och lätta vikter för muskeltonus.

@@ -1,0 +1,238 @@
+# Löppass — Aerob Uthållighet (AE)
+#
+# ALLA pass är budget-drivna (parameterized: true).
+# - Mallar AE1/AE2_run_template: rena pct-pass, hela passet skalas.
+# - Konkreta varianter: pct-delar + ev. fasta strides-set som behålls.
+#
+# Pct-segment summerar till 1.0. Fasta delar tas av budgeten först,
+# återstoden fördelas enligt pct.
+
+workouts:
+
+  # ─────────────────────────────────────────────────────────────
+  # AE1 — Recovery (parametriserad mall)
+  # ─────────────────────────────────────────────────────────────
+
+  - code: AE1_run_template
+    discipline: run
+    category: AE
+    type_code: AE1
+    name: "Recovery — flex duration"
+    phase_appropriate: [prep, base_1, base_2, base_3, build_1, build_2, peak, race, recovery]
+    parameterized: true
+    parameters:
+      duration_min:
+        default: 40
+        range: [20, 60]
+        description: "Total tid; skala efter veckans volym och dagsform"
+    intent: |
+      Återhämtningspass. Lugn, lätt löpning i nedre Z1 — kroppen ska
+      kännas bättre EFTER passet än före. Ingen som helst kvalitet.
+      Andningen ska vara så lugn att du kan föra ett samtal i hela
+      meningar utan att hacka.
+    main_set:
+      - segment: warmup
+        duration_pct: 0.20
+        zone: 1
+        description: "Mycket lugn start — gärna 2-3 min rask gång först om kroppen är trög"
+      - segment: continuous
+        duration_pct: 0.65
+        zone: 1
+        description: "Stadig nedre Z1. Om HR driver upp mot Z2-gränsen — sakta in eller gå."
+      - segment: cooldown
+        duration_pct: 0.15
+        zone: 1
+        description: "Sista 5 min lugn — gärna gå sista minuten"
+    total_duration_min:
+      estimated: 40
+      flexible_range: [20, 60]
+    zone_refs: [Z1]
+    terrain: flat
+    surface: any
+    equipment: []
+    abort_conditions:
+      - "Om HR inte sjunker tillbaka till Z1 inom 2 min trots fart-sänkning → avsluta"
+      - "Om benen känns tunga och stela efter 10 min → kort pass, gå hem"
+    coach_notes: |
+      Funkar dagen efter ett hårdpass, mellan kvalitetspass, eller på
+      tröttveckor. Bytbar mot vilodag om sömn-/HRV-signaler säger så.
+
+  # ─────────────────────────────────────────────────────────────
+  # AE2 — Aerobic Endurance (parametriserad mall)
+  # ─────────────────────────────────────────────────────────────
+
+  - code: AE2_run_template
+    discipline: run
+    category: AE
+    type_code: AE2
+    name: "Aerobic Endurance — flex duration"
+    phase_appropriate: [prep, base_1, base_2, base_3, build_1, build_2]
+    parameterized: true
+    parameters:
+      duration_min:
+        default: 60
+        range: [40, 150]
+        description: "Skala till veckans långpass eller mellanlångt"
+      include_strides:
+        default: false
+        description: "Om true: lägg 4-6×~20 sek strides på slutet (SS1-mikrodos)"
+    intent: |
+      Stadig aerob löpning i Z2. Inget tempotryck, inga jakter —
+      bara tid på fötterna i den zon där mitochondrierna växer
+      och kapillärer byggs. Det här är arbetshästen i base-fasen.
+    main_set:
+      - segment: warmup
+        duration_pct: 0.10
+        zone: 1
+        description: "Gradvis upp, sista minuten i nedre Z2"
+      - segment: continuous
+        duration_pct: 0.80
+        zone: 2
+        description: "Stadig Z2. HR ska drifta lugnt — om den klättrar mot Z3 utan att farten ökar (kardiovaskulär drift) är passet långt nog."
+      - segment: cooldown
+        duration_pct: 0.10
+        zone: 1
+    total_duration_min:
+      estimated: 60
+      flexible_range: [40, 150]
+    zone_refs: [Z1, Z2]
+    terrain: flat
+    surface: any
+    equipment: []
+    abort_conditions:
+      - "Om Z2-pace blir omöjligt utan att HR går till Z3 → avsluta tidigt, dagsform fel"
+    coach_notes: |
+      Den här mallen är 80% av all löpning i base-fasen. Variera
+      durationen och underlaget för variation, men låt zonen vara.
+
+  # ─────────────────────────────────────────────────────────────
+  # AE2 — Konkreta varianter (budget-drivna)
+  # ─────────────────────────────────────────────────────────────
+
+  - code: AE2_run_01
+    discipline: run
+    category: AE
+    type_code: AE2
+    name: "Långpass progressivt"
+    phase_appropriate: [base_2, base_3, build_1]
+    parameterized: true
+    parameters:
+      duration_min:
+        default: 100
+        range: [90, 120]
+        description: "Långpass-budget — skalar samtliga delar proportionellt"
+    intent: |
+      Långpass där sista tredjedelen lyfts från nedre Z2 till övre Z2.
+      Tränar förmågan att hålla teknik och tempo när trötthet samlas —
+      mer race-likt än ett stadigt långpass.
+    main_set:
+      - segment: warmup
+        duration_pct: 0.10
+        zone: 1
+      - segment: continuous
+        duration_pct: 0.50
+        zone: 2
+        description: "Nedre Z2 — bekvämt, lugn andning"
+      - segment: continuous
+        duration_pct: 0.30
+        zone: 2
+        description: "Övre Z2 — lyft tempot något, känn att det börjar bita"
+      - segment: cooldown
+        duration_pct: 0.10
+        zone: 1
+    total_duration_min:
+      estimated: 100
+      flexible_range: [90, 120]
+    zone_refs: [Z1, Z2]
+    terrain: flat
+    surface: road
+    equipment: []
+    coach_notes: |
+      Sista tredjedelen ska kosta lite. Övergången från nedre till övre Z2
+      ska vara märkbar för adepten — annars var första delen för hård.
+
+  - code: AE2_run_02
+    discipline: run
+    category: AE
+    type_code: AE2
+    name: "Trail-pass Z2"
+    phase_appropriate: [prep, base_1, base_2, base_3]
+    parameterized: true
+    parameters:
+      duration_min:
+        default: 80
+        range: [60, 110]
+        description: "Trail-budget"
+    intent: |
+      Z2-pass på mjukt underlag och i kuperad terräng. Lägre slag
+      mot leder, naturlig variation i steg och puls. HR är target —
+      pace är meningslös på stig.
+    main_set:
+      - segment: warmup
+        duration_pct: 0.125
+        zone: 1
+        pace_unreliable: true
+      - segment: continuous
+        duration_pct: 0.75
+        zone: 2
+        pace_unreliable: true
+        description: "Z2 efter HR. Gå i branta backar om HR sticker till Z3."
+      - segment: cooldown
+        duration_pct: 0.125
+        zone: 1
+        pace_unreliable: true
+    total_duration_min:
+      estimated: 80
+      flexible_range: [60, 110]
+    zone_refs: [Z1, Z2]
+    terrain: hilly
+    surface: trail
+    equipment: []
+    coach_notes: |
+      Bra alternativ för base-fasen eller som rehab-friendly löppass.
+      Mjuk yta + variation skonar leder. Lämplig efter hårdvecka.
+
+  - code: AE2_run_03
+    discipline: run
+    category: AE
+    type_code: AE2
+    name: "Z2 + strides"
+    phase_appropriate: [base_1, base_2, base_3, build_1]
+    parameterized: true
+    parameters:
+      duration_min:
+        default: 65
+        range: [55, 75]
+        description: "Total budget; strides-set (~8 min) tas av först"
+    intent: |
+      Stadig Z2-löpning med 6 strides på slutet. Strides håller
+      neuromuskulär snabbhet vid liv under uthållighetsbyggande utan
+      att tillföra träningsstress värd att räkna.
+    main_set:
+      - segment: warmup
+        duration_pct: 0.18
+        zone: 1
+      - segment: continuous
+        duration_pct: 0.73
+        zone: 2
+      - segment: main
+        sets: 6
+        duration_sec: 20
+        effort_descriptor: "smooth fast — ~90% maxfart, kontrollerad teknik, ingen sprint"
+        rest_sec: 60
+        description: "Aktiv vila: lugn jogg eller gång. Hela strides-blocket ~8 min."
+      - segment: cooldown
+        duration_pct: 0.09
+        zone: 1
+    total_duration_min:
+      estimated: 65
+      flexible_range: [55, 75]
+    zone_refs: [Z1, Z2]
+    terrain: flat
+    surface: road
+    equipment: []
+    coach_notes: |
+      Ett av de mest "billiga" sätten att hålla snabbhetskvaliteter
+      i base-fasen. Strides triggar inte träningsstress värd att
+      räkna i veckoplaneringen. Strides-blocket är fast — bara Z2-delen,
+      uppvärmning och nedvarvning skalas med budgeten.

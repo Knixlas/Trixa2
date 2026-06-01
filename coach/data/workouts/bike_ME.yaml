@@ -1,0 +1,518 @@
+# Cykelpass — Muskulär Uthållighet (ME)
+#
+# ME1 — Cruise Intervals: tröskelintervaller (Z4) av medellång längd
+#                         med kort vila. Klassiskt FTP-byggande.
+#
+# ME2 — Hill Cruise Intervals: Z4-intervaller i backe, kombinerar
+#                              tröskelarbete med backe-specifik styrka.
+#
+# ME3 — Crisscross: växlande Z3/Z4 utan helt återhämtning, tränar
+#                   tolerans för laktatklarering vid tröskel.
+#
+# ME4 — Threshold Ride: längre sammanhängande Z4 (15-40 min block).
+#                       Mer mentalt än ME1, samma fysiska adaption.
+
+workouts:
+
+  # ─────────────────────────────────────────────────────────────
+  # ME1 — Cruise Intervals
+  # ─────────────────────────────────────────────────────────────
+
+  - code: ME1_bike_01
+    discipline: bike
+    category: ME
+    type_code: ME1
+    name: "Cruise — 4×8 min Z4"
+    phase_appropriate: [base_3, build_1, build_2]
+    parameterized: true
+    parameters:
+      duration_min:
+        default: 70
+        range: [60, 90]
+        description: "4 × 8 min + 3 × 4 min vila = 44 min fasta reps."
+    intent: |
+      Klassiskt FTP-byggande pass. Fyra 8-minutersblock i mitten av Z4
+      (≈100% FTP). Total 32 min tröskel-arbete med 4 min återhämtning
+      mellan reps — kort nog att tröttheten ackumuleras, lång nog att
+      du orkar färdiga. Watt är primärt target, puls följer med upp i
+      Z4 efter rep 2.
+    setting: indoor
+    requires_trainer: true
+    erg_mode: true
+    main_set:
+      - segment: warmup
+        duration_pct: 0.21
+        zone: 1
+        erg_mode: false
+        description: "Inkludera 2 × 1 min progressive build mot Z3 mot slutet"
+      - segment: main
+        sets: 4
+        duration_min: 8
+        zone: 4
+        cadence_rpm: [85, 95]
+        rest_sec: 240
+        description: "Mitten av Z4 (≈100% FTP). Aktiv vila i Z1-Z2."
+      - segment: cooldown
+        duration_pct: 0.14
+        zone: 1
+        erg_mode: false
+    total_duration_min:
+      estimated: 70
+      flexible_range: [60, 90]
+    zone_refs: [Z1, Z4]
+    equipment: [power_meter, hr_strap, trainer]
+    abort_conditions:
+      - "Watt rep 4 faller > 10% från rep 1 → bryt sista repet, gör nedvarvning"
+      - "HR > Z4 övre gräns vid rep 1 → FTP är troligen för högt, sänk target"
+    coach_notes: |
+      Default ME1. På trainer (ERG) ger absolut kontroll; outdoor kräver
+      rak lång rutt utan stopp. 4×8 är välbalanserad dos — utöka till 5×8
+      i build_2 eller välj ME4_bike_01 för längre sammanhängande arbete.
+
+  - code: ME1_bike_02
+    discipline: bike
+    category: ME
+    type_code: ME1
+    name: "Cruise — 3×12 min Z4"
+    phase_appropriate: [build_1, build_2]
+    parameterized: true
+    parameters:
+      duration_min:
+        default: 75
+        range: [65, 95]
+        description: "3 × 12 min + 2 × 5 min vila = 46 min fasta reps."
+    intent: |
+      Längre Z4-block än 4×8. Tre 12-minutersblock — total 36 min tröskel
+      med 5 min vila. Mer kontinuerlig tröskelvana, mentalt jobbigare. Bra
+      progression från ME1_bike_01.
+    setting: indoor
+    requires_trainer: true
+    erg_mode: true
+    main_set:
+      - segment: warmup
+        duration_pct: 0.20
+        zone: 1
+        erg_mode: false
+      - segment: main
+        sets: 3
+        duration_min: 12
+        zone: 4
+        cadence_rpm: [85, 95]
+        rest_sec: 300
+        description: "Mitten Z4 (≈98-100% FTP). 5 min aktiv vila."
+      - segment: cooldown
+        duration_pct: 0.13
+        zone: 1
+        erg_mode: false
+    total_duration_min:
+      estimated: 75
+      flexible_range: [65, 95]
+    zone_refs: [Z1, Z4]
+    equipment: [power_meter, hr_strap, trainer]
+    abort_conditions:
+      - "Rep 3 ej genomförbar → bryt och avsluta passet"
+    coach_notes: |
+      Build-fas-specifik. Tar adepten ett steg närmare ME4 (kontinuerlig
+      tröskel) utan att tappa intervall-strukturen helt.
+
+  - code: ME1_bike_03
+    discipline: bike
+    category: ME
+    type_code: ME1
+    name: "Cruise — 5×6 min over-under"
+    phase_appropriate: [build_1, build_2]
+    parameterized: true
+    parameters:
+      duration_min:
+        default: 70
+        range: [60, 90]
+        description: "5 × 6 min + 4 × 3 min vila = 42 min fasta reps."
+    intent: |
+      ME1-variant med inbyggd over-under-struktur per rep — första 2 min
+      i mitten Z4, sista 4 min faller till nedre Z4 (98-100% FTP). Tränar
+      förmågan att hålla under-tröskel-watt även när musklerna börjar
+      protestera; mental och fysisk uthållighet samtidigt.
+    setting: indoor
+    requires_trainer: true
+    erg_mode: true
+    main_set:
+      - segment: warmup
+        duration_pct: 0.21
+        zone: 1
+        erg_mode: false
+      - segment: main
+        sets: 5
+        duration_min: 6
+        effort_descriptor: "Första 2 min: mitten-övre Z4 (≈103% FTP). Resterande 4 min: nedre Z4 (98-100% FTP). Watt sjunker, ansträngning bibehålls."
+        cadence_rpm: [85, 95]
+        rest_sec: 180
+      - segment: cooldown
+        duration_pct: 0.14
+        zone: 1
+        erg_mode: false
+    total_duration_min:
+      estimated: 70
+      flexible_range: [60, 90]
+    zone_refs: [Z1, Z4]
+    equipment: [power_meter, hr_strap, trainer]
+    abort_conditions:
+      - "Watt i sista 4 min faller under Z4 → bryt repet, vila lite extra"
+    coach_notes: |
+      ERG-läget behöver utdesignas manuellt i Garmin Connect (varierande
+      watt-target inom varje rep). Alternativt köra fast watt = 101% FTP.
+
+  # ─────────────────────────────────────────────────────────────
+  # ME2 — Hill Cruise Intervals
+  # ─────────────────────────────────────────────────────────────
+
+  - code: ME2_bike_01
+    discipline: bike
+    category: ME
+    type_code: ME2
+    name: "Hill Cruise — 4×6 min i backe"
+    phase_appropriate: [base_3, build_1, build_2]
+    parameterized: true
+    parameters:
+      duration_min:
+        default: 80
+        range: [70, 100]
+        description: "4 × 6 min + 3 × 6 min vila = 42 min fasta reps."
+    intent: |
+      Tröskelintervaller på backe. Hitta en backe som tar 6 min att klättra
+      (1.5-2 km, 4-6%). Watt-target är mitten Z4 (≈100% FTP) — backen
+      tvingar dig att hålla den. Kombinerar tröskelträning med styrke-
+      element från låg-kadens-klättringen.
+    setting: outdoor
+    terrain: hilly
+    outdoor_only: true
+    erg_mode: false
+    main_set:
+      - segment: warmup
+        duration_pct: 0.25
+        zone: 1
+        description: "Rull till backens fot, inkludera 2 min Z2"
+      - segment: main
+        sets: 4
+        duration_min: 6
+        zone: 4
+        cadence_rpm: [75, 90]
+        rest_sec: 360
+        description: |
+          Mitten Z4 (≈100% FTP) i backe. Kadens får falla mot 75 om backen
+          är brant; ska aldrig under 70. Rull ned i återhämtning, 6 min vila.
+      - segment: cooldown
+        duration_pct: 0.13
+        zone: 1
+    total_duration_min:
+      estimated: 80
+      flexible_range: [70, 100]
+    zone_refs: [Z1, Z4]
+    equipment: [power_meter, hr_strap]
+    abort_conditions:
+      - "Watt i rep 4 faller > 15% från rep 1 → bryt"
+      - "Kadens går under 65 trots växel-val → välj annan backe"
+    coach_notes: |
+      Mer styrke-tung än ME1_bike_01 — backens lutning ger kraft-belastning
+      utöver tröskel-belastningen. Bra build-pass. Kräver tillgänglig backe;
+      i Stockholm: Skogås, Hellasgården, Brevik (Värmdö).
+
+  - code: ME2_bike_02
+    discipline: bike
+    category: ME
+    type_code: ME2
+    name: "Hill Cruise — 6×4 min korta klättringar"
+    phase_appropriate: [base_3, build_1, build_2]
+    parameterized: true
+    parameters:
+      duration_min:
+        default: 75
+        range: [65, 95]
+        description: "6 × 4 min + 5 × 4 min vila = 44 min fasta reps."
+    intent: |
+      Sex kortare backe-intervaller i Z4. Backe på 4 min (≈1 km, 5-8%).
+      Reps på 4 min är lite kortare än ren ME (8-12 min) men kompenserar
+      med fler upprepningar — totalt 24 min Z4-arbete. Hög densitet av
+      backe-effort.
+    setting: outdoor
+    terrain: hilly
+    outdoor_only: true
+    erg_mode: false
+    main_set:
+      - segment: warmup
+        duration_pct: 0.20
+        zone: 1
+      - segment: main
+        sets: 6
+        duration_min: 4
+        zone: 4
+        cadence_rpm: [75, 90]
+        rest_sec: 240
+        description: "Mitten-övre Z4. Rull ned i 4 min återhämtning."
+      - segment: cooldown
+        duration_pct: 0.13
+        zone: 1
+    total_duration_min:
+      estimated: 75
+      flexible_range: [65, 95]
+    zone_refs: [Z1, Z4]
+    equipment: [power_meter, hr_strap]
+    abort_conditions:
+      - "Snitt-watt rep 6 < 90% av rep 1 → bryt"
+    coach_notes: |
+      Kortare backe = lättare att hitta. Mer fokus på tröskel-watt än
+      ME2_bike_01; mindre styrkemoment per rep (men summan över 6 reps
+      blir betydande).
+
+  # ─────────────────────────────────────────────────────────────
+  # ME3 — Crisscross
+  # ─────────────────────────────────────────────────────────────
+
+  - code: ME3_bike_01
+    discipline: bike
+    category: ME
+    type_code: ME3
+    name: "Crisscross — 3×10 min Z3/Z4"
+    phase_appropriate: [build_1, build_2]
+    parameterized: true
+    parameters:
+      duration_min:
+        default: 75
+        range: [65, 90]
+        description: "3 × 10 min + 2 × 5 min vila = 40 min fasta reps."
+    intent: |
+      Crisscross: växling mellan Z3 och Z4 utan helt återhämtning. Tre
+      10-minutersblock — inom varje block 1 min Z4 / 1 min Z3 alternerande.
+      Tränar laktatklarering vid tröskel: muskeln måste städa upp under
+      Z3-perioderna trots att watt fortfarande är hög. Bra för IM där watt
+      faktiskt fluktuerar med terräng/vind.
+    setting: indoor
+    requires_trainer: true
+    erg_mode: true
+    main_set:
+      - segment: warmup
+        duration_pct: 0.20
+        zone: 1
+        erg_mode: false
+      - segment: main
+        sets: 3
+        duration_min: 10
+        effort_descriptor: "Crisscross inom blocket: 1 min Z4 (≈105% FTP) / 1 min Z3 (≈85% FTP) alternerande. Total 5 × 1 min Z4 + 5 × 1 min Z3 per block. Ingen vila inom blocket."
+        cadence_rpm: [85, 95]
+        rest_sec: 300
+      - segment: cooldown
+        duration_pct: 0.13
+        zone: 1
+        erg_mode: false
+    total_duration_min:
+      estimated: 75
+      flexible_range: [65, 90]
+    zone_refs: [Z1, Z3, Z4]
+    equipment: [power_meter, hr_strap, trainer]
+    abort_conditions:
+      - "Watt-target Z4 ej möjlig att nå efter block 2 → bryt"
+      - "Z3-segmenten driver upp i Z4 ofrivilligt → laktatet städas inte, sänk Z4-watt"
+    coach_notes: |
+      Crisscross kräver ERG-läge för exakt watt-skifte. Mycket effektivt
+      tröskelpass men hård dos — använd inte oftare än varannan vecka i
+      build. Effort_descriptor används istället för zone eftersom passet
+      växlar mellan zoner.
+
+  - code: ME3_bike_02
+    discipline: bike
+    category: ME
+    type_code: ME3
+    name: "Crisscross — 2×15 min 2/2"
+    phase_appropriate: [build_2]
+    parameterized: true
+    parameters:
+      duration_min:
+        default: 80
+        range: [70, 95]
+        description: "2 × 15 min + 1 × 10 min vila = 40 min fasta reps."
+    intent: |
+      Längre crisscross-block med längre växlingar — 2 min Z4 / 2 min Z3
+      per cykel i två 15-minutersblock. Total Z4-tid: 16 min (jämfört med
+      15 min i ME3_bike_01). Längre Z4-segmenten gör att laktatet får
+      ackumulera mer innan Z3-städningen kommer.
+    setting: indoor
+    requires_trainer: true
+    erg_mode: true
+    main_set:
+      - segment: warmup
+        duration_pct: 0.19
+        zone: 1
+        erg_mode: false
+      - segment: main
+        sets: 2
+        duration_min: 15
+        effort_descriptor: "Crisscross 2 min Z4 (≈103% FTP) / 2 min Z3 (≈85% FTP). 4 × Z4 + 4 × Z3 per block. Inget vila inom blocket."
+        cadence_rpm: [85, 95]
+        rest_sec: 600
+      - segment: cooldown
+        duration_pct: 0.13
+        zone: 1
+        erg_mode: false
+    total_duration_min:
+      estimated: 80
+      flexible_range: [70, 95]
+    zone_refs: [Z1, Z3, Z4]
+    equipment: [power_meter, hr_strap, trainer]
+    abort_conditions:
+      - "Block 2 ej genomförbar → bryt och avsluta"
+    coach_notes: |
+      Avancerad build_2-variant. Längre Z4-segment ger mer laktatackumulation
+      per cykel. 10 min vila mellan blocken är generös — använd den för
+      hydrering och mental reset.
+
+  # ─────────────────────────────────────────────────────────────
+  # ME4 — Threshold Ride
+  # ─────────────────────────────────────────────────────────────
+
+  - code: ME4_bike_01
+    discipline: bike
+    category: ME
+    type_code: ME4
+    name: "Threshold Ride — 2×20 min Z4"
+    phase_appropriate: [build_1, build_2]
+    parameterized: true
+    parameters:
+      duration_min:
+        default: 75
+        range: [65, 90]
+        description: "2 × 20 min + 1 × 10 min vila = 50 min fasta reps."
+    intent: |
+      Klassisk tröskelpass: två 20-minutersblock i mitten av Z4. Kallas
+      "2×20" i cykelvärlden och är ett av de mest beprövade FTP-byggande
+      passen. Mentalt utmanande — 20 min sammanhängande tröskel är där
+      tankarna börjar argumentera mot dig. Watt över rep ska vara jämn;
+      undvik att rusa iväg i början.
+    setting: indoor
+    requires_trainer: true
+    erg_mode: true
+    main_set:
+      - segment: warmup
+        duration_pct: 0.20
+        zone: 1
+        erg_mode: false
+        description: "Inkludera 1 × 2 min progressive build mot nedre Z4"
+      - segment: main
+        sets: 2
+        duration_min: 20
+        zone: 4
+        cadence_rpm: [85, 95]
+        rest_sec: 600
+        description: "Nedre-mitten Z4 (≈96-100% FTP). 10 min generös vila."
+      - segment: cooldown
+        duration_pct: 0.13
+        zone: 1
+        erg_mode: false
+    total_duration_min:
+      estimated: 75
+      flexible_range: [65, 90]
+    zone_refs: [Z1, Z4]
+    equipment: [power_meter, hr_strap, trainer]
+    abort_conditions:
+      - "Rep 2 watt < 90% av rep 1 → bryt och avsluta tidigt"
+      - "HR > Z5 i rep 1 → for hårt, FTP-test sannolikt missat"
+    coach_notes: |
+      Default ME4. ERG ger maximal kontroll. För adepter som inte tål 2×20
+      mentalt än, börja med ME1_bike_01 (4×8) eller ME1_bike_02 (3×12).
+
+  - code: ME4_bike_02
+    discipline: bike
+    category: ME
+    type_code: ME4
+    name: "Threshold Ride — 1×40 min Z4"
+    phase_appropriate: [build_2]
+    parameterized: true
+    parameters:
+      duration_min:
+        default: 75
+        range: [70, 100]
+        description: |
+          40 min Z4-block är fast (det är protokollet — kortare = annan ME4-variant).
+          Totalen styr warmup/cooldown-utrymme runt det.
+    intent: |
+      Single-block tröskelarbete: 40 min sammanhängande Z4. Yttersta
+      gränsen för tröskelträning — adapt om du klarar genomföra detta är
+      enorm, men dosering måste vara rätt. Bara för adepter med tidigare
+      ME-vana och stabil FTP. Watt-target på nedre Z4 (≈95-98% FTP).
+    setting: indoor
+    requires_trainer: true
+    erg_mode: true
+    main_set:
+      - segment: warmup
+        duration_pct: 0.27
+        zone: 1
+        erg_mode: false
+        description: "Längre uppvärmning än standard. 2 × 2 min Z2-Z3 mot slutet."
+      - segment: main
+        duration_min: 40
+        zone: 4
+        cadence_rpm: [85, 95]
+        description: "Nedre Z4 (≈95-98% FTP). Lås in tidigt, håll. Mentala check-in var 5 min."
+      - segment: cooldown
+        duration_pct: 0.20
+        zone: 1
+        erg_mode: false
+    total_duration_min:
+      estimated: 75
+      flexible_range: [70, 100]
+    zone_refs: [Z1, Z4]
+    equipment: [power_meter, hr_strap, trainer]
+    abort_conditions:
+      - "Watt faller > 10% under 5 min konsekvent → bryt och nedvarvning"
+      - "HR går över Z4 övre gräns och stannar där → bryt"
+    coach_notes: |
+      Använd sparsamt — max var 3:e vecka i build_2. För hård dos om FTP
+      inte är aktuell. Kör hellre 2×20 (ME4_bike_01) om osäker.
+
+  - code: ME4_bike_03
+    discipline: bike
+    category: ME
+    type_code: ME4
+    name: "Threshold Ride — 3×15 min Z4 utomhus"
+    phase_appropriate: [build_1, build_2]
+    parameterized: true
+    parameters:
+      duration_min:
+        default: 90
+        range: [80, 110]
+        description: "3 × 15 min + 2 × 6 min vila = 57 min fasta reps."
+    intent: |
+      Outdoor-variant av tröskelpasset. Tre 15-minutersblock — rätt på
+      gränsen mellan ME1 och ME4. Tre reps gör det möjligt att köra
+      utomhus utan ERG, så länge rutten är lång och relativt platt.
+      Watt-disciplin är allt — utan ERG glider man snabbt ned i Z3 om
+      man inte är uppmärksam.
+    setting: outdoor
+    terrain: flat
+    erg_mode: false
+    main_set:
+      - segment: warmup
+        duration_pct: 0.22
+        zone: 1
+        description: "Inkludera 2 × 2 min Z2-Z3 progressive"
+      - segment: main
+        sets: 3
+        duration_min: 15
+        zone: 4
+        cadence_rpm: [85, 95]
+        rest_sec: 360
+        description: "Mitten Z4 (≈98-100% FTP). Aktiv vila 6 min i Z1-Z2."
+      - segment: cooldown
+        duration_pct: 0.11
+        zone: 1
+    total_duration_min:
+      estimated: 90
+      flexible_range: [80, 110]
+    zone_refs: [Z1, Z2, Z4]
+    equipment: [power_meter, hr_strap]
+    abort_conditions:
+      - "Snitt-watt rep 3 < 92% av rep 1 → bryt"
+      - "Stopp eller rött ljus i ett rep → räkna repet ej fullbordad, ev. börja om"
+    coach_notes: |
+      För adepter som föredrar utomhus och har lång rak rutt tillgänglig.
+      Mentalt ofta lättare än trainer (omgivningen bryter monotonin) men
+      mer störningar (trafik, vind). Välj baserat på adeptens preferens
+      och rutt-tillgång.

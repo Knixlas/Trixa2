@@ -1,0 +1,42 @@
+# Tavlingskalender
+# =================
+# Kommande tavlingar styr periodiseringen (rakna bakat fran race-datum).
+# Historiska tavlingar ger kontext for analys ("hur var formen 8 veckor
+# fore Kalmar 2019?").
+#
+# Distanser: sprint, olympic, half (70.3), full (140.6/Ironman)
+# A/B/C-mal enligt Friel: A = topp-prio, B = viktiga men sub-topp, C = uppvarmning
+
+upcoming:
+  - name: Ironman Kalmar
+    date: 2026-08-15
+    distance: full
+    priority: A
+    target_total: 11:30:00
+    targets:
+      swim: 1:10:00
+      bike: 5:45:00
+      run: 4:25:00
+    notes: |
+      Huvudtavling 2026. Tappar planeras 3 veckor.
+
+  # Lagg till fler...
+  # - name: Sodertorn Triathlon
+  #   date: 2026-06-21
+  #   distance: olympic
+  #   priority: B
+  #   notes: Uppbyggnadstavling, anvands som taktiskt test.
+
+historical:
+  # Lista de senaste arens tavlingar - mer detalj kring de viktiga.
+  # Backfillen kommer hjalpa oss identifiera vilka pass i Garmin som var race.
+
+  - name: Ironman ???
+    date: 2025-09-20
+    distance: full
+    result_total: 13:42:00       # om kant
+    notes: Multi-sport-passet med 225 km synkat fran Garmin.
+
+  # Aggera har bakat med de 13 Ironmans... Vi kan ocksa pulla dem ur
+  # garmin_coach.activities-tabellen och auto-generera den har listan
+  # nar backfillen ar klar.

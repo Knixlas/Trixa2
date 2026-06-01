@@ -1,0 +1,262 @@
+# Löppass — Aerob Kapacitet (AC)
+#
+# AC1 — Group Run: socialt löppass, helt pct.
+# AC2/AC3 — VO2max-intervaller: intervalldelar fasta, wu/cd skalas.
+
+workouts:
+
+  # ─────────────────────────────────────────────────────────────
+  # AC1 — Group Run (helt pct)
+  # ─────────────────────────────────────────────────────────────
+
+  - code: AC1_run_01
+    discipline: run
+    category: AC
+    type_code: AC1
+    name: "Klubblöp — varierad fart"
+    phase_appropriate: [base_2, base_3, build_1, build_2]
+    parameterized: true
+    parameters:
+      duration_min:
+        default: 80
+        range: [60, 120]
+        description: "Längd och intensitet styrs av gruppen"
+    intent: |
+      Grupplöpning där farten styrs av sällskapet. Karaktären
+      är oförutsägbar — Z2-perioder bryts av Z3-Z4-stigningar
+      när någon drar på. Räkna det som AC-pass om gruppen är
+      snabbare än din komfortzon.
+    main_set:
+      - segment: warmup
+        duration_pct: 0.125
+        zone: 1
+        description: "Före gruppen samlas"
+      - segment: continuous
+        duration_pct: 0.75
+        effort_descriptor: "Z2 som baseline, Z3-Z4 i pickup-segment som gruppen genererar. Var den som backar om HR sticker till Z5."
+        pace_unreliable: true
+        description: "Längd och intensitet bestäms av gruppen — vanligast 60-90 min med 2-4 'hårda partier'."
+      - segment: cooldown
+        duration_pct: 0.125
+        zone: 1
+    total_duration_min:
+      estimated: 80
+      flexible_range: [60, 120]
+    zone_refs: [Z1, Z2, Z3, Z4]
+    terrain: mixed
+    surface: any
+    equipment: []
+    coach_notes: |
+      Räknas inte som tillförlitlig kvalitetsenhet — för svår att
+      planera för engine eller Trixa. Logga som AC1 om träffat i
+      hög-intensitetszon längre än 10 min totalt; annars som AE2.
+
+  # ─────────────────────────────────────────────────────────────
+  # AC2 — VO2Max Intervals
+  # ─────────────────────────────────────────────────────────────
+
+  - code: AC2_run_01
+    discipline: run
+    category: AC
+    type_code: AC2
+    name: "6×3 min Z5"
+    phase_appropriate: [build_2, peak]
+    parameterized: true
+    parameters:
+      duration_min:
+        default: 70
+        range: [65, 80]
+        description: "Stridor + main = ~38 min FAST"
+    intent: |
+      Klassiska VO2max-reps. 3 minuter är den optimala längden för
+      att maxa tid-i-Z5 över passet — kortare reps ger för lite tid
+      i syreupptagstoppen, längre reps gör att sista minuten
+      faller in i ren glykolys.
+    main_set:
+      - segment: warmup
+        duration_pct: 0.60
+        zone: 1
+      - segment: build
+        sets: 4
+        duration_sec: 30
+        effort_descriptor: "stridor, sista i nedre Z4"
+        rest_sec: 60
+      - segment: main
+        sets: 6
+        duration_min: 3
+        zone: 5
+        rest_sec: 180
+        description: "Z5. Pace ska vara 'hård men hållbar i exakt 3 minuter'. Aktiv vila: jogg eller gång."
+      - segment: cooldown
+        duration_pct: 0.40
+        zone: 1
+    total_duration_min:
+      estimated: 70
+      flexible_range: [65, 80]
+    zone_refs: [Z1, Z4, Z5]
+    terrain: flat
+    surface: track
+    equipment: []
+    abort_conditions:
+      - "Om rep 1-2 är genuint anaerob (kan inte tala alls efter) → pace för hård, sänk 10-15 sek/km"
+      - "Om pace faller >15 sek/km mellan rep 1 och rep 4 → kör rep 5-6 i Z4 eller avbryt"
+    coach_notes: |
+      Mest neuromuskulärt och fysiologiskt krävande av alla
+      löppass i banken. Schemalägg minst 48h Z1 efter. Aldrig
+      två AC-pass inom samma 5 dagar.
+
+  - code: AC2_run_02
+    discipline: run
+    category: AC
+    type_code: AC2
+    name: "12×400m Z5"
+    phase_appropriate: [build_2, peak]
+    parameterized: true
+    parameters:
+      duration_min:
+        default: 65
+        range: [60, 75]
+        description: "Stridor + main = ~38 min FAST (12×400m + viltimmar)"
+    intent: |
+      Kortare VO2-reps med kort vila. Hög samlad tid-i-Z5 trots
+      kortare individuella block — kort vila förhindrar att HR
+      faller helt mellan reps.
+    main_set:
+      - segment: warmup
+        duration_pct: 0.60
+        zone: 1
+      - segment: build
+        sets: 4
+        duration_sec: 30
+        effort_descriptor: "stridor"
+        rest_sec: 60
+      - segment: main
+        sets: 12
+        distance_m: 400
+        zone: 5
+        rest_sec: 90
+        description: "Z5. Jogga 200m vila."
+      - segment: cooldown
+        duration_pct: 0.40
+        zone: 1
+    total_duration_min:
+      estimated: 65
+      flexible_range: [60, 75]
+    zone_refs: [Z1, Z5]
+    terrain: flat
+    surface: track
+    equipment: []
+
+  - code: AC2_run_03
+    discipline: run
+    category: AC
+    type_code: AC2
+    name: "Pyramid 800-1000-1200-1000-800 Z5"
+    phase_appropriate: [build_2, peak]
+    parameterized: true
+    parameters:
+      duration_min:
+        default: 75
+        range: [70, 85]
+        description: "Stridor + pyramid = ~50 min FAST"
+    intent: |
+      Pyramid-format. Varje distans i Z5 med proportionerlig vila.
+      Den mentala variationen gör det lättare än 5 likadana reps,
+      pace-utmaningen är att hålla samma fart trots växlande distans.
+    main_set:
+      - segment: warmup
+        duration_pct: 0.60
+        zone: 1
+      - segment: build
+        sets: 4
+        duration_sec: 30
+        effort_descriptor: "stridor"
+        rest_sec: 60
+      - segment: main
+        sets: 1
+        distance_m: 800
+        zone: 5
+        rest_sec: 120
+      - segment: main
+        sets: 1
+        distance_m: 1000
+        zone: 5
+        rest_sec: 150
+      - segment: main
+        sets: 1
+        distance_m: 1200
+        zone: 5
+        rest_sec: 180
+      - segment: main
+        sets: 1
+        distance_m: 1000
+        zone: 5
+        rest_sec: 150
+      - segment: main
+        sets: 1
+        distance_m: 800
+        zone: 5
+      - segment: cooldown
+        duration_pct: 0.40
+        zone: 1
+    total_duration_min:
+      estimated: 75
+      flexible_range: [70, 85]
+    zone_refs: [Z1, Z5]
+    terrain: flat
+    surface: track
+    equipment: []
+
+  # ─────────────────────────────────────────────────────────────
+  # AC3 — Hill Intervals
+  # ─────────────────────────────────────────────────────────────
+
+  - code: AC3_run_01
+    discipline: run
+    category: AC
+    type_code: AC3
+    name: "8×90 sek hård backe Z5"
+    phase_appropriate: [build_1, build_2, peak]
+    parameterized: true
+    parameters:
+      duration_min:
+        default: 65
+        range: [60, 75]
+        description: "Stridor + main = ~33 min FAST"
+    intent: |
+      VO2max-reps uppför. Backen tar bort en del av excentrisk
+      stöt-belastning och tvingar fram kraft i steget. Pulsen
+      når Z5 utan att pace behöver vara halsbrytande.
+    main_set:
+      - segment: warmup
+        duration_pct: 0.60
+        zone: 1
+      - segment: build
+        sets: 3
+        duration_sec: 20
+        effort_descriptor: "stridor"
+        rest_sec: 60
+      - segment: main
+        sets: 8
+        duration_sec: 90
+        zone: 5
+        pace_unreliable: true
+        rest_sec: 150
+        description: "Z5 uppför 4-6%. Aktiv vila: gå tillbaka."
+      - segment: cooldown
+        duration_pct: 0.40
+        zone: 1
+    total_duration_min:
+      estimated: 65
+      flexible_range: [60, 75]
+    zone_refs: [Z1, Z5]
+    terrain: hilly
+    surface: road
+    equipment: []
+    abort_conditions:
+      - "Om HR inte når Z5 ens på rep 1 → backen är för flack"
+      - "Vid akut smärta — bryt direkt"
+    coach_notes: |
+      Skonsammare alternativ till AC2 för adept med skadehistorik,
+      särskilt akilles eller hamstrings — uppförslöpning är mjukare
+      mot dessa strukturer även vid hög intensitet.

@@ -1,0 +1,160 @@
+# Cykelpass — Snabbhetsfärdigheter (SS)
+#
+# SS1 — Spin-ups: kadensövningar för pedalteknik. Höga kadens-target
+#                 (100-120 rpm), watt är sekundärt. Parametriserad mall.
+#
+# SS2 — Isolated Leg: ett ben i taget för att förbättra rund pedaltramp.
+#                     Avslöjar svaga punkter i pedalcykeln (typiskt
+#                     dödläge upptill och uppdrag-fasen).
+
+workouts:
+
+  # ─────────────────────────────────────────────────────────────
+  # SS1 — Spin-ups (parametriserad mall)
+  # ─────────────────────────────────────────────────────────────
+
+  - code: SS1_bike_template
+    discipline: bike
+    category: SS
+    type_code: SS1
+    name: "Spin-ups — flex sets"
+    phase_appropriate: [prep, base_1, base_2, base_3, build_1, build_2, peak]
+    parameterized: true
+    parameters:
+      sets:
+        default: 8
+        range: [4, 12]
+        description: "Antal spin-up-reps; skala efter pass-fokus"
+      target_cadence:
+        default: 115
+        range: [105, 125]
+        description: |
+          Övre kadens-target. 105-110 i prep, 110-115 i base,
+          115-120 i build/peak. Adepter med god teknik kan gå mot 125.
+      duration_min_total:
+        default: 60
+        range: [40, 90]
+        description: "Totalt pass-tid; resten utfylls med Z1-Z2"
+    intent: |
+      Spin-ups bygger neuromuskulär kapacitet — förmågan att tramp snabbt
+      och smooth utan att hoppa i sadeln. Kadensen är target, watt får
+      drifta upp till Z3 men ska inte vara hög. Om du börjar hoppa i sadeln
+      eller bouncar pelvis: kadensen är för hög, dra ner. Bättre 110 rpm
+      smooth än 120 rpm hackigt.
+    setting: either
+    terrain: flat
+    erg_mode: false
+    main_set:
+      - segment: warmup
+        duration_min: 15
+        zone: 1
+        description: "Avsluta med 2-3 progressiva 30-sek pickups upp till 100 rpm"
+      - segment: continuous
+        duration_min: "({duration_min_total} - 35) / 2"
+        zone: 2
+        cadence_rpm: [85, 95]
+      - segment: main
+        sets: "{sets}"
+        duration_min: 1
+        effort_descriptor: "Bygg från naturlig kadens till {target_cadence} rpm över 30 sek, håll resten av minuten. Watt drifter upp till nedre-mitten Z3 men det är inte fokus."
+        cadence_rpm: [105, "{target_cadence}"]
+        rest_sec: 120
+        description: "Aktiv vila i Z1-Z2 med naturlig kadens"
+      - segment: continuous
+        duration_min: "({duration_min_total} - 35) / 2"
+        zone: 2
+        cadence_rpm: [85, 95]
+      - segment: cooldown
+        duration_min: 5
+        zone: 1
+    total_duration_min:
+      estimated: "{duration_min_total}"
+      flexible_range: ["{duration_min_total} - 10", "{duration_min_total} + 10"]
+    zone_refs: [Z1, Z2, Z3]
+    equipment: [power_meter, hr_strap, cadence_sensor]
+    abort_conditions:
+      - "Pelvis bouncar / sadel-hopp → kadensen är för hög, sänk"
+      - "Knäsmärta vid hög kadens → avbryt, evaluera bike fit"
+    coach_notes: |
+      Det parametriserade fältet på sets gör samma mall användbar genom
+      hela året — 4 sets i prep som introduktion, 12 sets i peak som
+      neuromuskulär underhåll. Lägg gärna in som "B-pass" på dagar
+      med annan huvudfokus (efter ett tröskelpass dagen innan).
+
+  # ─────────────────────────────────────────────────────────────
+  # SS2 — Isolated Leg (parametriserad mall)
+  # ─────────────────────────────────────────────────────────────
+
+  - code: SS2_bike_template
+    discipline: bike
+    category: SS
+    type_code: SS2
+    name: "Isolated Leg — flex sets"
+    phase_appropriate: [prep, base_1, base_2, base_3]
+    parameterized: true
+    parameters:
+      sets_per_leg:
+        default: 4
+        range: [2, 6]
+        description: "Antal isolated-leg-reps per ben"
+      rep_duration_sec:
+        default: 45
+        range: [30, 90]
+        description: "Längd på varje isolated-leg-rep i sekunder"
+      duration_min_total:
+        default: 50
+        range: [40, 70]
+        description: "Totalt pass-tid; resten utfylls med Z1-Z2"
+    intent: |
+      Isolated leg avslöjar dödläge i pedaltrampet — du måste själv driva
+      hela 360° med ett ben. Klassisk teknik-övning. Det blir tydligt vart
+      "dröjet" sker (typiskt mellan kl 11 och 1 på pedalcykeln). Watten är
+      låg, fokus är på rundhet. Det andra benets pedal ska vara avlastad
+      men vila på pedalen — inte ut till sidan.
+    setting: indoor
+    requires_trainer: true
+    erg_mode: false
+    main_set:
+      - segment: warmup
+        duration_min: 15
+        zone: 1
+        description: "Avsluta med 2 min båda ben på Z2 med jämn rund tramp"
+      - segment: continuous
+        duration_min: 5
+        zone: 2
+        cadence_rpm: [85, 95]
+      - segment: main
+        sets: "{sets_per_leg}"
+        duration_sec: "{rep_duration_sec}"
+        effort_descriptor: "Höger ben tramp ensamt vid 80-90 rpm. Lågt motstånd — Z1-watt. Fokus: rund cirkel, inget dödläge upptill, inget hack vid nedslag."
+        cadence_rpm: [80, 90]
+        rest_sec: 30
+        description: "Vila: byt fot, 30 sek innan vänster-rep"
+      - segment: main
+        sets: "{sets_per_leg}"
+        duration_sec: "{rep_duration_sec}"
+        effort_descriptor: "Vänster ben tramp ensamt vid 80-90 rpm. Samma fokus."
+        cadence_rpm: [80, 90]
+        rest_sec: 60
+      - segment: continuous
+        duration_min: "{duration_min_total} - 25 - ({sets_per_leg} * {rep_duration_sec} / 30)"
+        zone: 2
+        cadence_rpm: [85, 95]
+        description: "Aktiv återhämtning med båda ben, fokus på smooth tramp"
+      - segment: cooldown
+        duration_min: 5
+        zone: 1
+    total_duration_min:
+      estimated: "{duration_min_total}"
+      flexible_range: ["{duration_min_total} - 10", "{duration_min_total} + 10"]
+    zone_refs: [Z1, Z2]
+    equipment: [power_meter, hr_strap, trainer]
+    abort_conditions:
+      - "Knäsmärta i höft- eller knäled → avbryt, det är inte värt"
+      - "Du kan inte hålla 80 rpm på ett ben utan kompenserande rörelse → sänk kadens till 70-75 eller hoppa över"
+    coach_notes: |
+      Kräver trainer — utomhus försvinner avlastade benet snabbt (lutar
+      ut, tappar pedalen). Vissa adepter klarar bara 30-sek-reps i början;
+      bygg upp till 60-90 sek. Underrapporterat övning som ger snabb
+      teknisk vinst för adepter med dödläge — ofta märkbart bättre
+      pedalkraft inom 2-3 veckors regelbunden träning.

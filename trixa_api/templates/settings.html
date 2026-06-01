@@ -1,0 +1,182 @@
+{% extends "base.html" %}
+{% block title %}Inställningar — Trixa{% endblock %}
+{% block content %}
+
+<h1>Veckans skelett</h1>
+
+<p>Adept-preferenser för hur veckan läggs upp. "Spelar ingen roll" =
+Trixa väljer (default lör för cykel, sön för löpning, mån som vila).</p>
+
+<section>
+  <h2>Aktivitetskälla (Strava)</h2>
+  {% if strava.flash == "connected" %}<p style="color: var(--palm-deep); font-weight: 600;">✓ Strava ansluten och synkad.</p>
+  {% elif strava.flash == "synced" %}<p style="color: var(--palm-deep); font-weight: 600;">✓ Strava synkad.</p>
+  {% elif strava.flash == "disconnected" %}<p style="color: var(--ink-3);">Strava frånkopplad.</p>
+  {% elif strava.flash == "error" %}<p style="color: var(--coral); font-weight: 600;">Något gick fel med Strava — försök igen.</p>
+  {% elif strava.flash == "noconfig" %}<p style="color: var(--coral); font-weight: 600;">Strava-integrationen är inte konfigurerad (saknar nycklar).</p>
+  {% elif strava.flash == "using" %}<p style="color: var(--coral); font-weight: 600;">Strava är nu tvingad källa — Garmin ignoreras tills du återgår.</p>
+  {% elif strava.flash == "auto" %}<p style="color: var(--palm-deep); font-weight: 600;">✓ Tillbaka till Garmin som primär källa (Strava som reserv).</p>
+  {% endif %}
+  <article>
+    {% if strava.connected %}
+      <p style="margin-top: 0;">
+        <strong>Ansluten</strong>{% if strava.athlete_id %} (Strava-id {{ strava.athlete_id }}){% endif %}.
+        {% if strava.last_activity %}Senaste pass: {{ strava.last_activity }}.{% endif %}
+        {% if strava.use_strava %}<span class="badge" style="background: var(--coral); color: #fff;">tvingad källa</span>{% endif %}
+      </p>
+      {% if not strava.has_garmin %}
+      <p style="font-size: 0.875rem; color: var(--ink-3);">Du har ingen Garmin-koppling — Trixa läser dina utförda pass från Strava.</p>
+      {% elif strava.use_strava %}
+      <p style="font-size: 0.875rem; color: var(--ink-3);">Strava är just nu <strong>tvingad källa</strong> — Garmin ignoreras tills du återgår. Använd bara när Garmin-synken ligger nere.</p>
+      {% else %}
+      <p style="font-size: 0.875rem; color: var(--ink-3);">Garmin är primär källa. Strava är <strong>reserv</strong> och fyller bara i de veckor Garmin saknar pass.</p>
+      {% endif %}
+      <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
+        <form method="post" action="/ui/strava/sync"><button type="submit">Synka nu</button></form>
+        <form method="post" action="/ui/strava/disconnect" onsubmit="return confirm('Koppla från Strava?');">
+          <button type="submit" class="outline">Koppla från</button>
+        </form>
+        {% if strava.has_garmin %}
+          {% if strava.use_strava %}
+          <form method="post" action="/ui/strava/auto"><button type="submit">Återgå till Garmin</button></form>
+          {% else %}
+          <form method="post" action="/ui/strava/use" onsubmit="return confirm('Tvinga Strava som källa? Garmin ignoreras tills du återgår.');">
+            <button type="submit" class="outline">Använd Strava istället</button>
+          </form>
+          {% endif %}
+        {% endif %}
+      </div>
+    {% else %}
+      <p style="margin-top: 0;">Koppla Strava som reserv — Trixa läser i första hand Garmin och fyller bara i från Strava de veckor Garmin saknar pass.</p>
+      {% if strava.configured %}
+      <a href="/ui/strava/connect" style="display:inline-flex;align-items:center;background:var(--hibiscus);color:#fff;padding:12px 22px;border-radius:var(--r-pill);text-decoration:none;font-weight:700;box-shadow:var(--shadow-hibiscus);">
+        <i data-lucide="link" style="width:16px;height:16px;margin-right:8px;"></i>Anslut Strava
+      </a>
+      {% else %}
+      <p style="color: var(--coral);">Strava-nycklar saknas i miljön (STRAVA_CLIENT_ID/SECRET).</p>
+      {% endif %}
+    {% endif %}
+  </article>
+</section>
+
+<form method="post" action="/ui/settings">
+
+  <fieldset>
+    <legend>Aktiva discipliner</legend>
+    <p style="font-size: 0.875rem; color: var(--ink-3); margin-top: 0;">
+      Vilka grenar Trixa ska schemalägga för dig. Trixa fungerar för
+      både triatleter och rena löpare/cyklister/simmare.
+    </p>
+    {% for sport, label in sports_options %}
+    <label>
+      <input type="checkbox" name="sports" value="{{ sport }}"
+        {% if sport in athlete.sports %}checked{% endif %}>
+      {{ label }}
+    </label>
+    {% endfor %}
+  </fieldset>
+
+  <fieldset>
+    <legend>Långpass</legend>
+
+    <label for="long_bike_day">Dag för cykel-långpass</label>
+    <select id="long_bike_day" name="long_bike_day">
+      <option value="">— spelar ingen roll —</option>
+      {% for day, label in days %}
+      <option value="{{ day }}" {% if athlete.long_bike_day == day %}selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+
+    <label for="long_run_day">Dag för löp-långpass</label>
+    <select id="long_run_day" name="long_run_day">
+      <option value="">— spelar ingen roll —</option>
+      {% for day, label in days %}
+      <option value="{{ day }}" {% if athlete.long_run_day == day %}selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+  </fieldset>
+
+  <fieldset>
+    <legend>Utrustning</legend>
+    <p style="font-size: 0.875rem; color: var(--ink-3); margin-top: 0;">
+      Vilken utrustning du HAR. Pass som kräver saknad utrustning filtreras bort.
+    </p>
+    <label>
+      <input type="checkbox" name="has_trainer" value="1"
+        {% if athlete.equipment.has_trainer %}checked{% endif %}>
+      Trainer (cykel inomhus)
+    </label>
+    <label>
+      <input type="checkbox" name="has_treadmill" value="1"
+        {% if athlete.equipment.has_treadmill %}checked{% endif %}>
+      Löpband
+    </label>
+    <label>
+      <input type="checkbox" name="has_power_meter_bike" value="1"
+        {% if athlete.equipment.has_power_meter_bike %}checked{% endif %}>
+      Effektmätare cykel
+    </label>
+    <label>
+      <input type="checkbox" name="has_power_meter_run" value="1"
+        {% if athlete.equipment.has_power_meter_run %}checked{% endif %}>
+      Effektmätare löpning
+    </label>
+    <label>
+      <input type="checkbox" name="hr_strap" value="1"
+        {% if athlete.equipment.hr_strap %}checked{% endif %}>
+      Pulsband (separat HR-rem, inte bara klockan)
+    </label>
+
+    <label for="pool_type">Pool-tillgång</label>
+    <select id="pool_type" name="pool_type">
+      <option value="none" {% if athlete.equipment.pool_type == "none" %}selected{% endif %}>Ingen pool</option>
+      <option value="25m" {% if athlete.equipment.pool_type == "25m" %}selected{% endif %}>25-meter</option>
+      <option value="50m" {% if athlete.equipment.pool_type == "50m" %}selected{% endif %}>50-meter</option>
+      <option value="open_water" {% if athlete.equipment.pool_type == "open_water" %}selected{% endif %}>Öppet vatten</option>
+    </select>
+  </fieldset>
+
+  <fieldset>
+    <legend>Inomhus eller utomhus (per disciplin)</legend>
+    <p style="font-size: 0.875rem; color: var(--ink-3); margin-top: 0;">
+      Säsongs-preferens. Trixa föredrar matchande pass men faller tillbaka
+      om inga finns. Skiljer sig från utrustning ovan — du KAN ha trainer
+      men föredra utomhus juni-september.
+    </p>
+    {% for disc, label in disciplines_for_setting %}
+    <div class="rating-row">
+      <strong style="min-width: 120px;">{{ label }}</strong>
+      {% set current = athlete.preferred_settings.get(disc, "any") %}
+      <label><input type="radio" name="setting_{{ disc }}" value="any" {% if current == "any" %}checked{% endif %}> Spelar ingen roll</label>
+      <label><input type="radio" name="setting_{{ disc }}" value="indoor" {% if current == "indoor" %}checked{% endif %}> Inomhus</label>
+      <label><input type="radio" name="setting_{{ disc }}" value="outdoor" {% if current == "outdoor" %}checked{% endif %}> Utomhus</label>
+    </div>
+    {% endfor %}
+  </fieldset>
+
+  <fieldset>
+    <legend>Vilodagar</legend>
+    <p style="font-size: 0.875rem; color: var(--ink-3); margin-top: 0;">
+      Markera dagar där du föredrar vila. Trixa låser dessa innan schemaläggning.
+      Lämna alla tomma = ingen fast vilodag (Trixa väljer).
+    </p>
+    {% for day, label in days %}
+    <label>
+      <input type="checkbox" name="rest_days" value="{{ day }}"
+        {% if day in athlete.preferred_rest_days %}checked{% endif %}>
+      {{ label }}
+    </label>
+    {% endfor %}
+  </fieldset>
+
+  <button type="submit"><i data-lucide="check"></i> Spara</button>
+</form>
+
+{% if saved %}
+<div class="alert" style="background: var(--palm-soft); margin-top: 16px;">
+  <div class="ic" style="background: var(--palm);"><i data-lucide="check"></i></div>
+  <div class="alert-body"><strong>Sparat.</strong><p>Nästa veckogenerering använder dessa val.</p></div>
+</div>
+{% endif %}
+
+{% endblock %}

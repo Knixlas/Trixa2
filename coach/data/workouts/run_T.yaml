@@ -1,0 +1,121 @@
+# Löppass — Tester (T)
+#
+# Tester följer standardprotokoll — själva testet är fast.
+# Bara warmup och cooldown skalas med budget. Range är smalt eftersom
+# det inte är meningsfullt att skala ett test mer än marginellt.
+
+workouts:
+
+  - code: RunTest_run_01
+    discipline: run
+    category: T
+    type_code: RunTest
+    name: "30-min Tidskörning (TT)"
+    phase_appropriate: [prep, base_1, base_2, base_3, build_1, build_2]
+    parameterized: true
+    parameters:
+      duration_min:
+        default: 65
+        range: [60, 70]
+        description: "Stridor + rest + 30 min test = 38 min FAST"
+    intent: |
+      Klassiskt 30-min tidskörnings-test (Joe Friel-protokoll).
+      Resultatet ger två kalibreringsvärden:
+      
+      - threshold_pace_sec_per_km = snittpace över sista 20 min av TT
+      - at_hr (anaerob tröskel-HR) = snitt-HR sista 20 min av TT
+      
+      Formeln "sista 20 min" filtrerar bort initial över-pacing och
+      ger ett rent steady-state-värde. Pace första 10 min räknas inte.
+    main_set:
+      - segment: warmup
+        duration_pct: 0.50
+        zone: 1
+        description: "Lugn upp-jogg, sista minuten i nedre Z2"
+      - segment: build
+        sets: 4
+        duration_sec: 20
+        effort_descriptor: "stridor, gradvis upp till nedre Z4"
+        rest_sec: 40
+      - segment: rest
+        duration_min: 3
+        description: "Lugn jogg eller stå. Förbered mentalt."
+      - segment: test
+        duration_min: 30
+        effort_descriptor: "Maximal hållbar fart över 30 min — inte sprint, inte tempo. Pacingen ska vara så att du kan hålla den exakt 30 minuter, inte mer."
+        description: "VIKTIGT: starta KONSERVATIVT — första 5 min ska kännas 'för lätt'. De flesta över-pacear första milen. Notera totaltid, total distans, snitt-HR sista 20 min, snittpace sista 20 min."
+      - segment: cooldown
+        duration_pct: 0.50
+        zone: 1
+    total_duration_min:
+      estimated: 65
+      flexible_range: [60, 70]
+    zone_refs: [Z1, Z2, Z4]
+    terrain: flat
+    surface: track
+    equipment: []
+    abort_conditions:
+      - "Om dagsformen är klart fel (HR stiger okontrollerat första 5 min vid lätt pace) — avbryt och kör om en annan dag"
+      - "Vid akut smärta — avbryt direkt"
+    coach_notes: |
+      Bästa underlag: 400m-bana (exakt distans, ingen vind-skugga,
+      ingen kuperning). På väg: helt platt slinga eller punkt-till-punkt
+      med GPS-mätning.
+      
+      Räkna med ~24-48h ordinär trötthet efteråt. Schemalägg som
+      kvalitetspass i veckan, inte som "extra".
+
+  - code: RunTest_run_02
+    discipline: run
+    category: T
+    type_code: RunTest
+    name: "2×8 min hårt"
+    phase_appropriate: [base_2, base_3, build_1, build_2]
+    parameterized: true
+    parameters:
+      duration_min:
+        default: 55
+        range: [50, 60]
+        description: "Stridor + 2×8 min + 4 min vila = 25 min FAST"
+    intent: |
+      Alternativt löptest med två block om 8 min med 4 min vila.
+      Snitt-HR och snittpace över de två blocken approximerar
+      tröskelvärdena. Mer förlåtande än 30-min TT för
+      adepter som inte gjort tester förut — kortare exponering
+      för pacing-fel.
+    main_set:
+      - segment: warmup
+        duration_pct: 0.50
+        zone: 1
+      - segment: build
+        sets: 4
+        duration_sec: 20
+        effort_descriptor: "stridor"
+        rest_sec: 40
+      - segment: test
+        sets: 1
+        duration_min: 8
+        effort_descriptor: "Maximalt hållbar fart i 8 min. Försiktig start, jämn pace."
+      - segment: rest
+        duration_min: 4
+        description: "Lugn jogg eller gång — pulsen ska komma ned"
+      - segment: test
+        sets: 1
+        duration_min: 8
+        effort_descriptor: "Maximalt hållbar fart i 8 min. Ska helst bli marginellt snabbare än första blocket."
+        description: "Notera total tid och snitt-HR per block, snittpace per block."
+      - segment: cooldown
+        duration_pct: 0.50
+        zone: 1
+    total_duration_min:
+      estimated: 55
+      flexible_range: [50, 60]
+    zone_refs: [Z1, Z4, Z5]
+    terrain: flat
+    surface: track
+    equipment: []
+    coach_notes: |
+      Formel: snittpace över de två blocken = uppskattat
+      threshold_pace_sec_per_km. Lägg på ~3-5% (saktare) om värdet
+      ska användas konservativt, eftersom 8 min är något snabbare
+      än sann steady-state-tröskel.

@@ -1,0 +1,269 @@
+# Cykelpass — Tempo (TE)
+#
+# TE1 — Tempo Endurance: cykling i Z3, "bekvämt obekvämt".
+# Bygger tempotålighet och utvecklar förmågan att hålla under-tröskel-watt
+# över längre sammanlagd tid. Mycket relevant för IM-watt (IM-effekt ligger
+# typiskt i nedre/mitten av Z3).
+
+workouts:
+
+  - code: TE1_bike_01
+    discipline: bike
+    category: TE
+    type_code: TE1
+    name: "Klassiskt tempopass — flex duration"
+    phase_appropriate: [base_2, base_3, build_1, build_2]
+    parameterized: true
+    parameters:
+      duration_min:
+        default: 60
+        range: [45, 90]
+        description: "Total tid. Z3-blocket skalar med totalen (det är poängen)."
+    intent: |
+      Sammanhängande Z3-block. Tempot är "bekvämt obekvämt" — du jobbar
+      men du behöver inte gå sönder. Andning är djup men kontrollerad.
+      Watt är primärt target; pulsen följer med upp i Z3 efter ca 5 min.
+    setting: either
+    terrain: flat
+    erg_mode: true
+    main_set:
+      - segment: warmup
+        duration_pct: 0.25
+        zone: 1
+        erg_mode: false
+        description: "Gradvis upp, sista 2 min i Z2"
+      - segment: build
+        duration_pct: 0.05
+        zone: 2
+        erg_mode: false
+        description: "Build från Z2 till nedre Z3 — väck temponivån"
+      - segment: continuous
+        duration_pct: 0.53
+        zone: 3
+        cadence_rpm: [85, 95]
+        description: "Jämn Z3, mitten av spannet (≈ 82% FTP). Lås andningsrytm tidigt, håll den."
+      - segment: cooldown
+        duration_pct: 0.17
+        zone: 1
+        erg_mode: false
+    total_duration_min:
+      estimated: 60
+      flexible_range: [45, 90]
+    zone_refs: [Z1, Z2, Z3]
+    equipment: [power_meter, hr_strap]
+    abort_conditions:
+      - "Watt faller > 10% under 5 min konsekvent → avbryt huvudblocket, gör nedvarvning"
+    coach_notes: |
+      Default tempo-pass. 30 min är en bra dos när TE introduceras i base_2.
+      Kan utökas till 40-45 min i build_1. På trainer ger ERG bäst kontroll;
+      utomhus väljer du en rak rutt utan stopp.
+
+  - code: TE1_bike_02
+    discipline: bike
+    category: TE
+    type_code: TE1
+    name: "Tempo intervals — 3×20 min"
+    phase_appropriate: [base_3, build_1, build_2]
+    parameterized: true
+    parameters:
+      duration_min:
+        default: 95
+        range: [85, 115]
+        description: "3×20 + 2×5 vila = 70 min fasta reps. Totalen styr warmup/cooldown-utrymme."
+    intent: |
+      Tempotålighet i tre block med kort vila. Totalt 60 min Z3-arbete —
+      mer än något sammanhängande pass, men spridd över 3 reps blir det
+      mentalt hanterbart. Andra och tredje blocket är viktigare än det
+      första; håll watt även när det börjar nypa.
+    setting: either
+    terrain: flat
+    erg_mode: true
+    main_set:
+      - segment: warmup
+        duration_pct: 0.16
+        zone: 1
+        erg_mode: false
+      - segment: main
+        sets: 3
+        duration_min: 20
+        zone: 3
+        cadence_rpm: [85, 95]
+        rest_sec: 300
+        description: "Mitten av Z3 (≈ 82% FTP). Aktiv vila i Z1-Z2 mellan reps."
+      - segment: cooldown
+        duration_pct: 0.11
+        zone: 1
+        erg_mode: false
+    total_duration_min:
+      estimated: 95
+      flexible_range: [85, 115]
+    zone_refs: [Z1, Z2, Z3]
+    equipment: [power_meter, hr_strap]
+    abort_conditions:
+      - "Watt i rep 3 faller > 15% jämfört med rep 1 → bryt sista repet"
+      - "HR-drift > 15 bpm mellan rep 1 och rep 3 vid samma watt → nutrition/hydrering"
+    coach_notes: |
+      Standardpass för Z3-tålighet. 5 min vila ger nästan full återhämtning
+      mellan reps; målet är inte intervall-känsla utan att kunna upprepa
+      ett tempopass tre gånger.
+
+  - code: TE1_bike_03
+    discipline: bike
+    category: TE
+    type_code: TE1
+    name: "Sweet Spot — 4×12 min"
+    phase_appropriate: [base_3, build_1, build_2]
+    parameterized: true
+    parameters:
+      duration_min:
+        default: 85
+        range: [75, 105]
+        description: "4×12 + 3×3 vila = 57 min fasta reps."
+    intent: |
+      Sweet Spot — övre Z3 / nedre Z4 (88-93% FTP). Maxa tränings-
+      adaption per minut för aerob+tröskel-kapacitet. Inte tröskel
+      (det skulle vara ME-pass), men nära nog att det adapterar mer
+      än ren Z3. Bra dos-effekt om tiden är begränsad.
+    setting: indoor
+    requires_trainer: true
+    erg_mode: true
+    main_set:
+      - segment: warmup
+        duration_pct: 0.18
+        zone: 1
+        erg_mode: false
+      - segment: main
+        sets: 4
+        duration_min: 12
+        effort_descriptor: "Sweet Spot — 88-93% FTP (övre Z3 / nedre Z4). Andningen tydlig men kontrollerad; samtal i korta meningar."
+        cadence_rpm: [85, 95]
+        rest_sec: 180
+      - segment: cooldown
+        duration_pct: 0.12
+        zone: 1
+        erg_mode: false
+    total_duration_min:
+      estimated: 85
+      flexible_range: [75, 105]
+    zone_refs: [Z1, Z2, Z3, Z4]
+    equipment: [power_meter, hr_strap, trainer]
+    abort_conditions:
+      - "Watt rör sig in i Z4 mitten → för hårt, sänk"
+      - "Rep 4 faller > 10% från rep 1 → bryt sista repet"
+    coach_notes: |
+      Effort_descriptor istället för zone — Sweet Spot är ett känt koncept
+      som ligger mellan zoner. ERG krävs för att hålla det rätt; outdoor
+      blir det Z3 i snitt med Z4-spikar och Z2-glidning.
+
+  - code: TE1_bike_04
+    discipline: bike
+    category: TE
+    type_code: TE1
+    name: "Long Tempo — 2×30 min"
+    phase_appropriate: [build_1, build_2]
+    parameterized: true
+    parameters:
+      duration_min:
+        default: 105
+        range: [95, 125]
+        description: "2×30 + 8 vila = 68 min fasta reps."
+    intent: |
+      Lång tempo-dos: två 30-minutersblock i mitten av Z3 med kort vila.
+      Total 60 min Z3 fördelat i två stora chunks — utmanar tempotåligheten
+      både fysiskt och mentalt. Sista 5 min av rep 2 är där adaptionen sker.
+    setting: either
+    terrain: flat
+    erg_mode: true
+    main_set:
+      - segment: warmup
+        duration_pct: 0.14
+        zone: 1
+        erg_mode: false
+      - segment: main
+        sets: 2
+        duration_min: 30
+        zone: 3
+        cadence_rpm: [85, 95]
+        rest_sec: 480
+        description: "Mitten-övre Z3 (≈ 83-85% FTP). Aktiv vila 8 min i Z1-Z2."
+      - segment: cooldown
+        duration_pct: 0.10
+        zone: 1
+        erg_mode: false
+    total_duration_min:
+      estimated: 105
+      flexible_range: [95, 125]
+    zone_refs: [Z1, Z2, Z3]
+    equipment: [power_meter, hr_strap]
+    abort_conditions:
+      - "Watt i rep 2 faller > 15% från rep 1 → bryt i förtid"
+    coach_notes: |
+      Build-fas-pass. Längre block än TE1_bike_02 (30 vs 20), färre reps
+      (2 vs 3) — men summa Z3-tid är samma 60 min. Mentalt jobbigare;
+      använd den när adepten ska vänja sig vid längre sammanhängande
+      tröskel-nära arbete inför IM.
+
+  - code: TE1_bike_05
+    discipline: bike
+    category: TE
+    type_code: TE1
+    name: "Tempo pyramid"
+    phase_appropriate: [base_3, build_1]
+    parameterized: true
+    parameters:
+      duration_min:
+        default: 110
+        range: [100, 130]
+        description: "Pyramid 10/15/20/15/10 + 4×3 vila = 82 min fasta reps."
+    intent: |
+      Pyramid 10/15/20/15/10 min Z3 med kort vila. Strukturen ger
+      variation utan att tappa fokus — det är samma intensitet hela
+      vägen, men block-längden ändras. Hjälper mot mental trötthet
+      vid längre tempopass.
+    setting: either
+    terrain: flat
+    erg_mode: true
+    main_set:
+      - segment: warmup
+        duration_pct: 0.14
+        zone: 1
+        erg_mode: false
+      - segment: main
+        duration_min: 10
+        zone: 3
+        cadence_rpm: [85, 95]
+        rest_sec: 180
+      - segment: main
+        duration_min: 15
+        zone: 3
+        cadence_rpm: [85, 95]
+        rest_sec: 180
+      - segment: main
+        duration_min: 20
+        zone: 3
+        cadence_rpm: [85, 95]
+        rest_sec: 180
+      - segment: main
+        duration_min: 15
+        zone: 3
+        cadence_rpm: [85, 95]
+        rest_sec: 180
+      - segment: main
+        duration_min: 10
+        zone: 3
+        cadence_rpm: [85, 95]
+      - segment: cooldown
+        duration_pct: 0.09
+        zone: 1
+        erg_mode: false
+    total_duration_min:
+      estimated: 110
+      flexible_range: [100, 130]
+    zone_refs: [Z1, Z2, Z3]
+    equipment: [power_meter, hr_strap]
+    abort_conditions:
+      - "Det 20-min-blocket går inte att hålla → bryt och avsluta passet"
+    coach_notes: |
+      Totalt 70 min Z3 — det mest Z3-tid av TE1-passen. Pyramiden
+      är en mental knep; fysiskt är det jämn jämn ansträngning. Bra
+      som "stor tempo-vecka-höjdpunkt" en gång per 2-3 veckor i build.

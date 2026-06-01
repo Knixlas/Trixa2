@@ -1,0 +1,126 @@
+# Typer av träningspass (källa: 3.1 Typer av Träningspass)
+# Organiserade per disciplin. Varje pass har en kod, kategori och kort beskrivning.
+
+categories:
+  AE: { name_sv: Aerob Uthållighet,    name_en: Aerobic Endurance }
+  TE: { name_sv: Tempo,                name_en: Tempo }
+  MF: { name_sv: Muskulär Styrka,      name_en: Muscular Force }
+  SS: { name_sv: Snabbhetsfärdigheter, name_en: Speed Skills }
+  ME: { name_sv: Muskulär Uthållighet, name_en: Muscular Endurance }
+  AC: { name_sv: Aerob Kapacitet,      name_en: Aerobic Capacity }
+  SP: { name_sv: Sprintkraft,          name_en: Sprint Power }
+  BW: { name_sv: Brickträning,         name_en: Brick Workouts }
+  T:  { name_sv: Tester,               name_en: Testing }
+
+strength_phases:
+  AA:
+    name: Anatomical Adaptation
+    purpose: Anpassa muskler och leder för kommande träning
+    used_in_phases: [prep]
+  MT:
+    name: Max Transition
+    purpose: Övergång till maximal styrketräning
+    used_in_phases: [base]
+    used_in_periods: [base_1]
+    note: Används första halvan av Base 1
+  MS:
+    name: Max Strength
+    purpose: Utveckla maximal styrka
+    used_in_phases: [base]
+    used_in_periods: [base_1, base_2, base_3]
+    note: Andra halvan av Base 1, hela Base 2 och Base 3
+  SM:
+    name: Strength Maintenance
+    purpose: Bibehålla styrka under tävlingssäsongen
+    used_in_phases: [build, peak, race]
+
+workouts:
+
+  swim:
+    AE:
+      - { code: AE1, name: Recovery,                   desc: Lätta simpass för återhämtning och teknikfokus }
+      - { code: AE2, name: Aerobic Endurance Intervals, desc: Längre intervaller för aerob uthållighet }
+    TE:
+      - { code: TE1, name: Tempo Intervals,            desc: Intervaller i högre fart för tempotålighet }
+    MF:
+      - { code: MF1, name: Muscular Force Reps,        desc: Övningar med fokus på kraft i armtag }
+      - { code: MF2, name: Open Water Current Intervals, desc: Simning i strömmande vatten för styrka }
+      - { code: MF3, name: Paddles,                    desc: Paddlar för ökat motstånd och styrka }
+    SS:
+      - { code: SS1, name: Fast Forms 25s,             desc: Korta sprinter med fokus på teknik och snabbhet }
+      - { code: SS2, name: Toys Sets,                  desc: Hjälpmedel som fenor för att förbättra snabbhet }
+    ME:
+      - { code: ME1, name: Long Cruise Intervals,      desc: Längre intervaller i jämnt tempo }
+      - { code: ME2, name: Short Cruise Intervals,     desc: Korta intensiva intervaller för muskulär uthållighet }
+      - { code: ME3, name: Threshold,                  desc: Träning vid tröskelfart }
+    AC:
+      - { code: AC1, name: VO2Max Intervals,           desc: Högintensiva intervaller för syreupptag }
+      - { code: AC2, name: Aerobic Capacity Intervals, desc: Intervaller som utmanar aerob kapacitet }
+    T:
+      - { code: CSS_Test, name: CSS Test,              desc: Fastställ Critical Swim Speed }
+
+  bike:
+    AE:
+      - { code: AE1, name: Recovery,            desc: Lätta cykelpass för återhämtning }
+      - { code: AE2, name: Aerobic Endurance,   desc: Långa pass i lugnt tempo för uthållighet }
+    TE:
+      - { code: TE1, name: Tempo Endurance,     desc: Längre pass i högre tempo }
+    MF:
+      - { code: MF1, name: Force Reps,          desc: Korta intensiva backintervaller för styrka }
+      - { code: MF2, name: Hilly Ride,          desc: Cykling i kuperad terräng }
+      - { code: MF3, name: Hill Repeats,        desc: Upprepade backintervaller }
+    SS:
+      - { code: SS1, name: Spin-ups,            desc: Kadensövningar för pedalteknik }
+      - { code: SS2, name: Isolated Leg,        desc: Träning med ett ben i taget }
+    ME:
+      - { code: ME1, name: Cruise Intervals,    desc: Intervaller i tröskelfart }
+      - { code: ME2, name: Hill Cruise Intervals, desc: Intervaller i backe }
+      - { code: ME3, name: Crisscross Intervals, desc: Växlande intensitet }
+      - { code: ME4, name: Threshold Ride,      desc: Längre pass vid eller nära tröskel }
+    AC:
+      - { code: AC1, name: VO2Max Intervals,    desc: Högintensiva intervaller för syreupptag }
+      - { code: AC2, name: Pyramid Intervals,   desc: Stegvis ökande och minskande intervaller }
+      - { code: AC3, name: Hill Intervals,      desc: Intensiva backintervaller }
+    T:
+      - { code: FTP_Test, name: FTP-test,       desc: Fastställ Functional Threshold Power }
+
+  run:
+    AE:
+      - { code: AE1, name: Recovery,            desc: Lugna löppass för återhämtning }
+      - { code: AE2, name: Aerobic Endurance,   desc: Längre löppass i lugnt tempo }
+    TE:
+      - { code: TE1, name: Tempo Endurance,     desc: Löpning i högre tempo }
+    MF:
+      - { code: MF1, name: Force Reps,          desc: Backintervaller för benstyrka }
+      - { code: MF2, name: Hill Fartlek,        desc: Fartlek i kuperad terräng }
+      - { code: MF3, name: Hill Repeats,        desc: Upprepade backintervaller }
+    SS:
+      - { code: SS1, name: Strides,             desc: Korta fartökningar för löpteknik }
+      - { code: SS2, name: Pickups,             desc: Gradvisa fartökningar under löppasset }
+    ME:
+      - { code: ME1, name: Cruise Intervals,    desc: Intervaller nära tröskelfart }
+      - { code: ME2, name: Hill Cruise Intervals, desc: Intervaller i backe }
+      - { code: ME3, name: Crisscross Intervals, desc: Växlande intensitet }
+      - { code: ME4, name: Threshold Run,       desc: Längre löppass vid eller nära tröskel }
+    AC:
+      - { code: AC1, name: Group Run,           desc: Löpning i grupp för motivation och fart }
+      - { code: AC2, name: VO2Max Intervals,    desc: Högintensiva löpintervaller }
+      - { code: AC3, name: Hill Intervals,      desc: Intensiva backintervaller }
+    T:
+      - { code: Run_Test, name: Löptest,        desc: Fastställ tröskelfart och puls }
+
+  brick:
+    # Kombinerade pass, oftast cykel följt av löpning. Prefix "B" framför grundkod.
+    BAE:
+      - { code: BAE1, name: Aerobic Endurance Brick, desc: Lång cykling följt av löpning i lugnt tempo }
+    BTE:
+      - { code: BTE1, name: Tempo Brick,             desc: Cykel och löpning i högre tempo }
+    BSS:
+      - { code: BSS1, name: T1 Practice,             desc: Öva växling från simning till cykel }
+      - { code: BSS2, name: T2 Practice,             desc: Öva växling från cykel till löpning }
+    BME:
+      - { code: BME1, name: Muscular Endurance Brick, desc: Cykel och löpning för muskulär uthållighet }
+      - { code: BME2, name: Hilly Brick,             desc: Cykling och löpning i kuperad terräng }
+    BAC:
+      - { code: BAC1, name: Bike-Intervals Brick,    desc: Intensiva cykelintervaller följt av löpning }
+      - { code: BAC2, name: Run Intervals Brick,     desc: Cykling följt av intensiva löpintervaller }
