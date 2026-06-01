@@ -28,6 +28,12 @@ workouts:
     type_code: FTP_20min
     name: "FTP-test — 20 min all-out"
     phase_appropriate: [prep, base_1, base_2, base_3, build_1, build_2]
+    parameterized: true
+    parameters:
+      duration_min:
+        default: 65
+        range: [50, 90]
+        description: "Protokoll fast: 5 öppnare + 5 rest + 20 test = 30 min. Totalen styr warmup/cooldown."
     intent: |
       Klassiskt 20-min FTP-test. Du kör 20 min så hårt du kan hålla jämnt
       — målet är att producera maximalt snittwatt över 20 min, INTE att
@@ -39,16 +45,12 @@ workouts:
     erg_mode: false
     main_set:
       - segment: warmup
-        duration_min: 20
+        duration_pct: 0.31
         zone: 1
         description: |
           Stegvis uppvärmning:
-          - 5 min Z1
-          - 5 min Z2
-          - 1 min Z3
-          - 3 min Z1
-          - 1 min Z4
-          - 5 min Z1
+          - Z1 → Z2 → kort Z3 → Z1 → kort Z4 → Z1
+          (Skalas proportionellt med total tid; 20 min är default-baseline.)
       - segment: main
         duration_min: 5
         zone: 4
@@ -63,11 +65,11 @@ workouts:
         cadence_rpm: [85, 100]
         description: "Notera snitt-watt, snitt-HR, snitt-kadens, peak-HR"
       - segment: cooldown
-        duration_min: 15
+        duration_pct: 0.23
         zone: 1
     total_duration_min:
       estimated: 65
-      flexible_range: [60, 75]
+      flexible_range: [50, 90]
     zone_refs: [Z1, Z2, Z3, Z4]
     equipment: [power_meter, hr_strap, trainer]
     abort_conditions:
@@ -96,6 +98,12 @@ workouts:
     type_code: FTP_2x8
     name: "FTP-test — 2×8 min"
     phase_appropriate: [prep, base_1, base_2, base_3]
+    parameterized: true
+    parameters:
+      duration_min:
+        default: 70
+        range: [55, 85]
+        description: "Protokoll fast: 3+5+8+10+8 = 34 min. Totalen styr warmup/cooldown."
     intent: |
       Mellanting mellan 20-min och Ramp. Två 8-minutersblock all-out med
       10 min återhämtning emellan. Snitt över båda × 0.90 = FTP. Mindre
@@ -106,9 +114,9 @@ workouts:
     erg_mode: false
     main_set:
       - segment: warmup
-        duration_min: 20
+        duration_pct: 0.29
         zone: 1
-        description: "Samma stegvis uppvärmning som 20-min-testet"
+        description: "Samma stegvis uppvärmning som 20-min-testet — skalas med totalen"
       - segment: main
         duration_min: 3
         zone: 4
@@ -129,11 +137,11 @@ workouts:
         effort_descriptor: "Maximalt hållbar watt i 8 min — block 2. Ska helst bli marginellt högre eller samma som block 1."
         cadence_rpm: [85, 100]
       - segment: cooldown
-        duration_min: 10
+        duration_pct: 0.14
         zone: 1
     total_duration_min:
       estimated: 70
-      flexible_range: [65, 80]
+      flexible_range: [55, 85]
     zone_refs: [Z1, Z2, Z3, Z4, Z5]
     equipment: [power_meter, hr_strap, trainer]
     abort_conditions:
@@ -155,6 +163,12 @@ workouts:
     type_code: FTP_Ramp
     name: "FTP-test — Ramp till utmattning"
     phase_appropriate: [prep, base_1, base_2, base_3, build_1, recovery]
+    parameterized: true
+    parameters:
+      duration_min:
+        default: 40
+        range: [30, 50]
+        description: "Ramp-testet är ≈20 min (variera med adeptens nivå). Totalen styr warmup/cooldown."
     intent: |
       Ramp-test: watt ökas successivt i steg om 20 W per minut tills du
       inte längre kan upprätthålla kadens > 60 rpm. Lättast på trötta ben
@@ -166,7 +180,7 @@ workouts:
     erg_mode: true
     main_set:
       - segment: warmup
-        duration_min: 10
+        duration_pct: 0.25
         zone: 1
         erg_mode: false
         description: "Lugn uppvärmning, inga öppnare — vi vill ha full ben-energi"
@@ -180,9 +194,10 @@ workouts:
         cadence_rpm: [85, 95]
         description: |
           Trainer-program kan automatisera ramp via ERG. Manuell variant:
-          öka motstånd själv var 60:e sekund.
+          öka motstånd själv var 60:e sekund. Test-tid varierar 12-25 min
+          beroende på adeptens nivå — duration_min är planeringsestimat.
       - segment: cooldown
-        duration_min: 10
+        duration_pct: 0.25
         zone: 1
         erg_mode: false
     total_duration_min:

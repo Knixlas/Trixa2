@@ -4,8 +4,10 @@
 #   AE1 — Recovery: lätt, teknikfokus, korta pass
 #   AE2 — Aerobic Endurance: längre intervaller eller kontinuerligt i Z2
 #
-# AE-passen är till stor del PARAMETRISERADE mallar enligt CLAUDE.md-design.
-# Konkreta varianter finns för när man vill ha tydlig struktur (t.ex. teknikpass).
+# Alla pass är parametriserade — `duration_pct` på kontinuerliga segment
+# och `sets: {default, range}` på huvudintervaller skalar passet mot
+# adeptens veckobudget. För skalbarhet finns ofta ett `continuous` segment
+# som absorberar resterande budget när intervallblocken inte fyller den.
 
 workouts:
 
@@ -18,7 +20,7 @@ workouts:
     category: AE
     type_code: AE1
     name: "AE1-mall: kort recovery"
-    parameterized: true
+    parametrized: true
     parameters:
       duration_min: { min: 20, max: 45, default: 30 }
     phase_appropriate: [prep, base_1, base_2, base_3, build_1, build_2, peak, race, recovery]
@@ -51,34 +53,44 @@ workouts:
     category: AE
     type_code: AE1
     name: "Teknikåtervändning"
+    parametrized: true
+    parameters:
+      duration_min:
+        default: 40
+        range: [25, 75]
+        description: "Skala till veckans budget"
     phase_appropriate: [prep, base_1, base_2, recovery]
     intent: |
       Återhämtningspass med tydligt teknikfokus. Driller roterar genom
       tre grundtekniker. Pulsen stannar låg — det är hjärnan som jobbar.
     main_set:
       - segment: warmup
-        distance_m: 300
+        duration_pct: 0.20
         zone: 1
         description: "Valfri stil, känn in vattnet"
       - segment: drills
-        sets: 6
+        sets: {default: 6, range: [4, 10]}
         distance_m: 50
         rest_sec: 20
         drills: [single_arm, six_kick_switch, fingertip_drag]
         description: "Rotera: 2×single-arm, 2×6-kick-switch, 2×fingertip drag"
       - segment: main
-        sets: 4
+        sets: {default: 4, range: [3, 8]}
         distance_m: 100
         zone: 1
         rest_sec: 15
         description: "Lugn fri, fokus på det som drillen lärt"
+      - segment: continuous
+        duration_pct: 0.28
+        zone: 1
+        description: "Fortsätt lugnt — växla teknik var 100m om budget tillåter mer"
       - segment: cooldown
-        distance_m: 200
+        duration_pct: 0.15
         zone: 1
     total_distance_m: 1800
     total_duration_min:
       estimated: 40
-      flexible_range: [35, 50]
+      flexible_range: [25, 75]
     zone_refs: [Z1]
     equipment: []
 
@@ -87,40 +99,50 @@ workouts:
     category: AE
     type_code: AE1
     name: "Kick + glid"
+    parametrized: true
+    parameters:
+      duration_min:
+        default: 40
+        range: [25, 70]
+        description: "Skala till veckans budget"
     phase_appropriate: [prep, base_1, base_2, recovery]
     intent: |
       Lätt pass med kickfokus och glid-set. Bygger kicktolerans utan
       att stressa armar/axlar. Bra dagen efter ett tungt cykel- eller löppass.
     main_set:
       - segment: warmup
-        distance_m: 300
+        duration_pct: 0.15
         zone: 1
       - segment: kick
-        sets: 6
+        sets: {default: 6, range: [4, 10]}
         distance_m: 50
         rest_sec: 20
         equipment: [kickboard]
         zone: 1
         description: "Långsam, kraftfull kick. Nyckel: smal sparkamplitud."
       - segment: drills
-        sets: 4
+        sets: {default: 4, range: [3, 6]}
         distance_m: 50
         rest_sec: 15
         drills: [superman_glide, side_kick]
         description: "Glid-fokus: tre andetag mellan varje vänster/höger sida"
       - segment: main
-        sets: 3
+        sets: {default: 3, range: [2, 6]}
         distance_m: 200
         zone: 1
         rest_sec: 20
         description: "Lång fri, känn glidet från drillerna"
+      - segment: continuous
+        duration_pct: 0.15
+        zone: 1
+        description: "Extra lugn fri om budget tillåter"
       - segment: cooldown
-        distance_m: 200
+        duration_pct: 0.10
         zone: 1
     total_distance_m: 1700
     total_duration_min:
       estimated: 40
-      flexible_range: [35, 50]
+      flexible_range: [25, 70]
     zone_refs: [Z1]
     equipment: [kickboard]
 
@@ -133,7 +155,7 @@ workouts:
     category: AE
     type_code: AE2
     name: "AE2-mall: kontinuerligt"
-    parameterized: true
+    parametrized: true
     parameters:
       duration_min: { min: 30, max: 90, default: 60 }
     phase_appropriate: [base_1, base_2, base_3, build_1]
@@ -166,45 +188,61 @@ workouts:
     category: AE
     type_code: AE2
     name: "Klassiska 400-or"
+    parametrized: true
+    parameters:
+      duration_min:
+        default: 55
+        range: [35, 110]
+        description: "Skala till veckans budget"
     phase_appropriate: [base_1, base_2, base_3, build_1]
     intent: |
       Aerob bas genom långa intervaller i Zon 2. Strukturen ger
       naturliga pauser för andning och rytm-reset utan att tappa pace.
     main_set:
       - segment: warmup
-        distance_m: 400
+        duration_pct: 0.15
         zone: 1
       - segment: drills
-        sets: 4
+        sets: {default: 4, range: [3, 6]}
         distance_m: 50
         rest_sec: 15
         drills: [superman_glide, six_kick_switch, fingertip_drag, single_arm]
       - segment: main
-        sets: 4
+        sets: {default: 4, range: [3, 7]}
         distance_m: 400
         zone: 2
         rest_sec: 20
-        description: "Stadig pace över alla fyra. Andas på 3."
+        description: "Stadig pace över alla repetitioner. Andas på 3."
+      - segment: continuous
+        duration_pct: 0.20
+        zone: 2
+        description: "Fortsätt aerobt om budget finns kvar"
       - segment: cooldown
-        distance_m: 200
+        duration_pct: 0.07
         zone: 1
     total_distance_m: 2800
     total_duration_min:
       estimated: 55
-      flexible_range: [50, 65]
+      flexible_range: [35, 110]
     zone_refs: [Z1, Z2]
     equipment: []
     abort_conditions:
-      - "Om pace faller >5s/100m på interval 3 → kör interval 4 i nedre Z2 eller hoppa över"
+      - "Om pace faller >5s/100m på sista interval före slutet → kör nästa i nedre Z2 eller hoppa över"
     coach_notes: |
       Funkar i alla base-perioder. Skala till 3×400 vid lägre volymveckor,
-      5×400 vid högre.
+      5-7×400 vid högre.
 
   - code: AE2_swim_02
     discipline: swim
     category: AE
     type_code: AE2
     name: "8×200 kort vila"
+    parametrized: true
+    parameters:
+      duration_min:
+        default: 55
+        range: [35, 100]
+        description: "Skala till veckans budget"
     phase_appropriate: [base_2, base_3, build_1]
     intent: |
       Längre AE2 där den korta vilan håller intensiteten mer
@@ -212,26 +250,30 @@ workouts:
       Z2 över längre samlad tid.
     main_set:
       - segment: warmup
-        distance_m: 400
+        duration_pct: 0.15
         zone: 1
       - segment: drills
-        sets: 4
+        sets: {default: 4, range: [3, 6]}
         distance_m: 50
         rest_sec: 15
         drills: [single_arm, six_kick_switch]
       - segment: main
-        sets: 8
+        sets: {default: 8, range: [5, 14]}
         distance_m: 200
         zone: 2
         rest_sec: 15
         description: "Kort vila — tanken är att summan ska kännas som ett långt pass"
+      - segment: continuous
+        duration_pct: 0.18
+        zone: 2
+        description: "Fortsätt aerobt om budget tillåter"
       - segment: cooldown
-        distance_m: 200
+        duration_pct: 0.07
         zone: 1
     total_distance_m: 2600
     total_duration_min:
       estimated: 55
-      flexible_range: [50, 65]
+      flexible_range: [35, 100]
     zone_refs: [Z1, Z2]
     equipment: []
 
@@ -239,34 +281,39 @@ workouts:
     discipline: swim
     category: AE
     type_code: AE2
-    name: "Lång distans 1500"
+    name: "Lång distans kontinuerligt"
+    parametrized: true
+    parameters:
+      duration_min:
+        default: 45
+        range: [25, 180]
+        description: "Skala till veckans budget — vid stora budgetar blir det 3000m+ kontinuerligt"
     phase_appropriate: [base_2, base_3, build_1, build_2]
     intent: |
       Kontinuerlig långsim i Z2. Förbereder kropp och huvud på
       uthållig fri utan stopp — viktigt för IM-distansen och för
-      mental tolerans av långa simset.
+      mental tolerans av långa simset. Default-budget ger ~1500m
+      kontinuerligt; en 3h-budget ger 3-4 km.
     main_set:
       - segment: warmup
-        distance_m: 300
+        duration_pct: 0.13
         zone: 1
       - segment: drills
-        sets: 4
+        sets: {default: 4, range: [3, 6]}
         distance_m: 50
         rest_sec: 15
         drills: [single_arm, six_kick_switch]
-      - segment: main
-        sets: 1
-        distance_m: 1500
+      - segment: continuous
+        duration_pct: 0.68
         zone: 2
-        rest_sec: 0
-        description: "Kontinuerligt. Bryt rytmen genom att andas på 3 första 500, 5 andra 500, 3 tredje 500."
+        description: "Kontinuerligt. Bryt rytmen genom att variera andningssida var 500m."
       - segment: cooldown
-        distance_m: 200
+        duration_pct: 0.10
         zone: 1
     total_distance_m: 2200
     total_duration_min:
       estimated: 45
-      flexible_range: [40, 55]
+      flexible_range: [25, 180]
     zone_refs: [Z1, Z2]
     equipment: []
     abort_conditions:
@@ -277,6 +324,12 @@ workouts:
     category: AE
     type_code: AE2
     name: "Pyramid 100→500→100"
+    parametrized: true
+    parameters:
+      duration_min:
+        default: 55
+        range: [50, 70]
+        description: "Pyramidens struktur är fixerad — bara warmup/cooldown skalar"
     phase_appropriate: [base_2, base_3, build_1]
     intent: |
       AE2-volym med varierad intervallängd. Pyramiden ger mental
@@ -284,7 +337,7 @@ workouts:
       slutet ska kännas lika lugna som de korta i början.
     main_set:
       - segment: warmup
-        distance_m: 400
+        duration_pct: 0.12
         zone: 1
       - segment: main
         sets: 1
@@ -332,11 +385,11 @@ workouts:
         zone: 2
         rest_sec: 0
       - segment: cooldown
-        distance_m: 200
+        duration_pct: 0.06
         zone: 1
     total_distance_m: 3100
     total_duration_min:
-      estimated: 65
-      flexible_range: [60, 75]
+      estimated: 55
+      flexible_range: [50, 70]
     zone_refs: [Z1, Z2]
     equipment: []

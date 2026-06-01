@@ -5,7 +5,8 @@
 # MF3 — Paddles: tunga paddel-set
 #
 # Gemensamt: fokus är att producera kraft per tag, inte hög stroke-rate.
-# Stroke-count räknas ofta för att hålla effektivitet.
+# Stroke-count räknas ofta för att hålla effektivitet. MF2-passen har
+# kortare default-tid då yttre faktorer (ström, vågor) styr passets längd.
 
 workouts:
 
@@ -18,6 +19,12 @@ workouts:
     category: MF
     type_code: MF1
     name: "8×50 katch-fokus"
+    parametrized: true
+    parameters:
+      duration_min:
+        default: 26
+        range: [22, 55]
+        description: "Skala till veckans budget"
     phase_appropriate: [base_2, base_3, build_1]
     intent: |
       Kraft per tag. Långsam stroke rate, maximalt grepp om vattnet
@@ -25,28 +32,32 @@ workouts:
       Räkna tag per längd och försök sänka över passet.
     main_set:
       - segment: warmup
-        distance_m: 400
+        duration_pct: 0.15
         zone: 1
       - segment: drills
-        sets: 4
+        sets: {default: 4, range: [3, 6]}
         distance_m: 50
         rest_sec: 15
         drills: [sculling_front, fist_swim, catch_drill]
         description: "Vänja känslan av tidig katch"
       - segment: main
-        sets: 8
+        sets: {default: 8, range: [6, 14]}
         distance_m: 50
         zone: 2
         rest_sec: 25
         description: "Maximal katch, låg stroke rate. Räkna tag — försök matcha eller minska."
         notes: "Pace ska INTE pressas. Fokus på kraften per tag."
+      - segment: continuous
+        duration_pct: 0.10
+        zone: 1
+        description: "Aktiv recovery — lugn fri"
       - segment: cooldown
-        distance_m: 200
+        duration_pct: 0.10
         zone: 1
     total_distance_m: 1800
     total_duration_min:
-      estimated: 45
-      flexible_range: [40, 55]
+      estimated: 26
+      flexible_range: [22, 55]
     zone_refs: [Z1, Z2]
     equipment: []
     coach_notes: |
@@ -58,39 +69,49 @@ workouts:
     category: MF
     type_code: MF1
     name: "Buoy + paddles styrkeset"
+    parametrized: true
+    parameters:
+      duration_min:
+        default: 35
+        range: [30, 65]
+        description: "Skala till veckans budget"
     phase_appropriate: [base_2, base_3, build_1, build_2]
     intent: |
       Klassiskt styrkepass: pull-buoy och paddles isolerar överkroppen
       och multiplicerar motståndet. Långsam pace, fokus på dragkraften.
     main_set:
       - segment: warmup
-        distance_m: 400
+        duration_pct: 0.13
         zone: 1
       - segment: drills
-        sets: 4
+        sets: {default: 4, range: [3, 6]}
         distance_m: 50
         rest_sec: 15
         drills: [sculling_front, catch_drill]
       - segment: pull
-        sets: 6
+        sets: {default: 6, range: [4, 10]}
         distance_m: 100
         zone: 2
         rest_sec: 25
         equipment: [pull_buoy, paddles]
         description: "Långa drag, ta tag i vattnet. Pace ska kännas långsam — det är poängen."
       - segment: main
-        sets: 4
+        sets: {default: 4, range: [3, 6]}
         distance_m: 50
         zone: 2
         rest_sec: 15
         description: "Utan utrustning. Försök behålla känslan av långa drag."
+      - segment: continuous
+        duration_pct: 0.08
+        zone: 1
+        description: "Aktiv recovery"
       - segment: cooldown
-        distance_m: 200
+        duration_pct: 0.10
         zone: 1
     total_distance_m: 2000
     total_duration_min:
-      estimated: 50
-      flexible_range: [45, 55]
+      estimated: 35
+      flexible_range: [30, 65]
     zone_refs: [Z1, Z2]
     equipment: [pull_buoy, paddles]
     abort_conditions:
@@ -101,6 +122,12 @@ workouts:
     category: MF
     type_code: MF1
     name: "Band-only pull (ingen kick)"
+    parametrized: true
+    parameters:
+      duration_min:
+        default: 28
+        range: [22, 50]
+        description: "Skala till veckans budget"
     phase_appropriate: [base_3, build_1, build_2]
     intent: |
       Ankelband eliminerar all kickkraft. Du är helt beroende av
@@ -108,27 +135,31 @@ workouts:
       pull-styrka. Hård men kort.
     main_set:
       - segment: warmup
-        distance_m: 400
+        duration_pct: 0.15
         zone: 1
       - segment: drills
-        sets: 4
+        sets: {default: 4, range: [3, 5]}
         distance_m: 50
         rest_sec: 15
       - segment: pull
-        sets: 8
+        sets: {default: 8, range: [5, 14]}
         distance_m: 50
         zone: 2
         rest_sec: 20
         equipment: [band]
         description: "Bara band — ingen buoy, ingen paddles. Kompakt kropp, snabba tag."
+      - segment: continuous
+        duration_pct: 0.10
+        zone: 1
+        description: "Aktiv recovery utan utrustning"
       - segment: cooldown
-        distance_m: 300
+        duration_pct: 0.13
         zone: 1
         description: "Lugn fri utan utrustning, känn vad kicken gör nu"
     total_distance_m: 1500
     total_duration_min:
-      estimated: 45
-      flexible_range: [40, 50]
+      estimated: 28
+      flexible_range: [22, 50]
     zone_refs: [Z1, Z2]
     equipment: [band]
     coach_notes: |
@@ -145,6 +176,12 @@ workouts:
     category: MF
     type_code: MF2
     name: "Älv- eller åmotsim"
+    parametrized: true
+    parameters:
+      duration_min:
+        default: 24
+        range: [22, 55]
+        description: "Skala till veckans budget"
     phase_appropriate: [base_2, base_3, build_1, build_2]
     intent: |
       Simning mot strömmande vatten. Strömmen ger naturligt
@@ -152,25 +189,27 @@ workouts:
       tid och pace blir meningslösa i ström.
     main_set:
       - segment: warmup
-        sets: 1
-        distance_m: 200
+        duration_pct: 0.10
         zone: 1
         description: "Lugnt med strömmen för att lösa upp"
       - segment: main
-        sets: 6
+        sets: {default: 6, range: [4, 12]}
         distance_m: 100
         zone: 3
         rest_sec: 45
         description: "Sim 100m mot strömmen. Vila genom att flyta tillbaka."
+      - segment: continuous
+        duration_pct: 0.10
+        zone: 1
+        description: "Aktiv recovery — flyt med strömmen"
       - segment: cooldown
-        sets: 1
-        distance_m: 200
+        duration_pct: 0.10
         zone: 1
         description: "Med strömmen, lugnt"
     total_distance_m: 1000
     total_duration_min:
-      estimated: 40
-      flexible_range: [30, 50]
+      estimated: 24
+      flexible_range: [22, 55]
     zone_refs: [Z1, Z3]
     equipment: []
     abort_conditions:
@@ -185,6 +224,12 @@ workouts:
     category: MF
     type_code: MF2
     name: "Choppy-water-tolerans"
+    parametrized: true
+    parameters:
+      duration_min:
+        default: 28
+        range: [22, 50]
+        description: "Skala till veckans budget"
     phase_appropriate: [build_1, build_2, peak]
     intent: |
       Sim i sjö eller hav med vågor/krabb sjö. Inte ren styrketräning
@@ -192,24 +237,26 @@ workouts:
       Tag-rytmen måste anpassas — kortare, snabbare tag.
     main_set:
       - segment: warmup
-        sets: 1
-        distance_m: 300
+        duration_pct: 0.13
         zone: 1
         description: "Lugnt parallellt med strand om möjligt"
       - segment: main
-        sets: 4
+        sets: {default: 4, range: [3, 8]}
         distance_m: 200
         zone: 3
         rest_sec: 60
         description: "Variera riktning: 2× mot vågor, 2× med. Anpassa tag och andning."
+      - segment: continuous
+        duration_pct: 0.08
+        zone: 1
+        description: "Aktiv recovery — lugnt med vågorna"
       - segment: cooldown
-        sets: 1
-        distance_m: 200
+        duration_pct: 0.10
         zone: 1
     total_distance_m: 1300
     total_duration_min:
-      estimated: 35
-      flexible_range: [30, 45]
+      estimated: 28
+      flexible_range: [22, 50]
     zone_refs: [Z1, Z3]
     equipment: []
     abort_conditions:
@@ -221,6 +268,12 @@ workouts:
     category: MF
     type_code: MF2
     name: "Bassäng-simulering med snurr"
+    parametrized: true
+    parameters:
+      duration_min:
+        default: 20
+        range: [22, 50]
+        description: "Skala till veckans budget"
     phase_appropriate: [base_2, base_3, build_1]
     intent: |
       När öppet vatten inte är tillgängligt — simulera motstånd
@@ -228,22 +281,26 @@ workouts:
       genom band-fäste i bassängkant.
     main_set:
       - segment: warmup
-        distance_m: 400
+        duration_pct: 0.15
         zone: 1
       - segment: main
-        sets: 8
+        sets: {default: 8, range: [5, 14]}
         distance_m: 50
         zone: 3
         rest_sec: 30
         equipment: [band]
         description: "Band fäst i kanten, sim 'stationär' så långt du kommer på 50m-tid"
+      - segment: continuous
+        duration_pct: 0.10
+        zone: 1
+        description: "Aktiv recovery utan band"
       - segment: cooldown
-        distance_m: 200
+        duration_pct: 0.10
         zone: 1
     total_distance_m: 1000
     total_duration_min:
-      estimated: 40
-      flexible_range: [35, 45]
+      estimated: 20
+      flexible_range: [22, 50]
     zone_refs: [Z1, Z3]
     equipment: [band]
     coach_notes: |
@@ -259,33 +316,43 @@ workouts:
     category: MF
     type_code: MF3
     name: "8×100 paddles main set"
+    parametrized: true
+    parameters:
+      duration_min:
+        default: 36
+        range: [28, 60]
+        description: "Skala till veckans budget"
     phase_appropriate: [base_2, base_3, build_1, build_2]
     intent: |
       Rent paddel-set. Tunga drag, fokus på katch och full dragväg.
       Detta är styrketräning — pace ska inte vara hög trots ökat motstånd.
     main_set:
       - segment: warmup
-        distance_m: 400
+        duration_pct: 0.13
         zone: 1
       - segment: drills
-        sets: 4
+        sets: {default: 4, range: [3, 5]}
         distance_m: 50
         rest_sec: 15
         drills: [sculling_front, catch_drill]
       - segment: pull
-        sets: 8
+        sets: {default: 8, range: [5, 14]}
         distance_m: 100
         zone: 2
         rest_sec: 25
         equipment: [paddles]
         description: "Stora paddles, inga buoy. Långa kraftfulla tag, andas på 3."
+      - segment: continuous
+        duration_pct: 0.07
+        zone: 1
+        description: "Aktiv recovery utan paddles"
       - segment: cooldown
-        distance_m: 200
+        duration_pct: 0.10
         zone: 1
     total_distance_m: 1800
     total_duration_min:
-      estimated: 45
-      flexible_range: [40, 50]
+      estimated: 36
+      flexible_range: [28, 60]
     zone_refs: [Z1, Z2]
     equipment: [paddles]
     abort_conditions:
@@ -297,6 +364,12 @@ workouts:
     category: MF
     type_code: MF3
     name: "Paddles + buoy descending"
+    parametrized: true
+    parameters:
+      duration_min:
+        default: 37
+        range: [32, 65]
+        description: "Skala till veckans budget"
     phase_appropriate: [base_3, build_1, build_2]
     intent: |
       Paddles + buoy = max överkroppsisolering. Descending pace
@@ -304,10 +377,10 @@ workouts:
       ska kännas tungt, inte snabbt.
     main_set:
       - segment: warmup
-        distance_m: 400
+        duration_pct: 0.13
         zone: 1
       - segment: drills
-        sets: 4
+        sets: {default: 4, range: [3, 5]}
         distance_m: 50
         rest_sec: 15
       - segment: pull
@@ -318,14 +391,18 @@ workouts:
         pace_pattern: descending
         zones_per_set: [2, 2, 2, 3, 3]
         description: "Descending: två i Z2, två i Z2-3-gräns, sista i Z3"
+      - segment: continuous
+        duration_pct: 0.07
+        zone: 1
+        description: "Aktiv recovery utan utrustning"
       - segment: cooldown
-        distance_m: 300
+        duration_pct: 0.10
         zone: 1
         description: "Utan utrustning"
     total_distance_m: 2100
     total_duration_min:
-      estimated: 55
-      flexible_range: [50, 60]
+      estimated: 37
+      flexible_range: [32, 65]
     zone_refs: [Z1, Z2, Z3]
     equipment: [pull_buoy, paddles]
     coach_notes: |
@@ -337,6 +414,12 @@ workouts:
     category: MF
     type_code: MF3
     name: "Paddel-stege 50-100-150-200-150-100-50"
+    parametrized: true
+    parameters:
+      duration_min:
+        default: 33
+        range: [30, 55]
+        description: "Skala till veckans budget — smal range, stegen är passet"
     phase_appropriate: [base_3, build_1, build_2]
     intent: |
       Paddel-set med varierande distans. Längre intervall = mer
@@ -344,10 +427,10 @@ workouts:
       uthållighet med ökat motstånd.
     main_set:
       - segment: warmup
-        distance_m: 400
+        duration_pct: 0.13
         zone: 1
       - segment: drills
-        sets: 4
+        sets: {default: 4, range: [3, 5]}
         distance_m: 50
         rest_sec: 15
       - segment: pull
@@ -392,12 +475,16 @@ workouts:
         zone: 2
         rest_sec: 0
         equipment: [paddles]
+      - segment: continuous
+        duration_pct: 0.07
+        zone: 1
+        description: "Aktiv recovery utan paddles"
       - segment: cooldown
-        distance_m: 200
+        duration_pct: 0.10
         zone: 1
     total_distance_m: 2000
     total_duration_min:
-      estimated: 50
-      flexible_range: [45, 55]
+      estimated: 33
+      flexible_range: [30, 55]
     zone_refs: [Z1, Z2]
     equipment: [paddles]

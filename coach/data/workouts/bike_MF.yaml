@@ -23,6 +23,12 @@ workouts:
     type_code: MF1
     name: "Force Reps — 8×30 sek låg kadens"
     phase_appropriate: [base_1, base_2, base_3]
+    parameterized: true
+    parameters:
+      duration_min:
+        default: 45
+        range: [35, 60]
+        description: "8 × 30 sek + 7 × 90 sek vila = 14 min fasta reps."
     intent: |
       Låg-kadens-intervaller för att bygga pedalkraft. Kadensen är target
       — håll 50-60 rpm. Watt drivs upp av att du måste trycka hårdare per
@@ -34,7 +40,7 @@ workouts:
     erg_mode: true
     main_set:
       - segment: warmup
-        duration_min: 15
+        duration_pct: 0.33
         zone: 1
         erg_mode: false
         description: "Inkludera 2-3 stigningar mot Z2 för att aktivera benen"
@@ -48,12 +54,12 @@ workouts:
           Z4-watt vid 50-60 rpm. Aktiv vila i Z1 med naturlig kadens.
           Tunga växlar, satt i sadeln, fokus på rund pedaltramp.
       - segment: cooldown
-        duration_min: 10
+        duration_pct: 0.22
         zone: 1
         erg_mode: false
     total_duration_min:
       estimated: 45
-      flexible_range: [40, 50]
+      flexible_range: [35, 60]
     zone_refs: [Z1, Z4]
     equipment: [power_meter, hr_strap]
     abort_conditions:
@@ -70,6 +76,12 @@ workouts:
     type_code: MF1
     name: "Force Reps — 6×1 min stigande"
     phase_appropriate: [base_2, base_3, build_1]
+    parameterized: true
+    parameters:
+      duration_min:
+        default: 50
+        range: [40, 65]
+        description: "6 × 1 min + 5 × 3 min vila = 21 min fasta reps."
     intent: |
       Längre force-reps med stegrande watt. Början av varje rep är på
       nedre Z4 — bygger till mitten/övre Z4 över 60 sekunder. Kadens
@@ -81,7 +93,7 @@ workouts:
     erg_mode: true
     main_set:
       - segment: warmup
-        duration_min: 15
+        duration_pct: 0.30
         zone: 1
         erg_mode: false
       - segment: main
@@ -91,12 +103,12 @@ workouts:
         cadence_rpm: [55, 65]
         rest_sec: 180
       - segment: cooldown
-        duration_min: 10
+        duration_pct: 0.20
         zone: 1
         erg_mode: false
     total_duration_min:
       estimated: 50
-      flexible_range: [45, 55]
+      flexible_range: [40, 65]
     zone_refs: [Z1, Z4]
     equipment: [power_meter, hr_strap, trainer]
     abort_conditions:
@@ -114,6 +126,12 @@ workouts:
     type_code: MF1
     name: "Force Reps — backe utomhus"
     phase_appropriate: [base_2, base_3, build_1]
+    parameterized: true
+    parameters:
+      duration_min:
+        default: 60
+        range: [50, 80]
+        description: "5 × 3 min + 4 × 4 min vila = 31 min fasta reps."
     intent: |
       Outdoor-variant av MF1. Hitta en lång svag uppförsbacke (3-6% lutning,
       3-5 min lång). Tramp upp i Z3-Z4-watt med medvetet låg kadens.
@@ -125,7 +143,7 @@ workouts:
     erg_mode: false
     main_set:
       - segment: warmup
-        duration_min: 15
+        duration_pct: 0.25
         zone: 1
         description: "Inkludera rullning till backens fot"
       - segment: main
@@ -138,11 +156,11 @@ workouts:
           Upp i Z4-watt med kadens 55-65. Sitt kvar i sadeln (ingen stå-tramp,
           det är inte poängen). Nedrullning ger 4 min vila innan nästa rep.
       - segment: cooldown
-        duration_min: 10
+        duration_pct: 0.17
         zone: 1
     total_duration_min:
       estimated: 60
-      flexible_range: [55, 75]
+      flexible_range: [50, 80]
     zone_refs: [Z1, Z4]
     equipment: [power_meter, hr_strap]
     abort_conditions:
@@ -162,8 +180,14 @@ workouts:
     discipline: bike
     category: MF
     type_code: MF2
-    name: "Hilly Ride — 90 min naturlig variation"
+    name: "Hilly Ride — naturlig variation"
     phase_appropriate: [base_2, base_3, build_1, build_2]
+    parameterized: true
+    parameters:
+      duration_min:
+        default: 90
+        range: [60, 240]
+        description: "Helt continuous-pass — totalen styr volymen direkt. Lågvolym-adept: 60-75."
     intent: |
       Lång åktur i kuperad terräng. Backarna sätter styrkebelastningen
       naturligt — du behöver inte räkna intervaller. Snitt-watt över passet
@@ -175,11 +199,11 @@ workouts:
     erg_mode: false
     main_set:
       - segment: warmup
-        duration_min: 15
+        duration_pct: 0.17
         zone: 1
         description: "Platta partier om möjligt"
       - segment: continuous
-        duration_min: 65
+        duration_pct: 0.72
         zone: 2
         cadence_rpm: [75, 95]
         description: |
@@ -187,11 +211,11 @@ workouts:
           watt att gå upp till Z3-Z4 och kadens ned mot 70-75. Mellan
           backar: lugn Z2 för återhämtning.
       - segment: cooldown
-        duration_min: 10
+        duration_pct: 0.11
         zone: 1
     total_duration_min:
       estimated: 90
-      flexible_range: [75, 110]
+      flexible_range: [60, 240]
     zone_refs: [Z1, Z2, Z3, Z4]
     equipment: [power_meter, hr_strap]
     abort_conditions:
@@ -206,8 +230,16 @@ workouts:
     discipline: bike
     category: MF
     type_code: MF2
-    name: "Hilly Ride — 2 tim med pure climbing block"
+    name: "Hilly Ride med pure climbing block"
     phase_appropriate: [base_3, build_1, build_2]
+    parameterized: true
+    parameters:
+      duration_min:
+        default: 120
+        range: [90, 180]
+        description: |
+          Helt continuous. 30-min-blocket är en pct-andel — om totalen
+          krymper proportionellt så krymper det. Bevara strukturen.
     intent: |
       Lång kuperad åktur med inbäddat 30-min styrkeblock i kuperad terräng.
       Första timmen är vanlig MF2 — uppvärmning. Andra timmen letar du
@@ -219,29 +251,29 @@ workouts:
     erg_mode: false
     main_set:
       - segment: warmup
-        duration_min: 15
+        duration_pct: 0.13
         zone: 1
       - segment: continuous
-        duration_min: 45
+        duration_pct: 0.38
         zone: 2
         cadence_rpm: [80, 95]
         description: "Aerobt bas i kuperat — backarna får drifta upp till Z3"
-      - segment: main
-        duration_min: 30
+      - segment: continuous
+        duration_pct: 0.25
         effort_descriptor: "Z3 i snitt med Z4-spikar i backarna. Hitta 4-6 backar på 1-3 min styck — tryck på."
         cadence_rpm: [70, 90]
         description: "Block där du jagar backarna istället för att rulla över dem"
       - segment: continuous
-        duration_min: 20
+        duration_pct: 0.16
         zone: 2
         cadence_rpm: [85, 95]
         description: "Aktiv nedvarvning, plattare partier"
       - segment: cooldown
-        duration_min: 10
+        duration_pct: 0.08
         zone: 1
     total_duration_min:
       estimated: 120
-      flexible_range: [110, 140]
+      flexible_range: [90, 180]
     zone_refs: [Z1, Z2, Z3, Z4]
     equipment: [power_meter, hr_strap]
     abort_conditions:
@@ -260,6 +292,12 @@ workouts:
     type_code: MF3
     name: "Hill Repeats — 5×4 min Z4"
     phase_appropriate: [base_3, build_1, build_2]
+    parameterized: true
+    parameters:
+      duration_min:
+        default: 75
+        range: [60, 100]
+        description: "5 × 4 min + 4 × 5 min vila = 40 min fasta reps."
     intent: |
       Upprepade backintervaller. Hitta en backe som tar ca 4 min att klättra
       (typiskt 1-1.5 km, 4-7% snitt). Tramp upp i tröskel-watt (mitten Z4).
@@ -271,7 +309,7 @@ workouts:
     erg_mode: false
     main_set:
       - segment: warmup
-        duration_min: 15
+        duration_pct: 0.20
         zone: 1
         description: "Inkludera rullning till backens fot; lägg in 2 min Z2 mot slutet"
       - segment: main
@@ -285,11 +323,11 @@ workouts:
           är brant. Sitt kvar i sadeln så mycket som möjligt. Aktiv vila:
           rulla ned + lugn återhämtning innan nästa rep.
       - segment: cooldown
-        duration_min: 10
+        duration_pct: 0.13
         zone: 1
     total_duration_min:
       estimated: 75
-      flexible_range: [70, 90]
+      flexible_range: [60, 100]
     zone_refs: [Z1, Z4]
     equipment: [power_meter, hr_strap]
     abort_conditions:
@@ -307,6 +345,12 @@ workouts:
     type_code: MF3
     name: "Hill Repeats — 8×3 min stå/sitt"
     phase_appropriate: [build_1, build_2]
+    parameterized: true
+    parameters:
+      duration_min:
+        default: 80
+        range: [70, 100]
+        description: "8 × 3 min + 7 × 4 min vila = 52 min fasta reps."
     intent: |
       Hill repeats med medveten växling mellan sittande och stående tramp.
       Bygger både muskeluthållighet och teknisk skicklighet — IM-cykling
@@ -318,7 +362,7 @@ workouts:
     erg_mode: false
     main_set:
       - segment: warmup
-        duration_min: 15
+        duration_pct: 0.19
         zone: 1
       - segment: main
         sets: 8
@@ -331,11 +375,11 @@ workouts:
           varje rep — t.ex. 30 sek sitt, 30 sek stå, 60 sek sitt, 30 sek stå,
           30 sek sitt. Watt jämn över repet trots växlingen.
       - segment: cooldown
-        duration_min: 10
+        duration_pct: 0.13
         zone: 1
     total_duration_min:
       estimated: 80
-      flexible_range: [75, 95]
+      flexible_range: [70, 100]
     zone_refs: [Z1, Z4]
     equipment: [power_meter, hr_strap]
     abort_conditions:
@@ -352,6 +396,12 @@ workouts:
     type_code: MF3
     name: "Hill Repeats — long climbs 3×8 min Z3-Z4"
     phase_appropriate: [build_1, build_2]
+    parameterized: true
+    parameters:
+      duration_min:
+        default: 75
+        range: [60, 100]
+        description: "3 × 8 min + 2 × 6 min vila = 36 min fasta reps."
     intent: |
       Längre backe-intervaller på övre Z3 / nedre Z4 (sweet spot på backe).
       Bygger upp förmågan att hålla under-tröskel-watt på 6-8% lutning
@@ -364,7 +414,7 @@ workouts:
     erg_mode: false
     main_set:
       - segment: warmup
-        duration_min: 15
+        duration_pct: 0.20
         zone: 1
       - segment: main
         sets: 3
@@ -374,11 +424,11 @@ workouts:
         rest_sec: 360
         description: "Aktiv vila: rulla ned + 2-3 min platt Z1-Z2 innan nästa rep"
       - segment: cooldown
-        duration_min: 10
+        duration_pct: 0.13
         zone: 1
     total_duration_min:
       estimated: 75
-      flexible_range: [70, 90]
+      flexible_range: [60, 100]
     zone_refs: [Z1, Z2, Z3, Z4]
     equipment: [power_meter, hr_strap]
     abort_conditions:

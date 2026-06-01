@@ -1,12 +1,7 @@
 # Löppass — Muskulär Uthållighet (ME)
 #
-# ME1 — Cruise Intervals: tröskelnära intervaller med kort vila.
-# ME2 — Hill Cruise Intervals: samma idé men i längre backar.
-# ME3 — Crisscross Intervals: växlande mellan Z3 och Z4.
-# ME4 — Threshold Run: kontinuerligt block på/strax under tröskel.
-#
-# ME-passen är "tröskelfamiljen" — den enskilt viktigaste
-# kvalitetszonen för långdistanslöpning.
+# Tröskelfamiljen. Alla huvudset är fasta — intervalldelen är poängen.
+# Bara warmup/cooldown skalas med budget.
 
 workouts:
 
@@ -20,13 +15,19 @@ workouts:
     type_code: ME1
     name: "5×1km Z4"
     phase_appropriate: [base_3, build_1, build_2]
+    parameterized: true
+    parameters:
+      duration_min:
+        default: 65
+        range: [60, 75]
+        description: "Stridor + main = ~37 min FAST (5 km @ ~4:45/km + viltimmar)"
     intent: |
       Klassiska kilometer-intervaller på tröskelfart. Vilan är
       tillräcklig för att hålla pace över alla fem, kort nog
       för att tröskelsystemet ska få samlad belastning.
     main_set:
       - segment: warmup
-        duration_min: 15
+        duration_pct: 0.55
         zone: 1
       - segment: build
         sets: 4
@@ -40,7 +41,7 @@ workouts:
         rest_sec: 90
         description: "Jämn Z4. Pace över alla fem ska variera max 5 sek/km."
       - segment: cooldown
-        duration_min: 10
+        duration_pct: 0.45
         zone: 1
     total_duration_min:
       estimated: 65
@@ -63,13 +64,19 @@ workouts:
     type_code: ME1
     name: "4×1500m Z4"
     phase_appropriate: [build_1, build_2, peak]
+    parameterized: true
+    parameters:
+      duration_min:
+        default: 70
+        range: [65, 80]
+        description: "Stridor + main = ~42 min FAST"
     intent: |
       Längre cruise-intervaller — närmare en sammanhängande
       tröskellöpning än 1km-reps. Mental envishet krävs i sista
       tredjedelen av varje rep.
     main_set:
       - segment: warmup
-        duration_min: 15
+        duration_pct: 0.60
         zone: 1
       - segment: build
         sets: 4
@@ -83,7 +90,7 @@ workouts:
         rest_sec: 120
         description: "Nedre Z4. Bygg pacekänsla första 400m, lås den."
       - segment: cooldown
-        duration_min: 10
+        duration_pct: 0.40
         zone: 1
     total_duration_min:
       estimated: 70
@@ -99,12 +106,18 @@ workouts:
     type_code: ME1
     name: "8×600m Z4"
     phase_appropriate: [base_3, build_1]
+    parameterized: true
+    parameters:
+      duration_min:
+        default: 60
+        range: [55, 70]
+        description: "Stridor + main = ~35 min FAST"
     intent: |
       Kortare cruise-reps med kort vila. Lägre total stress per rep,
       högre frekvens. Bra ingång till ME-träningen efter base 1-2.
     main_set:
       - segment: warmup
-        duration_min: 15
+        duration_pct: 0.60
         zone: 1
       - segment: build
         sets: 4
@@ -118,7 +131,7 @@ workouts:
         rest_sec: 60
         description: "Nedre Z4. Kort vila — hela kakan ska kännas som ett enda block."
       - segment: cooldown
-        duration_min: 10
+        duration_pct: 0.40
         zone: 1
     total_duration_min:
       estimated: 60
@@ -138,13 +151,19 @@ workouts:
     type_code: ME2
     name: "5×2 min backe Z4"
     phase_appropriate: [base_3, build_1, build_2]
+    parameterized: true
+    parameters:
+      duration_min:
+        default: 60
+        range: [55, 70]
+        description: "Stridor + main = ~22 min FAST"
     intent: |
       Cruise-intervaller uppför. Backen gör det enklare att hålla
       Z4-puls utan att flyga, och uppförslöpning är skonsammare
       mot leder vid hög intensitet.
     main_set:
       - segment: warmup
-        duration_min: 15
+        duration_pct: 0.60
         zone: 1
       - segment: build
         sets: 3
@@ -159,7 +178,7 @@ workouts:
         rest_sec: 120
         description: "Z4 uppför 3-5% lutning. Gå/jogga ner i pausen."
       - segment: cooldown
-        duration_min: 10
+        duration_pct: 0.40
         zone: 1
     total_duration_min:
       estimated: 60
@@ -175,12 +194,18 @@ workouts:
     type_code: ME2
     name: "Trail backe-tröskel — 4×3 min"
     phase_appropriate: [build_1, build_2]
+    parameterized: true
+    parameters:
+      duration_min:
+        default: 65
+        range: [60, 75]
+        description: "Main = ~21 min FAST (4×3 + 3×3 viltimmar)"
     intent: |
       Längre uppförsintervaller i trail-miljö. Mjukt underlag,
       tekniska steg, krävande uthålligt Z4-arbete.
     main_set:
       - segment: warmup
-        duration_min: 15
+        duration_pct: 0.60
         zone: 1
         pace_unreliable: true
       - segment: main
@@ -191,7 +216,7 @@ workouts:
         rest_sec: 180
         description: "Nedre Z4. Konstant kraft, läs underlaget."
       - segment: cooldown
-        duration_min: 10
+        duration_pct: 0.40
         zone: 1
         pace_unreliable: true
     total_duration_min:
@@ -212,6 +237,12 @@ workouts:
     type_code: ME3
     name: "Crisscross 6×(2 min Z4 / 1 min Z3)"
     phase_appropriate: [build_1, build_2, peak]
+    parameterized: true
+    parameters:
+      duration_min:
+        default: 60
+        range: [55, 70]
+        description: "Stridor + 18 min crisscross = ~21 min FAST"
     intent: |
       Växlande mellan Z3 och Z4 i 18 sammanhängande minuter. Övre
       Z3 fungerar som "aktiv vila" — det är aldrig riktig återhämtning.
@@ -219,7 +250,7 @@ workouts:
       än något rent Z4-pass av jämförbar längd.
     main_set:
       - segment: warmup
-        duration_min: 15
+        duration_pct: 0.60
         zone: 1
       - segment: build
         sets: 3
@@ -233,7 +264,7 @@ workouts:
           - { duration_min: 1, zone: 3 }
         description: "Ingen vila mellan repetitioner — direkta övergångar Z4→Z3→Z4. Övre Z3 räknas inte som paus."
       - segment: cooldown
-        duration_min: 10
+        duration_pct: 0.40
         zone: 1
     total_duration_min:
       estimated: 60
@@ -254,12 +285,18 @@ workouts:
     type_code: ME3
     name: "Crisscross 4×(3 min Z4 / 2 min Z3)"
     phase_appropriate: [build_2, peak]
+    parameterized: true
+    parameters:
+      duration_min:
+        default: 65
+        range: [60, 75]
+        description: "Stridor + 20 min crisscross = ~23 min FAST"
     intent: |
       Längre crisscross-format. 20 min sammanhängande på/strax under
       tröskel. Toppat pass för build_2 och peak.
     main_set:
       - segment: warmup
-        duration_min: 15
+        duration_pct: 0.60
         zone: 1
       - segment: build
         sets: 3
@@ -272,7 +309,7 @@ workouts:
           - { duration_min: 3, zone: 4 }
           - { duration_min: 2, zone: 3 }
       - segment: cooldown
-        duration_min: 10
+        duration_pct: 0.40
         zone: 1
     total_duration_min:
       estimated: 65
@@ -283,7 +320,7 @@ workouts:
     equipment: []
 
   # ─────────────────────────────────────────────────────────────
-  # ME4 — Threshold Run (kontinuerligt block)
+  # ME4 — Threshold Run (kontinuerligt block — main FAST)
   # ─────────────────────────────────────────────────────────────
 
   - code: ME4_run_01
@@ -292,13 +329,19 @@ workouts:
     type_code: ME4
     name: "30 min sammanhängande tröskel"
     phase_appropriate: [build_2, peak]
+    parameterized: true
+    parameters:
+      duration_min:
+        default: 65
+        range: [60, 70]
+        description: "Build + 30 min tröskel = 35 min FAST"
     intent: |
       Halv-maraton-relevant block: 30 min strax UNDER tröskel
       (nedre Z4). Mentalt krävande, men inget egentligt extremt
       tempo — finns kroppen där så går det.
     main_set:
       - segment: warmup
-        duration_min: 15
+        duration_pct: 0.60
         zone: 1
       - segment: build
         duration_min: 5
@@ -309,7 +352,7 @@ workouts:
         zone: 4
         description: "Nedre Z4. Hitta rytm tidigt, samma andning sista minuten som första."
       - segment: cooldown
-        duration_min: 10
+        duration_pct: 0.40
         zone: 1
     total_duration_min:
       estimated: 65
@@ -331,12 +374,18 @@ workouts:
     type_code: ME4
     name: "2×20 min tröskelblock"
     phase_appropriate: [build_1, build_2]
+    parameterized: true
+    parameters:
+      duration_min:
+        default: 70
+        range: [65, 80]
+        description: "Build + 2×20 min + 3 min vila = 46 min FAST"
     intent: |
       Splittad version av 40 min total tröskeltid. Lägre mental kostnad
       per block, samma fysiologiska träningseffekt.
     main_set:
       - segment: warmup
-        duration_min: 15
+        duration_pct: 0.60
         zone: 1
       - segment: build
         duration_min: 3
@@ -348,7 +397,7 @@ workouts:
         rest_sec: 180
         description: "Nedre Z4. Vila: lugn jogg Z1."
       - segment: cooldown
-        duration_min: 10
+        duration_pct: 0.40
         zone: 1
     total_duration_min:
       estimated: 70

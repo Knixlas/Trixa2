@@ -21,6 +21,12 @@ workouts:
     type_code: AC1
     name: "VO2Max — 5×3 min Z5"
     phase_appropriate: [build_1, build_2]
+    parameterized: true
+    parameters:
+      duration_min:
+        default: 65
+        range: [55, 80]
+        description: "5 × 3 min + 4 × 3 min vila = 27 min fasta reps."
     intent: |
       Klassisk VO2Max-träning. Fem 3-minutersblock i Z5 — total 15 min
       där du jobbar nära max syreupptag. Det här är passet där du undrar
@@ -32,7 +38,7 @@ workouts:
     erg_mode: true
     main_set:
       - segment: warmup
-        duration_min: 20
+        duration_pct: 0.31
         zone: 1
         erg_mode: false
         description: "Inkludera 2 × 1 min progressive build mot Z4 och 1 × 30 sek Z5 öppnare"
@@ -46,12 +52,12 @@ workouts:
           Mitten Z5 (≈115% FTP). Aktiv vila i Z1-Z2.
           Första repet sätt watt-disciplinen; rep 4-5 är där adaption sker.
       - segment: cooldown
-        duration_min: 10
+        duration_pct: 0.15
         zone: 1
         erg_mode: false
     total_duration_min:
       estimated: 65
-      flexible_range: [60, 75]
+      flexible_range: [55, 80]
     zone_refs: [Z1, Z5]
     equipment: [power_meter, hr_strap, trainer]
     abort_conditions:
@@ -69,6 +75,12 @@ workouts:
     type_code: AC1
     name: "VO2Max — 30/30 × 20"
     phase_appropriate: [build_1, build_2, peak]
+    parameterized: true
+    parameters:
+      duration_min:
+        default: 50
+        range: [40, 60]
+        description: "20 × 30 sek + 19 × 30 sek vila + sista vila = 20 min fasta reps."
     intent: |
       Tabata-liknande 30/30 — 30 sek hårt / 30 sek lugnt × 20 reps. Total
       10 min hård tid, men intensitetet är högre än 3-min-reps eftersom
@@ -79,7 +91,7 @@ workouts:
     erg_mode: true
     main_set:
       - segment: warmup
-        duration_min: 15
+        duration_pct: 0.30
         zone: 1
         erg_mode: false
         description: "Inkludera 1 × 30 sek Z5 mot slutet som öppnare"
@@ -91,12 +103,12 @@ workouts:
         rest_sec: 30
         description: "30 sek aktiv vila — låg watt, vrid kvar benen"
       - segment: cooldown
-        duration_min: 10
+        duration_pct: 0.20
         zone: 1
         erg_mode: false
     total_duration_min:
       estimated: 50
-      flexible_range: [45, 55]
+      flexible_range: [40, 60]
     zone_refs: [Z1, Z5]
     equipment: [power_meter, hr_strap, trainer]
     abort_conditions:
@@ -114,6 +126,12 @@ workouts:
     type_code: AC1
     name: "VO2Max — 4×4 min Z5"
     phase_appropriate: [build_1, build_2]
+    parameterized: true
+    parameters:
+      duration_min:
+        default: 65
+        range: [55, 80]
+        description: "4 × 4 min + 3 × 3 min vila = 25 min fasta reps."
     intent: |
       "Norrländska 4×4" — fyra 4-minutersintervaller i Z5 med 3 min vila.
       Något längre per rep än 3-min-varianten (mer aerob), något kortare
@@ -124,7 +142,7 @@ workouts:
     erg_mode: true
     main_set:
       - segment: warmup
-        duration_min: 20
+        duration_pct: 0.31
         zone: 1
         erg_mode: false
       - segment: main
@@ -135,12 +153,12 @@ workouts:
         rest_sec: 180
         description: "Nedre Z5 (≈110-115% FTP). HR ska upp i 90+% av max under sista minuten av varje rep."
       - segment: cooldown
-        duration_min: 10
+        duration_pct: 0.15
         zone: 1
         erg_mode: false
     total_duration_min:
       estimated: 65
-      flexible_range: [60, 75]
+      flexible_range: [55, 80]
     zone_refs: [Z1, Z5]
     equipment: [power_meter, hr_strap, trainer]
     abort_conditions:
@@ -161,6 +179,12 @@ workouts:
     type_code: AC2
     name: "Pyramid — 1/2/3/2/1 min Z5"
     phase_appropriate: [build_1, build_2]
+    parameterized: true
+    parameters:
+      duration_min:
+        default: 55
+        range: [45, 70]
+        description: "Pyramid 1+2+3+2+1 + vila 1+2+3+2 = 17 min fasta reps."
     intent: |
       Stegrande/avtagande VO2-pyramid: 1, 2, 3, 2, 1 min i Z5 med vila
       lika med rep-tiden. Pyramiden ger variation utan att tappa fokus;
@@ -171,7 +195,7 @@ workouts:
     erg_mode: true
     main_set:
       - segment: warmup
-        duration_min: 20
+        duration_pct: 0.36
         zone: 1
         erg_mode: false
       - segment: main
@@ -199,12 +223,12 @@ workouts:
         zone: 5
         cadence_rpm: [95, 110]
       - segment: cooldown
-        duration_min: 10
+        duration_pct: 0.18
         zone: 1
         erg_mode: false
     total_duration_min:
       estimated: 55
-      flexible_range: [50, 60]
+      flexible_range: [45, 70]
     zone_refs: [Z1, Z5]
     equipment: [power_meter, hr_strap, trainer]
     abort_conditions:
@@ -219,6 +243,12 @@ workouts:
     type_code: AC2
     name: "Pyramid — Tabata-pyramid 30-60-90-60-30 sek"
     phase_appropriate: [build_1, build_2, peak]
+    parameterized: true
+    parameters:
+      duration_min:
+        default: 50
+        range: [40, 65]
+        description: "2 pyramider med vila = ≈22 min fasta reps."
     intent: |
       Kort-rep-pyramid: 30, 60, 90, 60, 30 sek med vila = rep-tid. Watt-target
       högre än 3-min-pyramiden (≈120% FTP på 30-sek, ≈115% på 90-sek). HR
@@ -228,7 +258,7 @@ workouts:
     erg_mode: true
     main_set:
       - segment: warmup
-        duration_min: 15
+        duration_pct: 0.30
         zone: 1
         erg_mode: false
       - segment: main
@@ -281,12 +311,12 @@ workouts:
         effort_descriptor: "120% FTP, smooth"
         cadence_rpm: [100, 110]
       - segment: cooldown
-        duration_min: 10
+        duration_pct: 0.20
         zone: 1
         erg_mode: false
     total_duration_min:
       estimated: 50
-      flexible_range: [45, 55]
+      flexible_range: [40, 65]
     zone_refs: [Z1, Z5]
     equipment: [power_meter, hr_strap, trainer]
     abort_conditions:
@@ -306,6 +336,12 @@ workouts:
     type_code: AC3
     name: "Hill Intervals — 6×2 min Z5 i backe"
     phase_appropriate: [build_1, build_2]
+    parameterized: true
+    parameters:
+      duration_min:
+        default: 70
+        range: [60, 90]
+        description: "6 × 2 min + 5 × 4 min vila = 32 min fasta reps."
     intent: |
       Korta hårda backe-intervaller. Hitta backe på 2 min (typiskt 500-700m,
       6-10%). Watt-target Z5 (≈115-120% FTP). Kombinerar VO2-stress med
@@ -317,7 +353,7 @@ workouts:
     erg_mode: false
     main_set:
       - segment: warmup
-        duration_min: 20
+        duration_pct: 0.29
         zone: 1
         description: "Inkludera 2 × 30 sek progressive i Z3-Z4 mot slutet"
       - segment: main
@@ -330,11 +366,11 @@ workouts:
           Mitten Z5. Rull ned i återhämtning. 4 min vila är generös men
           nödvändig för att kunna upprepa Z5 6 gånger.
       - segment: cooldown
-        duration_min: 10
+        duration_pct: 0.14
         zone: 1
     total_duration_min:
       estimated: 70
-      flexible_range: [65, 80]
+      flexible_range: [60, 90]
     zone_refs: [Z1, Z5]
     equipment: [power_meter, hr_strap]
     abort_conditions:
@@ -352,6 +388,12 @@ workouts:
     type_code: AC3
     name: "Hill Intervals — 8×90 sek Z5 i backe"
     phase_appropriate: [build_2, peak]
+    parameterized: true
+    parameters:
+      duration_min:
+        default: 75
+        range: [65, 95]
+        description: "8 × 90 sek + 7 × 3 min vila = 33 min fasta reps."
     intent: |
       Kortare och mer intensiva backe-intervaller. Backe på 90 sek (400-500m,
       8-12%). Watt-target hög Z5 / nedre Z6 (≈120-125% FTP). 8 reps med
@@ -363,7 +405,7 @@ workouts:
     erg_mode: false
     main_set:
       - segment: warmup
-        duration_min: 20
+        duration_pct: 0.27
         zone: 1
       - segment: main
         sets: 8
@@ -373,11 +415,11 @@ workouts:
         rest_sec: 180
         description: "Rull ned i återhämtning, lugn återgång till backens fot"
       - segment: cooldown
-        duration_min: 10
+        duration_pct: 0.13
         zone: 1
     total_duration_min:
       estimated: 75
-      flexible_range: [70, 90]
+      flexible_range: [65, 95]
     zone_refs: [Z1, Z5]
     equipment: [power_meter, hr_strap]
     abort_conditions:

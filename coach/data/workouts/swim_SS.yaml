@@ -5,6 +5,9 @@
 #
 # Gemensamt: hög kvalitet per repetition. Aldrig trötta upp. När
 # tekniken bryts är passet slut.
+#
+# Skalning: fler reps + lugn absorbtion i Z1. Aldrig "fler all-out" på
+# bekostnad av återhämtningen — då blir det trötthet, inte snabbhet.
 
 workouts:
 
@@ -17,6 +20,12 @@ workouts:
     category: SS
     type_code: SS1
     name: "16×25 all-out"
+    parametrized: true
+    parameters:
+      duration_min:
+        default: 45
+        range: [30, 65]
+        description: "Skala till veckans budget"
     phase_appropriate: [prep, base_1, base_2, base_3, build_1, build_2, peak]
     intent: |
       Klassisk snabbhetsdrill. Korta sprintar med full återhämtning.
@@ -24,32 +33,36 @@ workouts:
       första 25. Aldrig 'snubbla i mål' tekniskt.
     main_set:
       - segment: warmup
-        distance_m: 400
+        duration_pct: 0.15
         zone: 1
       - segment: drills
-        sets: 4
+        sets: {default: 4, range: [3, 5]}
         distance_m: 50
         rest_sec: 15
         drills: [single_arm, six_kick_switch, fast_swim_focus]
       - segment: build
-        sets: 4
+        sets: {default: 4, range: [3, 5]}
         distance_m: 25
         rest_sec: 30
         description: "Build från Z2 till Z4 — väck nervsystemet"
       - segment: sprint
-        sets: 16
+        sets: {default: 16, range: [10, 24]}
         distance_m: 25
         zone: 5
         rest_sec: 30
         description: "All-out från push. Full återhämtning innan nästa."
         notes: "Andas så lite som möjligt — helst inte alls på 25m"
+      - segment: continuous
+        duration_pct: 0.10
+        zone: 1
+        description: "Aktiv recovery efter setet — lugn fri"
       - segment: cooldown
-        distance_m: 300
+        duration_pct: 0.15
         zone: 1
     total_distance_m: 1500
     total_duration_min:
       estimated: 45
-      flexible_range: [40, 55]
+      flexible_range: [30, 65]
     zone_refs: [Z1, Z2, Z4, Z5]
     equipment: []
     abort_conditions:
@@ -60,6 +73,12 @@ workouts:
     category: SS
     type_code: SS1
     name: "Underwater dolphin starts"
+    parametrized: true
+    parameters:
+      duration_min:
+        default: 30
+        range: [25, 45]
+        description: "Smal range — undervattenarbete har riskdimension"
     phase_appropriate: [base_2, base_3, build_1, build_2, peak]
     intent: |
       Sprint-set med fokus på undervatten-fasen ut från väggen.
@@ -67,37 +86,48 @@ workouts:
       undervatten innan första taget. Bygger startkraft och kicktolerans.
     main_set:
       - segment: warmup
-        distance_m: 400
+        duration_pct: 0.20
         zone: 1
       - segment: drills
-        sets: 4
+        sets: {default: 4, range: [3, 6]}
         distance_m: 25
         rest_sec: 20
         description: "Bara undervattens-dolphin från push — kom upp och stå"
       - segment: sprint
-        sets: 8
+        sets: {default: 8, range: [6, 12]}
         distance_m: 25
         zone: 5
         rest_sec: 45
         description: "5 dolphin-kicks under vattnet ut från väggen, sedan sprint upp till mål"
+      - segment: continuous
+        duration_pct: 0.15
+        zone: 1
+        description: "Aktiv recovery efter setet"
       - segment: cooldown
-        distance_m: 200
+        duration_pct: 0.15
         zone: 1
     total_distance_m: 900
     total_duration_min:
       estimated: 30
-      flexible_range: [25, 40]
+      flexible_range: [25, 45]
     zone_refs: [Z1, Z5]
     equipment: []
     coach_notes: |
       Korta pass — undervattenarbete är belastande på lungor och kropp.
       Aldrig stretcha gränsen för att hålla andan, det är farligt.
+      Smal range — det här är inte ett "längre om budget medger"-pass.
 
   - code: SS1_swim_03
     discipline: swim
     category: SS
     type_code: SS1
     name: "Sprintstege 12×25 build"
+    parametrized: true
+    parameters:
+      duration_min:
+        default: 35
+        range: [25, 55]
+        description: "Skala till veckans budget"
     phase_appropriate: [base_2, base_3, build_1, build_2, peak]
     intent: |
       Sprint-set med progressiv intensitet. Första repetitionerna
@@ -105,37 +135,41 @@ workouts:
       Lär nervsystemet att skala upp utan teknikbortfall.
     main_set:
       - segment: warmup
-        distance_m: 400
+        duration_pct: 0.18
         zone: 1
       - segment: drills
-        sets: 4
+        sets: {default: 4, range: [3, 5]}
         distance_m: 50
         rest_sec: 15
       - segment: sprint
-        sets: 4
+        sets: {default: 4, range: [3, 6]}
         distance_m: 25
         zone: 4
         rest_sec: 30
         description: "Steg 1: snabbt men under max"
       - segment: sprint
-        sets: 4
+        sets: {default: 4, range: [3, 6]}
         distance_m: 25
         zone: 4
         rest_sec: 35
         description: "Steg 2: snabbare än steg 1"
       - segment: sprint
-        sets: 4
+        sets: {default: 4, range: [3, 6]}
         distance_m: 25
         zone: 5
         rest_sec: 40
         description: "Steg 3: maximalt"
+      - segment: continuous
+        duration_pct: 0.15
+        zone: 1
+        description: "Aktiv recovery efter setet"
       - segment: cooldown
-        distance_m: 300
+        duration_pct: 0.12
         zone: 1
     total_distance_m: 1300
     total_duration_min:
-      estimated: 40
-      flexible_range: [35, 50]
+      estimated: 35
+      flexible_range: [25, 55]
     zone_refs: [Z1, Z4, Z5]
     equipment: []
 
@@ -148,6 +182,12 @@ workouts:
     category: SS
     type_code: SS2
     name: "Fen-set: snabb och flytande"
+    parametrized: true
+    parameters:
+      duration_min:
+        default: 32
+        range: [22, 55]
+        description: "Skala till veckans budget"
     phase_appropriate: [prep, base_1, base_2, base_3, build_1, build_2, peak]
     intent: |
       Fenor multiplicerar både kraft och hastighet utan att slita
@@ -155,36 +195,40 @@ workouts:
       än CSS — den 'feeling' du sedan vill kunna återskapa utan fenor.
     main_set:
       - segment: warmup
-        distance_m: 400
+        duration_pct: 0.13
         zone: 1
       - segment: kick
-        sets: 4
+        sets: {default: 4, range: [3, 6]}
         distance_m: 50
         rest_sec: 15
         equipment: [fins, kickboard]
         description: "Kick på rygg eller med kickboard, snabba fötter"
       - segment: drills
-        sets: 4
+        sets: {default: 4, range: [3, 6]}
         distance_m: 50
         rest_sec: 15
         equipment: [fins]
         drills: [six_kick_switch, side_kick]
       - segment: main
-        sets: 8
+        sets: {default: 8, range: [5, 14]}
         distance_m: 50
         zone: 3
         rest_sec: 20
         equipment: [fins]
         description: "Snabb fri med fenor — fart du normalt inte når"
+      - segment: continuous
+        duration_pct: 0.15
+        zone: 1
+        description: "Aktiv recovery efter setet"
       - segment: cooldown
-        distance_m: 200
+        duration_pct: 0.07
         zone: 1
         equipment: []
         description: "Utan fenor — kontrast"
     total_distance_m: 1800
     total_duration_min:
-      estimated: 45
-      flexible_range: [40, 50]
+      estimated: 32
+      flexible_range: [22, 55]
     zone_refs: [Z1, Z3]
     equipment: [fins, kickboard]
 
@@ -193,6 +237,12 @@ workouts:
     category: SS
     type_code: SS2
     name: "Snorkel-teknikset"
+    parametrized: true
+    parameters:
+      duration_min:
+        default: 32
+        range: [22, 55]
+        description: "Skala till veckans budget"
     phase_appropriate: [prep, base_1, base_2, base_3]
     intent: |
       Snorkel eliminerar andning från ekvationen — du kan fokusera
@@ -200,37 +250,41 @@ workouts:
       stör. Långsamt och precist.
     main_set:
       - segment: warmup
-        distance_m: 300
+        duration_pct: 0.10
         zone: 1
         equipment: []
       - segment: drills
-        sets: 6
+        sets: {default: 6, range: [4, 10]}
         distance_m: 50
         rest_sec: 20
         equipment: [snorkel]
         drills: [sculling_front, catch_drill, fingertip_drag]
         description: "Snorkel på — fokusera helt på vad armarna gör"
       - segment: main
-        sets: 4
+        sets: {default: 4, range: [3, 7]}
         distance_m: 100
         zone: 2
         rest_sec: 20
         equipment: [snorkel]
         description: "Lugn fri med snorkel — försök behålla drill-känslan"
       - segment: main
-        sets: 4
+        sets: {default: 4, range: [3, 7]}
         distance_m: 50
         zone: 2
         rest_sec: 15
         equipment: []
         description: "Utan snorkel — bibehåll positionen från snorkel-delen"
+      - segment: continuous
+        duration_pct: 0.10
+        zone: 1
+        description: "Aktiv recovery — lugn fri utan snorkel"
       - segment: cooldown
-        distance_m: 200
+        duration_pct: 0.08
         zone: 1
     total_distance_m: 1500
     total_duration_min:
-      estimated: 45
-      flexible_range: [40, 50]
+      estimated: 32
+      flexible_range: [22, 55]
     zone_refs: [Z1, Z2]
     equipment: [snorkel]
 
@@ -239,6 +293,12 @@ workouts:
     category: SS
     type_code: SS2
     name: "Toy rotation set"
+    parametrized: true
+    parameters:
+      duration_min:
+        default: 30
+        range: [22, 50]
+        description: "Skala till veckans budget"
     phase_appropriate: [base_1, base_2, base_3]
     intent: |
       Rotation genom flera verktyg — fenor, snorkel, kickboard.
@@ -246,36 +306,40 @@ workouts:
       teknisk täckning på en gång.
     main_set:
       - segment: warmup
-        distance_m: 400
+        duration_pct: 0.13
         zone: 1
       - segment: kick
-        sets: 6
+        sets: {default: 6, range: [4, 9]}
         distance_m: 50
         rest_sec: 15
         equipment: [kickboard, fins]
         zone: 2
         description: "Snabb kick, fokus på smal amplitud"
       - segment: drills
-        sets: 4
+        sets: {default: 4, range: [3, 6]}
         distance_m: 50
         rest_sec: 15
         equipment: [snorkel]
         drills: [catch_drill, sculling_front]
       - segment: main
-        sets: 4
+        sets: {default: 4, range: [3, 7]}
         distance_m: 75
         zone: 2
         rest_sec: 20
         equipment: [fins]
         description: "Fenor + fri, känn farten"
+      - segment: continuous
+        duration_pct: 0.15
+        zone: 1
+        description: "Aktiv recovery — lugn fri utan verktyg"
       - segment: cooldown
-        distance_m: 200
+        duration_pct: 0.07
         zone: 1
         equipment: []
     total_distance_m: 1500
     total_duration_min:
-      estimated: 45
-      flexible_range: [40, 50]
+      estimated: 30
+      flexible_range: [22, 50]
     zone_refs: [Z1, Z2]
     equipment: [fins, snorkel, kickboard]
     coach_notes: |
@@ -287,6 +351,12 @@ workouts:
     category: SS
     type_code: SS2
     name: "Fenor snabbhet (over-speed)"
+    parametrized: true
+    parameters:
+      duration_min:
+        default: 33
+        range: [25, 50]
+        description: "Skala till veckans budget"
     phase_appropriate: [base_3, build_1, build_2, peak]
     intent: |
       Over-speed-träning: fenor gör att du kan simma snabbare än
@@ -295,34 +365,38 @@ workouts:
       ger det en mental referens för 'snabb fri'.
     main_set:
       - segment: warmup
-        distance_m: 400
+        duration_pct: 0.15
         zone: 1
       - segment: build
-        sets: 4
+        sets: {default: 4, range: [3, 5]}
         distance_m: 50
         rest_sec: 15
         equipment: [fins]
         description: "Build fart med fenor"
       - segment: sprint
-        sets: 12
+        sets: {default: 12, range: [8, 18]}
         distance_m: 25
         zone: 5
         rest_sec: 30
         equipment: [fins]
         description: "Sprint med fenor — högre hastighet än någonsin utan"
       - segment: main
-        sets: 4
+        sets: {default: 4, range: [3, 6]}
         distance_m: 50
         zone: 4
         rest_sec: 20
         equipment: []
         description: "Utan fenor — försök behålla snabbhetskänslan"
+      - segment: continuous
+        duration_pct: 0.10
+        zone: 1
+        description: "Aktiv recovery efter setet"
       - segment: cooldown
-        distance_m: 200
+        duration_pct: 0.07
         zone: 1
     total_distance_m: 1400
     total_duration_min:
-      estimated: 40
-      flexible_range: [35, 45]
+      estimated: 33
+      flexible_range: [25, 50]
     zone_refs: [Z1, Z4, Z5]
     equipment: [fins]

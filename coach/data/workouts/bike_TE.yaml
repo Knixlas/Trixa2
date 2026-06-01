@@ -11,8 +11,14 @@ workouts:
     discipline: bike
     category: TE
     type_code: TE1
-    name: "Klassiskt tempopass — 30 min"
+    name: "Klassiskt tempopass — flex duration"
     phase_appropriate: [base_2, base_3, build_1, build_2]
+    parameterized: true
+    parameters:
+      duration_min:
+        default: 60
+        range: [45, 90]
+        description: "Total tid. Z3-blocket skalar med totalen (det är poängen)."
     intent: |
       Sammanhängande Z3-block. Tempot är "bekvämt obekvämt" — du jobbar
       men du behöver inte gå sönder. Andning är djup men kontrollerad.
@@ -22,27 +28,27 @@ workouts:
     erg_mode: true
     main_set:
       - segment: warmup
-        duration_min: 15
+        duration_pct: 0.25
         zone: 1
         erg_mode: false
         description: "Gradvis upp, sista 2 min i Z2"
       - segment: build
-        duration_min: 3
+        duration_pct: 0.05
         zone: 2
         erg_mode: false
         description: "Build från Z2 till nedre Z3 — väck temponivån"
-      - segment: main
-        duration_min: 30
+      - segment: continuous
+        duration_pct: 0.53
         zone: 3
         cadence_rpm: [85, 95]
         description: "Jämn Z3, mitten av spannet (≈ 82% FTP). Lås andningsrytm tidigt, håll den."
       - segment: cooldown
-        duration_min: 10
+        duration_pct: 0.17
         zone: 1
         erg_mode: false
     total_duration_min:
       estimated: 60
-      flexible_range: [55, 70]
+      flexible_range: [45, 90]
     zone_refs: [Z1, Z2, Z3]
     equipment: [power_meter, hr_strap]
     abort_conditions:
@@ -58,6 +64,12 @@ workouts:
     type_code: TE1
     name: "Tempo intervals — 3×20 min"
     phase_appropriate: [base_3, build_1, build_2]
+    parameterized: true
+    parameters:
+      duration_min:
+        default: 95
+        range: [85, 115]
+        description: "3×20 + 2×5 vila = 70 min fasta reps. Totalen styr warmup/cooldown-utrymme."
     intent: |
       Tempotålighet i tre block med kort vila. Totalt 60 min Z3-arbete —
       mer än något sammanhängande pass, men spridd över 3 reps blir det
@@ -68,7 +80,7 @@ workouts:
     erg_mode: true
     main_set:
       - segment: warmup
-        duration_min: 15
+        duration_pct: 0.16
         zone: 1
         erg_mode: false
       - segment: main
@@ -79,12 +91,12 @@ workouts:
         rest_sec: 300
         description: "Mitten av Z3 (≈ 82% FTP). Aktiv vila i Z1-Z2 mellan reps."
       - segment: cooldown
-        duration_min: 10
+        duration_pct: 0.11
         zone: 1
         erg_mode: false
     total_duration_min:
       estimated: 95
-      flexible_range: [90, 105]
+      flexible_range: [85, 115]
     zone_refs: [Z1, Z2, Z3]
     equipment: [power_meter, hr_strap]
     abort_conditions:
@@ -101,6 +113,12 @@ workouts:
     type_code: TE1
     name: "Sweet Spot — 4×12 min"
     phase_appropriate: [base_3, build_1, build_2]
+    parameterized: true
+    parameters:
+      duration_min:
+        default: 85
+        range: [75, 105]
+        description: "4×12 + 3×3 vila = 57 min fasta reps."
     intent: |
       Sweet Spot — övre Z3 / nedre Z4 (88-93% FTP). Maxa tränings-
       adaption per minut för aerob+tröskel-kapacitet. Inte tröskel
@@ -111,7 +129,7 @@ workouts:
     erg_mode: true
     main_set:
       - segment: warmup
-        duration_min: 15
+        duration_pct: 0.18
         zone: 1
         erg_mode: false
       - segment: main
@@ -121,12 +139,12 @@ workouts:
         cadence_rpm: [85, 95]
         rest_sec: 180
       - segment: cooldown
-        duration_min: 10
+        duration_pct: 0.12
         zone: 1
         erg_mode: false
     total_duration_min:
       estimated: 85
-      flexible_range: [80, 95]
+      flexible_range: [75, 105]
     zone_refs: [Z1, Z2, Z3, Z4]
     equipment: [power_meter, hr_strap, trainer]
     abort_conditions:
@@ -143,6 +161,12 @@ workouts:
     type_code: TE1
     name: "Long Tempo — 2×30 min"
     phase_appropriate: [build_1, build_2]
+    parameterized: true
+    parameters:
+      duration_min:
+        default: 105
+        range: [95, 125]
+        description: "2×30 + 8 vila = 68 min fasta reps."
     intent: |
       Lång tempo-dos: två 30-minutersblock i mitten av Z3 med kort vila.
       Total 60 min Z3 fördelat i två stora chunks — utmanar tempotåligheten
@@ -152,7 +176,7 @@ workouts:
     erg_mode: true
     main_set:
       - segment: warmup
-        duration_min: 15
+        duration_pct: 0.14
         zone: 1
         erg_mode: false
       - segment: main
@@ -163,12 +187,12 @@ workouts:
         rest_sec: 480
         description: "Mitten-övre Z3 (≈ 83-85% FTP). Aktiv vila 8 min i Z1-Z2."
       - segment: cooldown
-        duration_min: 10
+        duration_pct: 0.10
         zone: 1
         erg_mode: false
     total_duration_min:
       estimated: 105
-      flexible_range: [100, 115]
+      flexible_range: [95, 125]
     zone_refs: [Z1, Z2, Z3]
     equipment: [power_meter, hr_strap]
     abort_conditions:
@@ -185,6 +209,12 @@ workouts:
     type_code: TE1
     name: "Tempo pyramid"
     phase_appropriate: [base_3, build_1]
+    parameterized: true
+    parameters:
+      duration_min:
+        default: 110
+        range: [100, 130]
+        description: "Pyramid 10/15/20/15/10 + 4×3 vila = 82 min fasta reps."
     intent: |
       Pyramid 10/15/20/15/10 min Z3 med kort vila. Strukturen ger
       variation utan att tappa fokus — det är samma intensitet hela
@@ -195,7 +225,7 @@ workouts:
     erg_mode: true
     main_set:
       - segment: warmup
-        duration_min: 15
+        duration_pct: 0.14
         zone: 1
         erg_mode: false
       - segment: main
@@ -223,12 +253,12 @@ workouts:
         zone: 3
         cadence_rpm: [85, 95]
       - segment: cooldown
-        duration_min: 10
+        duration_pct: 0.09
         zone: 1
         erg_mode: false
     total_duration_min:
       estimated: 110
-      flexible_range: [105, 120]
+      flexible_range: [100, 130]
     zone_refs: [Z1, Z2, Z3]
     equipment: [power_meter, hr_strap]
     abort_conditions:

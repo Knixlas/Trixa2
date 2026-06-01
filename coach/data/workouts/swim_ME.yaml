@@ -5,7 +5,9 @@
 # ME3 — Threshold: ren CSS/tröskel-arbete
 #
 # Detta är "race-specific" kvalitetsarbete. Bygger den uthålliga
-# fart-toleransen som tävlingar kräver.
+# fart-toleransen som tävlingar kräver. Vid större budget: fler reps
+# i main-blocket + längre warmup/cooldown. Inte "mer Z3" i absorption —
+# absorptionssegmentet är Z1 active recovery, inte mer kvalitet.
 
 workouts:
 
@@ -18,6 +20,12 @@ workouts:
     category: ME
     type_code: ME1
     name: "3×800 @ CSS+3"
+    parametrized: true
+    parameters:
+      duration_min:
+        default: 75
+        range: [55, 110]
+        description: "Skala till veckans budget"
     phase_appropriate: [base_3, build_1, build_2]
     intent: |
       Lång cruise — strax under CSS-fart, tillräckligt nära för att
@@ -25,30 +33,34 @@ workouts:
       Bygger uthållighet på race-pace för halv- och hellång IM-simning.
     main_set:
       - segment: warmup
-        distance_m: 400
+        duration_pct: 0.10
         zone: 1
       - segment: drills
-        sets: 4
+        sets: {default: 4, range: [3, 6]}
         distance_m: 50
         rest_sec: 15
       - segment: build
-        sets: 4
+        sets: {default: 4, range: [3, 6]}
         distance_m: 50
         rest_sec: 10
         description: "Build från Z2 till Z4, väck race-pace-känslan"
       - segment: main
-        sets: 3
+        sets: {default: 3, range: [2, 5]}
         distance_m: 800
         zone: 3
         rest_sec: 90
         description: "Jämn pace — sista 800:an ska se ut som första. Negative split mot CSS om möjligt."
+      - segment: continuous
+        duration_pct: 0.05
+        zone: 1
+        description: "Aktiv recovery efter setet"
       - segment: cooldown
-        distance_m: 300
+        duration_pct: 0.10
         zone: 1
     total_distance_m: 3300
     total_duration_min:
       estimated: 75
-      flexible_range: [70, 85]
+      flexible_range: [55, 110]
     zone_refs: [Z1, Z2, Z3]
     equipment: []
     abort_conditions:
@@ -59,6 +71,12 @@ workouts:
     category: ME
     type_code: ME1
     name: "4×500 @ CSS"
+    parametrized: true
+    parameters:
+      duration_min:
+        default: 60
+        range: [45, 90]
+        description: "Skala till veckans budget"
     phase_appropriate: [build_1, build_2]
     intent: |
       Fyra 500:or på CSS-fart är ett klassiskt 'CSS-test extended'-set.
@@ -66,25 +84,29 @@ workouts:
       Inkonsekvens betyder att CSS-värdet eller dagsformen ljuger.
     main_set:
       - segment: warmup
-        distance_m: 400
+        duration_pct: 0.12
         zone: 1
       - segment: drills
-        sets: 4
+        sets: {default: 4, range: [3, 6]}
         distance_m: 50
         rest_sec: 15
       - segment: main
-        sets: 4
+        sets: {default: 4, range: [3, 6]}
         distance_m: 500
         zone: 3
         rest_sec: 45
         description: "CSS-pace. Andas på 3 om möjligt."
+      - segment: continuous
+        duration_pct: 0.05
+        zone: 1
+        description: "Aktiv recovery efter setet"
       - segment: cooldown
-        distance_m: 200
+        duration_pct: 0.08
         zone: 1
     total_distance_m: 2800
     total_duration_min:
       estimated: 60
-      flexible_range: [55, 65]
+      flexible_range: [45, 90]
     zone_refs: [Z1, Z3]
     equipment: []
     coach_notes: |
@@ -96,16 +118,22 @@ workouts:
     category: ME
     type_code: ME1
     name: "2×1000 progressivt"
+    parametrized: true
+    parameters:
+      duration_min:
+        default: 65
+        range: [55, 85]
+        description: "Skala till veckans budget — strukturen håller, men sista pieces blir längre vid större budget"
     phase_appropriate: [build_1, build_2, peak]
     intent: |
       Två stora intervaller, andra snabbare än första. Mental och
       fysisk träning på att 'ha kvar' när det redan kostat.
     main_set:
       - segment: warmup
-        distance_m: 400
+        duration_pct: 0.12
         zone: 1
       - segment: drills
-        sets: 4
+        sets: {default: 4, range: [3, 6]}
         distance_m: 50
         rest_sec: 15
       - segment: main
@@ -120,13 +148,17 @@ workouts:
         zone: 3
         rest_sec: 0
         description: "På CSS eller strax under — om möjligt negative split"
+      - segment: continuous
+        duration_pct: 0.22
+        zone: 1
+        description: "Aktiv recovery efter setet"
       - segment: cooldown
-        distance_m: 200
+        duration_pct: 0.07
         zone: 1
     total_distance_m: 2800
     total_duration_min:
       estimated: 65
-      flexible_range: [60, 70]
+      flexible_range: [55, 85]
     zone_refs: [Z1, Z2, Z3]
     equipment: []
 
@@ -139,6 +171,12 @@ workouts:
     category: ME
     type_code: ME2
     name: "10×100 @ CSS"
+    parametrized: true
+    parameters:
+      duration_min:
+        default: 45
+        range: [35, 70]
+        description: "Skala till veckans budget"
     phase_appropriate: [base_3, build_1, build_2]
     intent: |
       Klassiskt 100:or-set. Tio repetitioner på exakt CSS-pace.
@@ -146,25 +184,29 @@ workouts:
       räkna på pace-disciplin, inte på 'ladda om' mellan.
     main_set:
       - segment: warmup
-        distance_m: 400
+        duration_pct: 0.15
         zone: 1
       - segment: drills
-        sets: 4
+        sets: {default: 4, range: [3, 6]}
         distance_m: 50
         rest_sec: 15
       - segment: main
-        sets: 10
+        sets: {default: 10, range: [6, 16]}
         distance_m: 100
         zone: 3
         rest_sec: 15
         description: "Strikt CSS-pace. Inte snabbare på första, inte långsammare på sista."
+      - segment: continuous
+        duration_pct: 0.25
+        zone: 1
+        description: "Aktiv recovery efter setet"
       - segment: cooldown
-        distance_m: 200
+        duration_pct: 0.10
         zone: 1
     total_distance_m: 1800
     total_duration_min:
       estimated: 45
-      flexible_range: [40, 50]
+      flexible_range: [35, 70]
     zone_refs: [Z1, Z3]
     equipment: []
 
@@ -173,6 +215,12 @@ workouts:
     category: ME
     type_code: ME2
     name: "15×100 rotation Z2/Z3/Z4"
+    parametrized: true
+    parameters:
+      duration_min:
+        default: 55
+        range: [45, 80]
+        description: "Skala till veckans budget — fler cykler vid större budget"
     phase_appropriate: [build_1, build_2]
     intent: |
       100:or i rotation: tre olika paces. Lär kroppen växla mellan
@@ -180,40 +228,44 @@ workouts:
       tävlingssimulering där fartvariation uppstår vid drafting, vågor.
     main_set:
       - segment: warmup
-        distance_m: 400
+        duration_pct: 0.13
         zone: 1
       - segment: drills
-        sets: 4
+        sets: {default: 4, range: [3, 6]}
         distance_m: 50
         rest_sec: 15
       - segment: main
-        sets: 5
+        sets: {default: 5, range: [3, 8]}
         distance_m: 100
         rest_sec: 15
         zones_per_set: [2, 3, 4, 3, 2]
         pace_pattern: alternating
         description: "Första cykeln: Z2-Z3-Z4-Z3-Z2"
       - segment: main
-        sets: 5
+        sets: {default: 5, range: [3, 8]}
         distance_m: 100
         rest_sec: 15
         zones_per_set: [2, 3, 4, 3, 2]
         pace_pattern: alternating
         description: "Andra cykeln, samma mönster"
       - segment: main
-        sets: 5
+        sets: {default: 5, range: [3, 8]}
         distance_m: 100
         rest_sec: 15
         zones_per_set: [2, 3, 4, 3, 2]
         pace_pattern: alternating
         description: "Tredje cykeln, samma mönster"
+      - segment: continuous
+        duration_pct: 0.21
+        zone: 1
+        description: "Aktiv recovery efter setet"
       - segment: cooldown
-        distance_m: 200
+        duration_pct: 0.08
         zone: 1
     total_distance_m: 2300
     total_duration_min:
       estimated: 55
-      flexible_range: [50, 60]
+      flexible_range: [45, 80]
     zone_refs: [Z1, Z2, Z3, Z4]
     equipment: []
 
@@ -222,6 +274,12 @@ workouts:
     category: ME
     type_code: ME2
     name: "20×100 säng-test"
+    parametrized: true
+    parameters:
+      duration_min:
+        default: 65
+        range: [50, 95]
+        description: "Skala till veckans budget — fler reps i main vid större budget"
     phase_appropriate: [build_1, build_2]
     intent: |
       Stort 100:or-set. Den totala distansen i kvalitetsintervall
@@ -229,29 +287,33 @@ workouts:
       du på rätt nivå för halv-IM-distansen tävlingsmässigt.
     main_set:
       - segment: warmup
-        distance_m: 400
+        duration_pct: 0.10
         zone: 1
       - segment: drills
-        sets: 4
+        sets: {default: 4, range: [3, 6]}
         distance_m: 50
         rest_sec: 15
       - segment: build
-        sets: 4
+        sets: {default: 4, range: [3, 6]}
         distance_m: 50
         rest_sec: 10
       - segment: main
-        sets: 20
+        sets: {default: 20, range: [12, 30]}
         distance_m: 100
         zone: 3
         rest_sec: 10
         description: "CSS-pace. När de börjar drifta — håll kvar mentalt, det är poängen."
+      - segment: continuous
+        duration_pct: 0.05
+        zone: 1
+        description: "Aktiv recovery efter setet"
       - segment: cooldown
-        distance_m: 200
+        duration_pct: 0.08
         zone: 1
     total_distance_m: 2900
     total_duration_min:
       estimated: 65
-      flexible_range: [60, 75]
+      flexible_range: [50, 95]
     zone_refs: [Z1, Z3]
     equipment: []
     abort_conditions:
@@ -269,35 +331,45 @@ workouts:
     category: ME
     type_code: ME3
     name: "5×300 @ CSS"
+    parametrized: true
+    parameters:
+      duration_min:
+        default: 50
+        range: [40, 75]
+        description: "Skala till veckans budget"
     phase_appropriate: [build_1, build_2]
     intent: |
       Klassisk tröskel-set. 300:orna är längre än 100:or men kortare
       än 500:or — säkrar att du jobbar på tröskel utan att tappa pace.
     main_set:
       - segment: warmup
-        distance_m: 400
+        duration_pct: 0.13
         zone: 1
       - segment: drills
-        sets: 4
+        sets: {default: 4, range: [3, 6]}
         distance_m: 50
         rest_sec: 15
       - segment: build
-        sets: 4
+        sets: {default: 4, range: [3, 6]}
         distance_m: 50
         rest_sec: 10
       - segment: main
-        sets: 5
+        sets: {default: 5, range: [3, 8]}
         distance_m: 300
         zone: 3
         rest_sec: 30
         description: "Exakt CSS-pace, andas på 3"
+      - segment: continuous
+        duration_pct: 0.07
+        zone: 1
+        description: "Aktiv recovery efter setet"
       - segment: cooldown
-        distance_m: 200
+        duration_pct: 0.10
         zone: 1
     total_distance_m: 2300
     total_duration_min:
       estimated: 50
-      flexible_range: [45, 55]
+      flexible_range: [40, 75]
     zone_refs: [Z1, Z3]
     equipment: []
 
@@ -306,6 +378,12 @@ workouts:
     category: ME
     type_code: ME3
     name: "8×200 @ CSS-2"
+    parametrized: true
+    parameters:
+      duration_min:
+        default: 55
+        range: [40, 80]
+        description: "Skala till veckans budget"
     phase_appropriate: [build_1, build_2, peak]
     intent: |
       Strax SNABBARE än CSS — sub-threshold kvalitetsarbete.
@@ -313,25 +391,29 @@ workouts:
       mjölksyra-tolerans och pace över CSS.
     main_set:
       - segment: warmup
-        distance_m: 400
+        duration_pct: 0.13
         zone: 1
       - segment: drills
-        sets: 4
+        sets: {default: 4, range: [3, 6]}
         distance_m: 50
         rest_sec: 15
       - segment: main
-        sets: 8
+        sets: {default: 8, range: [5, 12]}
         distance_m: 200
         zone: 4
         rest_sec: 30
         description: "2-3s/100m under CSS — det här ska kosta"
+      - segment: continuous
+        duration_pct: 0.08
+        zone: 1
+        description: "Aktiv recovery efter setet"
       - segment: cooldown
-        distance_m: 300
+        duration_pct: 0.12
         zone: 1
     total_distance_m: 2500
     total_duration_min:
       estimated: 55
-      flexible_range: [50, 60]
+      flexible_range: [40, 80]
     zone_refs: [Z1, Z4]
     equipment: []
     abort_conditions:
@@ -342,51 +424,47 @@ workouts:
     category: ME
     type_code: ME3
     name: "3×400 @ CSS med teknikrespons"
+    parametrized: true
+    parameters:
+      duration_min:
+        default: 55
+        range: [45, 80]
+        description: "Skala till veckans budget — fler rounds vid stor budget"
     phase_appropriate: [build_1, build_2]
     intent: |
       Tröskelintervaller med en 200 i Z1 mellan varje — den lugna
       delen tillåter teknisk reflektion: 'vad bröts? vad ska tillbaka?'
     main_set:
       - segment: warmup
-        distance_m: 400
+        duration_pct: 0.13
         zone: 1
       - segment: drills
-        sets: 4
+        sets: {default: 4, range: [3, 6]}
         distance_m: 50
         rest_sec: 15
       - segment: main
-        sets: 1
+        sets: {default: 3, range: [2, 5]}
         distance_m: 400
         zone: 3
         rest_sec: 30
+        description: "Tröskel. Andas på 3. Notera vad som bryts under fart."
       - segment: main
-        sets: 1
+        sets: {default: 2, range: [1, 4]}
         distance_m: 200
         zone: 1
         rest_sec: 0
-        description: "Lugn fri — analysera vad som bröts i 400:an"
-      - segment: main
-        sets: 1
-        distance_m: 400
-        zone: 3
-        rest_sec: 30
-      - segment: main
-        sets: 1
-        distance_m: 200
+        description: "Lugn fri mellan — analysera vad som bröts i 400:an. Antalet matchar antal kvalitets-400:or - 1."
+      - segment: continuous
+        duration_pct: 0.21
         zone: 1
-        rest_sec: 0
-      - segment: main
-        sets: 1
-        distance_m: 400
-        zone: 3
-        rest_sec: 0
+        description: "Aktiv recovery efter setet"
       - segment: cooldown
-        distance_m: 200
+        duration_pct: 0.08
         zone: 1
     total_distance_m: 2400
     total_duration_min:
       estimated: 55
-      flexible_range: [50, 60]
+      flexible_range: [45, 80]
     zone_refs: [Z1, Z3]
     equipment: []
     coach_notes: |

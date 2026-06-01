@@ -117,6 +117,12 @@ workouts:
     type_code: AE2
     name: "Rolling Endurance — kuperat Z2"
     phase_appropriate: [base_1, base_2, base_3, build_1]
+    parameterized: true
+    parameters:
+      duration_min:
+        default: 145
+        range: [60, 300]
+        description: "Total tid. 60-90 i prep/tidig base, 120-180 i base, 180-300 i sen base/build."
     intent: |
       Lång aerob åktur i kuperad terräng. Backarna sätter naturlig variation
       i belastning utan att du behöver styra. Håll Z2 i snitt över passet —
@@ -129,22 +135,22 @@ workouts:
     erg_mode: false
     main_set:
       - segment: warmup
-        duration_min: 15
+        duration_pct: 0.10
         zone: 1
         description: "Platta partier i början om möjligt"
       - segment: continuous
-        duration_min: 120
+        duration_pct: 0.83
         zone: 2
         cadence_rpm: [80, 95]
         description: |
           Z2 i snitt. Backarna får dra upp till nedre Z3 i korta spikar,
           men inte stå kvar där. Växla ned tidigt — bevara kadens > 75.
       - segment: cooldown
-        duration_min: 10
+        duration_pct: 0.07
         zone: 1
     total_duration_min:
       estimated: 145
-      flexible_range: [120, 180]
+      flexible_range: [60, 300]
     zone_refs: [Z1, Z2, Z3]
     equipment: [power_meter, hr_strap]
     abort_conditions:
@@ -161,6 +167,12 @@ workouts:
     type_code: AE2
     name: "Trainer Z2 — strict watt"
     phase_appropriate: [prep, base_1, base_2, base_3, build_1, build_2]
+    parameterized: true
+    parameters:
+      duration_min:
+        default: 90
+        range: [45, 180]
+        description: "60 i prep, 90 i base, 120-180 i build. Sällan över 180 inomhus."
     intent: |
       Trainer-version av aerobt baspass. ERG-mode håller dig på exakt
       watt-target — perfekt för att lära kroppen vad jämn Z2 känns som.
@@ -171,22 +183,22 @@ workouts:
     erg_mode: true
     main_set:
       - segment: warmup
-        duration_min: 10
+        duration_pct: 0.11
         zone: 1
         erg_mode: false
         description: "Fri ramp från Z1 till Z2"
       - segment: continuous
-        duration_min: 75
+        duration_pct: 0.83
         zone: 2
         cadence_rpm: [85, 95]
         description: "ERG fixerar watt mitt i Z2-spannet (≈ 70% FTP)"
       - segment: cooldown
-        duration_min: 5
+        duration_pct: 0.06
         zone: 1
         erg_mode: false
     total_duration_min:
       estimated: 90
-      flexible_range: [60, 120]
+      flexible_range: [45, 180]
     zone_refs: [Z1, Z2]
     equipment: [power_meter, hr_strap, trainer]
     abort_conditions:
@@ -202,6 +214,12 @@ workouts:
     type_code: AE2
     name: "Z2 + spin-ups"
     phase_appropriate: [base_1, base_2, base_3, build_1]
+    parameterized: true
+    parameters:
+      duration_min:
+        default: 80
+        range: [60, 120]
+        description: "6 spin-ups är fasta (≈21 min struktur). Totalen styr Z2-volymen runt."
     intent: |
       Stadig Z2-cykling med 6 korta spin-ups under passet. Spin-ups håller
       neuromuskulär snabbhet och pedal-teknik vid liv under uthållighets-
@@ -212,10 +230,10 @@ workouts:
     erg_mode: false
     main_set:
       - segment: warmup
-        duration_min: 10
+        duration_pct: 0.13
         zone: 1
       - segment: continuous
-        duration_min: 30
+        duration_pct: 0.38
         zone: 2
         cadence_rpm: [85, 95]
       - segment: main
@@ -226,15 +244,15 @@ workouts:
         rest_sec: 180
         description: "Aktiv vila i Z2 mellan reps"
       - segment: continuous
-        duration_min: 15
+        duration_pct: 0.19
         zone: 2
         cadence_rpm: [85, 95]
       - segment: cooldown
-        duration_min: 5
+        duration_pct: 0.06
         zone: 1
     total_duration_min:
       estimated: 80
-      flexible_range: [70, 90]
+      flexible_range: [60, 120]
     zone_refs: [Z1, Z2]
     equipment: [power_meter, hr_strap]
     abort_conditions:

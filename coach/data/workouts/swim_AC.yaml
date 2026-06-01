@@ -4,7 +4,8 @@
 # AC2 — Aerobic Capacity Intervals: något längre intervaller på Z5/Z4-gräns
 #
 # Detta är passen som lyfter taket. Hårt, kort, högkvalitativt.
-# Ger maximal träningseffekt per minut men kräver också mest återhämtning.
+# Vid större budget: fler intervaller + längre aktiv recovery i Z1
+# efter setet. Aldrig "mer Z5" som absorberare — det är vägen till överträning.
 
 workouts:
 
@@ -17,6 +18,12 @@ workouts:
     category: AC
     type_code: AC1
     name: "16×50 @ Z5"
+    parametrized: true
+    parameters:
+      duration_min:
+        default: 50
+        range: [35, 75]
+        description: "Skala till veckans budget"
     phase_appropriate: [build_1, build_2, peak]
     intent: |
       Klassiskt VO2max-set. 50:or är kort nog för att man kan
@@ -24,30 +31,34 @@ workouts:
       Den korta vilan håller pulsen hög genom hela setet.
     main_set:
       - segment: warmup
-        distance_m: 400
+        duration_pct: 0.15
         zone: 1
       - segment: drills
-        sets: 4
+        sets: {default: 4, range: [3, 6]}
         distance_m: 50
         rest_sec: 15
       - segment: build
-        sets: 4
+        sets: {default: 4, range: [3, 6]}
         distance_m: 50
         rest_sec: 15
         description: "Build från Z2 till Z4 — väck systemet"
       - segment: sprint
-        sets: 16
+        sets: {default: 16, range: [10, 24]}
         distance_m: 50
         zone: 5
         rest_sec: 20
         description: "Z5-pace, snabbare än 200-tävlingstempo. Andas så lite som möjligt."
+      - segment: continuous
+        duration_pct: 0.10
+        zone: 1
+        description: "Aktiv recovery — lugn Z1 fri som låter pulsen sjunka"
       - segment: cooldown
-        distance_m: 400
+        duration_pct: 0.15
         zone: 1
     total_distance_m: 2000
     total_duration_min:
       estimated: 50
-      flexible_range: [45, 60]
+      flexible_range: [35, 75]
     zone_refs: [Z1, Z2, Z4, Z5]
     equipment: []
     abort_conditions:
@@ -58,35 +69,45 @@ workouts:
     category: AC
     type_code: AC1
     name: "12×75 @ Z5"
+    parametrized: true
+    parameters:
+      duration_min:
+        default: 50
+        range: [35, 75]
+        description: "Skala till veckans budget"
     phase_appropriate: [build_2, peak]
     intent: |
       75:or är 'half-grymma' — längre än 50, kort nog för att Z5
       går att hålla genomgående. Bygger uthålligheten i VO2-zonen.
     main_set:
       - segment: warmup
-        distance_m: 400
+        duration_pct: 0.15
         zone: 1
       - segment: drills
-        sets: 4
+        sets: {default: 4, range: [3, 6]}
         distance_m: 50
         rest_sec: 15
       - segment: build
-        sets: 4
+        sets: {default: 4, range: [3, 6]}
         distance_m: 50
         rest_sec: 10
       - segment: sprint
-        sets: 12
+        sets: {default: 12, range: [8, 18]}
         distance_m: 75
         zone: 5
         rest_sec: 30
         description: "Z5 — sista 25 ska kosta. Andas på 5 första 50, sedan på 3."
+      - segment: continuous
+        duration_pct: 0.08
+        zone: 1
+        description: "Aktiv recovery efter setet"
       - segment: cooldown
-        distance_m: 300
+        duration_pct: 0.12
         zone: 1
     total_distance_m: 2000
     total_duration_min:
       estimated: 50
-      flexible_range: [45, 55]
+      flexible_range: [35, 75]
     zone_refs: [Z1, Z2, Z4, Z5]
     equipment: []
 
@@ -95,6 +116,12 @@ workouts:
     category: AC
     type_code: AC1
     name: "Tabata-inspired 8×(25 sprint / 15s vila)"
+    parametrized: true
+    parameters:
+      duration_min:
+        default: 40
+        range: [30, 55]
+        description: "Smal range — protokollet med två set + mellanvila är hjärtat i passet"
     phase_appropriate: [build_2, peak]
     intent: |
       Mycket korta, mycket hårda intervaller. Inte ren Tabata
@@ -102,14 +129,14 @@ workouts:
       maximal effekt per intervall, väldigt kort vila.
     main_set:
       - segment: warmup
-        distance_m: 400
+        duration_pct: 0.18
         zone: 1
       - segment: drills
-        sets: 4
+        sets: {default: 4, range: [3, 6]}
         distance_m: 50
         rest_sec: 15
       - segment: sprint
-        sets: 8
+        sets: {default: 8, range: [6, 10]}
         distance_m: 25
         zone: 5
         rest_sec: 15
@@ -121,18 +148,18 @@ workouts:
         rest_sec: 90
         description: "Vila-block — pulsen ska ner före nästa set"
       - segment: sprint
-        sets: 8
+        sets: {default: 8, range: [6, 10]}
         distance_m: 25
         zone: 5
         rest_sec: 15
         description: "Set 2 — samma intensitet trots tröttheten"
       - segment: cooldown
-        distance_m: 400
+        duration_pct: 0.20
         zone: 1
     total_distance_m: 1400
     total_duration_min:
       estimated: 40
-      flexible_range: [35, 45]
+      flexible_range: [30, 55]
     zone_refs: [Z1, Z5]
     equipment: []
     abort_conditions:
@@ -147,6 +174,12 @@ workouts:
     category: AC
     type_code: AC2
     name: "8×100 @ Z5 lika vila"
+    parametrized: true
+    parameters:
+      duration_min:
+        default: 55
+        range: [40, 80]
+        description: "Skala till veckans budget"
     phase_appropriate: [build_1, build_2, peak]
     intent: |
       Klassisk VO2-långa-intervaller: 100:or med lika lång vila som
@@ -154,29 +187,33 @@ workouts:
       annars bröts setet på 4-5.
     main_set:
       - segment: warmup
-        distance_m: 400
+        duration_pct: 0.13
         zone: 1
       - segment: drills
-        sets: 4
+        sets: {default: 4, range: [3, 6]}
         distance_m: 50
         rest_sec: 15
       - segment: build
-        sets: 4
+        sets: {default: 4, range: [3, 6]}
         distance_m: 50
         rest_sec: 10
       - segment: sprint
-        sets: 8
+        sets: {default: 8, range: [6, 12]}
         distance_m: 100
         zone: 5
         rest_sec: 90
         description: "Z5 — pace runt 400m-tävlingstempo. Lika vila."
+      - segment: continuous
+        duration_pct: 0.08
+        zone: 1
+        description: "Aktiv recovery efter setet"
       - segment: cooldown
-        distance_m: 300
+        duration_pct: 0.12
         zone: 1
     total_distance_m: 2100
     total_duration_min:
       estimated: 55
-      flexible_range: [50, 60]
+      flexible_range: [40, 80]
     zone_refs: [Z1, Z5]
     equipment: []
 
@@ -185,6 +222,12 @@ workouts:
     category: AC
     type_code: AC2
     name: "6×150 @ Z5"
+    parametrized: true
+    parameters:
+      duration_min:
+        default: 55
+        range: [40, 80]
+        description: "Skala till veckans budget"
     phase_appropriate: [build_2, peak]
     intent: |
       Längre VO2-intervaller. 150 är gränsen där Z5 går att hålla
@@ -192,28 +235,32 @@ workouts:
       längre och man halkar till Z4.
     main_set:
       - segment: warmup
-        distance_m: 400
+        duration_pct: 0.13
         zone: 1
       - segment: drills
-        sets: 4
+        sets: {default: 4, range: [3, 6]}
         distance_m: 50
         rest_sec: 15
       - segment: build
-        sets: 4
+        sets: {default: 4, range: [3, 6]}
         distance_m: 50
         rest_sec: 10
       - segment: sprint
-        sets: 6
+        sets: {default: 6, range: [4, 9]}
         distance_m: 150
         zone: 5
         rest_sec: 90
+      - segment: continuous
+        duration_pct: 0.08
+        zone: 1
+        description: "Aktiv recovery efter setet"
       - segment: cooldown
-        distance_m: 300
+        duration_pct: 0.12
         zone: 1
     total_distance_m: 2000
     total_duration_min:
       estimated: 55
-      flexible_range: [50, 60]
+      flexible_range: [40, 80]
     zone_refs: [Z1, Z5]
     equipment: []
 
@@ -222,6 +269,12 @@ workouts:
     category: AC
     type_code: AC2
     name: "10×100 descending från Z4 till Z5"
+    parametrized: true
+    parameters:
+      duration_min:
+        default: 55
+        range: [40, 80]
+        description: "Skala till veckans budget"
     phase_appropriate: [build_1, build_2]
     intent: |
       Descending från Z4 till Z5. Lär nervsystemet att stega upp
@@ -229,31 +282,35 @@ workouts:
       finns frestelse att skena tidigt.
     main_set:
       - segment: warmup
-        distance_m: 400
+        duration_pct: 0.13
         zone: 1
       - segment: drills
-        sets: 4
+        sets: {default: 4, range: [3, 6]}
         distance_m: 50
         rest_sec: 15
       - segment: main
-        sets: 5
+        sets: {default: 5, range: [3, 7]}
         distance_m: 100
         rest_sec: 30
         zones_per_set: [4, 4, 4, 4, 4]
         description: "Block 1: alla i Z4"
       - segment: main
-        sets: 5
+        sets: {default: 5, range: [3, 7]}
         distance_m: 100
         rest_sec: 45
         zones_per_set: [5, 5, 5, 5, 5]
         description: "Block 2: alla i Z5 — märk skillnaden mot block 1"
+      - segment: continuous
+        duration_pct: 0.20
+        zone: 1
+        description: "Aktiv recovery efter setet"
       - segment: cooldown
-        distance_m: 300
+        duration_pct: 0.15
         zone: 1
     total_distance_m: 2100
     total_duration_min:
       estimated: 55
-      flexible_range: [50, 60]
+      flexible_range: [40, 80]
     zone_refs: [Z1, Z4, Z5]
     equipment: []
     coach_notes: |

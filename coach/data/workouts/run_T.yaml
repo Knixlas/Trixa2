@@ -1,14 +1,8 @@
 # Löppass — Tester (T)
 #
-# Två etablerade protokoll för att fastställa tröskelfart och AT_HR.
-# Båda kalibrerar `threshold_pace_sec_per_km` och `at_hr` i adeptprofilen,
-# vilket i sin tur bygger alla Z1-Z5-spann genom zones.py.
-#
-# Genomför löptest:
-#   - I början av varje träningscykel (prep eller base_1)
-#   - Efter 8-12 veckor i base (innan build)
-#   - 4-6 veckor innan A-tävling (peak-kalibrering)
-#   - Vid pace-drift i ME-pass som inte förklaras av andra signaler
+# Tester följer standardprotokoll — själva testet är fast.
+# Bara warmup och cooldown skalas med budget. Range är smalt eftersom
+# det inte är meningsfullt att skala ett test mer än marginellt.
 
 workouts:
 
@@ -18,6 +12,12 @@ workouts:
     type_code: RunTest
     name: "30-min Tidskörning (TT)"
     phase_appropriate: [prep, base_1, base_2, base_3, build_1, build_2]
+    parameterized: true
+    parameters:
+      duration_min:
+        default: 65
+        range: [60, 70]
+        description: "Stridor + rest + 30 min test = 38 min FAST"
     intent: |
       Klassiskt 30-min tidskörnings-test (Joe Friel-protokoll).
       Resultatet ger två kalibreringsvärden:
@@ -29,7 +29,7 @@ workouts:
       ger ett rent steady-state-värde. Pace första 10 min räknas inte.
     main_set:
       - segment: warmup
-        duration_min: 15
+        duration_pct: 0.50
         zone: 1
         description: "Lugn upp-jogg, sista minuten i nedre Z2"
       - segment: build
@@ -45,7 +45,7 @@ workouts:
         effort_descriptor: "Maximal hållbar fart över 30 min — inte sprint, inte tempo. Pacingen ska vara så att du kan hålla den exakt 30 minuter, inte mer."
         description: "VIKTIGT: starta KONSERVATIVT — första 5 min ska kännas 'för lätt'. De flesta över-pacear första milen. Notera totaltid, total distans, snitt-HR sista 20 min, snittpace sista 20 min."
       - segment: cooldown
-        duration_min: 15
+        duration_pct: 0.50
         zone: 1
     total_duration_min:
       estimated: 65
@@ -71,6 +71,12 @@ workouts:
     type_code: RunTest
     name: "2×8 min hårt"
     phase_appropriate: [base_2, base_3, build_1, build_2]
+    parameterized: true
+    parameters:
+      duration_min:
+        default: 55
+        range: [50, 60]
+        description: "Stridor + 2×8 min + 4 min vila = 25 min FAST"
     intent: |
       Alternativt löptest med två block om 8 min med 4 min vila.
       Snitt-HR och snittpace över de två blocken approximerar
@@ -79,7 +85,7 @@ workouts:
       för pacing-fel.
     main_set:
       - segment: warmup
-        duration_min: 15
+        duration_pct: 0.50
         zone: 1
       - segment: build
         sets: 4
@@ -99,7 +105,7 @@ workouts:
         effort_descriptor: "Maximalt hållbar fart i 8 min. Ska helst bli marginellt snabbare än första blocket."
         description: "Notera total tid och snitt-HR per block, snittpace per block."
       - segment: cooldown
-        duration_min: 15
+        duration_pct: 0.50
         zone: 1
     total_duration_min:
       estimated: 55

@@ -1,16 +1,12 @@
 # Löppass — Aerob Kapacitet (AC)
 #
-# AC1 — Group Run: socialt löppass där farten varierar med gruppen.
-# AC2 — VO2Max Intervals: hårda intervaller i Z5, syreupptag-träning.
-# AC3 — Hill Intervals: längre tunga hill repeats, kombinerar styrka och VO2.
-#
-# AC är toppen av träningspyramiden — högsta intensitet, lägsta volym,
-# kortast räckvidd i fas-mässighet (build_2 + peak primärt).
+# AC1 — Group Run: socialt löppass, helt pct.
+# AC2/AC3 — VO2max-intervaller: intervalldelar fasta, wu/cd skalas.
 
 workouts:
 
   # ─────────────────────────────────────────────────────────────
-  # AC1 — Group Run
+  # AC1 — Group Run (helt pct)
   # ─────────────────────────────────────────────────────────────
 
   - code: AC1_run_01
@@ -19,6 +15,12 @@ workouts:
     type_code: AC1
     name: "Klubblöp — varierad fart"
     phase_appropriate: [base_2, base_3, build_1, build_2]
+    parameterized: true
+    parameters:
+      duration_min:
+        default: 80
+        range: [60, 120]
+        description: "Längd och intensitet styrs av gruppen"
     intent: |
       Grupplöpning där farten styrs av sällskapet. Karaktären
       är oförutsägbar — Z2-perioder bryts av Z3-Z4-stigningar
@@ -26,16 +28,16 @@ workouts:
       snabbare än din komfortzon.
     main_set:
       - segment: warmup
-        duration_min: 10
+        duration_pct: 0.125
         zone: 1
         description: "Före gruppen samlas"
       - segment: continuous
-        duration_min: 60
+        duration_pct: 0.75
         effort_descriptor: "Z2 som baseline, Z3-Z4 i pickup-segment som gruppen genererar. Var den som backar om HR sticker till Z5."
         pace_unreliable: true
         description: "Längd och intensitet bestäms av gruppen — vanligast 60-90 min med 2-4 'hårda partier'."
       - segment: cooldown
-        duration_min: 10
+        duration_pct: 0.125
         zone: 1
     total_duration_min:
       estimated: 80
@@ -59,6 +61,12 @@ workouts:
     type_code: AC2
     name: "6×3 min Z5"
     phase_appropriate: [build_2, peak]
+    parameterized: true
+    parameters:
+      duration_min:
+        default: 70
+        range: [65, 80]
+        description: "Stridor + main = ~38 min FAST"
     intent: |
       Klassiska VO2max-reps. 3 minuter är den optimala längden för
       att maxa tid-i-Z5 över passet — kortare reps ger för lite tid
@@ -66,7 +74,7 @@ workouts:
       faller in i ren glykolys.
     main_set:
       - segment: warmup
-        duration_min: 15
+        duration_pct: 0.60
         zone: 1
       - segment: build
         sets: 4
@@ -80,7 +88,7 @@ workouts:
         rest_sec: 180
         description: "Z5. Pace ska vara 'hård men hållbar i exakt 3 minuter'. Aktiv vila: jogg eller gång."
       - segment: cooldown
-        duration_min: 10
+        duration_pct: 0.40
         zone: 1
     total_duration_min:
       estimated: 70
@@ -103,13 +111,19 @@ workouts:
     type_code: AC2
     name: "12×400m Z5"
     phase_appropriate: [build_2, peak]
+    parameterized: true
+    parameters:
+      duration_min:
+        default: 65
+        range: [60, 75]
+        description: "Stridor + main = ~38 min FAST (12×400m + viltimmar)"
     intent: |
       Kortare VO2-reps med kort vila. Hög samlad tid-i-Z5 trots
       kortare individuella block — kort vila förhindrar att HR
       faller helt mellan reps.
     main_set:
       - segment: warmup
-        duration_min: 15
+        duration_pct: 0.60
         zone: 1
       - segment: build
         sets: 4
@@ -123,7 +137,7 @@ workouts:
         rest_sec: 90
         description: "Z5. Jogga 200m vila."
       - segment: cooldown
-        duration_min: 10
+        duration_pct: 0.40
         zone: 1
     total_duration_min:
       estimated: 65
@@ -139,13 +153,19 @@ workouts:
     type_code: AC2
     name: "Pyramid 800-1000-1200-1000-800 Z5"
     phase_appropriate: [build_2, peak]
+    parameterized: true
+    parameters:
+      duration_min:
+        default: 75
+        range: [70, 85]
+        description: "Stridor + pyramid = ~50 min FAST"
     intent: |
       Pyramid-format. Varje distans i Z5 med proportionerlig vila.
       Den mentala variationen gör det lättare än 5 likadana reps,
       pace-utmaningen är att hålla samma fart trots växlande distans.
     main_set:
       - segment: warmup
-        duration_min: 15
+        duration_pct: 0.60
         zone: 1
       - segment: build
         sets: 4
@@ -177,7 +197,7 @@ workouts:
         distance_m: 800
         zone: 5
       - segment: cooldown
-        duration_min: 10
+        duration_pct: 0.40
         zone: 1
     total_duration_min:
       estimated: 75
@@ -197,13 +217,19 @@ workouts:
     type_code: AC3
     name: "8×90 sek hård backe Z5"
     phase_appropriate: [build_1, build_2, peak]
+    parameterized: true
+    parameters:
+      duration_min:
+        default: 65
+        range: [60, 75]
+        description: "Stridor + main = ~33 min FAST"
     intent: |
       VO2max-reps uppför. Backen tar bort en del av excentrisk
       stöt-belastning och tvingar fram kraft i steget. Pulsen
       når Z5 utan att pace behöver vara halsbrytande.
     main_set:
       - segment: warmup
-        duration_min: 15
+        duration_pct: 0.60
         zone: 1
       - segment: build
         sets: 3
@@ -218,7 +244,7 @@ workouts:
         rest_sec: 150
         description: "Z5 uppför 4-6%. Aktiv vila: gå tillbaka."
       - segment: cooldown
-        duration_min: 10
+        duration_pct: 0.40
         zone: 1
     total_duration_min:
       estimated: 65

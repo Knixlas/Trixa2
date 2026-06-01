@@ -1,15 +1,13 @@
 # Löppass — Muskulär Styrka (MF)
 #
-# MF1 — Force Reps: korta intensiva backintervaller. Hög kraft per steg.
-# MF2 — Hill Fartlek: fri intensitet i kuperad terräng, run-by-feel.
-# MF3 — Hill Repeats: längre uppförsintervaller, kombinerar kraft och uthållighet.
-#
-# ALLA segment uppför har pace_unreliable: true. HR + RPE är target.
+# MF1 — Force Reps: korta intensiva backintervaller. Fasta huvudset.
+# MF2 — Hill Fartlek: fri intensitet i kuperad terräng. Pct cont.
+# MF3 — Hill Repeats: längre uppförsintervaller. Fasta huvudset.
 
 workouts:
 
   # ─────────────────────────────────────────────────────────────
-  # MF1 — Force Reps (korta krafta backintervaller)
+  # MF1 — Force Reps
   # ─────────────────────────────────────────────────────────────
 
   - code: MF1_run_01
@@ -18,6 +16,12 @@ workouts:
     type_code: MF1
     name: "8×30 sek backsprint"
     phase_appropriate: [base_2, base_3, build_1]
+    parameterized: true
+    parameters:
+      duration_min:
+        default: 50
+        range: [45, 60]
+        description: "Stridor + main = ~24 min FAST"
     intent: |
       Korta backsprintar — explosiv kraft, hög rekrytering. Fokus
       ligger på STEGET, inte på pulsen: kort markkontakt, kraftig
@@ -25,7 +29,7 @@ workouts:
       inte tröskel.
     main_set:
       - segment: warmup
-        duration_min: 15
+        duration_pct: 0.60
         zone: 1
       - segment: build
         sets: 4
@@ -40,11 +44,11 @@ workouts:
         rest_sec: 120
         description: "Aktiv vila: gå tillbaka i lugnt tempo. Full återhämtning är poängen."
       - segment: cooldown
-        duration_min: 10
+        duration_pct: 0.40
         zone: 1
     total_duration_min:
       estimated: 50
-      flexible_range: [45, 55]
+      flexible_range: [45, 60]
     zone_refs: [Z1]
     terrain: hilly
     surface: road
@@ -54,8 +58,6 @@ workouts:
       - "Vid akut smärta i akilles, knä eller höft → avbryt."
     coach_notes: |
       Hitta en backe på 5-8% lutning där 30 sek tar dig ca 100-150m.
-      Lutar man ner mot Niklas-läge (skadehistorik): börja med 4-5
-      reps och rampa upp.
 
   - code: MF1_run_02
     discipline: run
@@ -63,12 +65,18 @@ workouts:
     type_code: MF1
     name: "12×15 sek korta steg"
     phase_appropriate: [build_1, build_2]
+    parameterized: true
+    parameters:
+      duration_min:
+        default: 45
+        range: [40, 55]
+        description: "Stridor + main = ~21 min FAST"
     intent: |
       Mycket korta backreps med hög frekvens. Bygger explosiv reaktiv
       kraft i vader och hamstrings — relevant för T2 till löpning.
     main_set:
       - segment: warmup
-        duration_min: 15
+        duration_pct: 0.60
         zone: 1
       - segment: build
         sets: 4
@@ -82,42 +90,48 @@ workouts:
         pace_unreliable: true
         rest_sec: 75
       - segment: cooldown
-        duration_min: 10
+        duration_pct: 0.40
         zone: 1
     total_duration_min:
       estimated: 45
-      flexible_range: [40, 50]
+      flexible_range: [40, 55]
     zone_refs: [Z1]
     terrain: hilly
     surface: road
     equipment: []
 
   # ─────────────────────────────────────────────────────────────
-  # MF2 — Hill Fartlek (run by feel i kuperat)
+  # MF2 — Hill Fartlek (helt pct — inga fasta intervaller)
   # ─────────────────────────────────────────────────────────────
 
   - code: MF2_run_01
     discipline: run
     category: MF
     type_code: MF2
-    name: "Kupperat fartlek 40 min"
+    name: "Kupperat fartlek"
     phase_appropriate: [base_2, base_3, build_1]
+    parameterized: true
+    parameters:
+      duration_min:
+        default: 60
+        range: [50, 70]
+        description: "Hela passet skalar — terrängen bestämmer struktur"
     intent: |
       Fartlek på kuperad slinga, intensitet styrd av terrängen:
       backe upp = hård, krön = bibehåll, nerförsbacke = aktiv återhämtning.
       Pulsen blir ojämn av naturen — det är poängen.
     main_set:
       - segment: warmup
-        duration_min: 10
+        duration_pct: 0.17
         zone: 1
         pace_unreliable: true
       - segment: continuous
-        duration_min: 40
+        duration_pct: 0.66
         effort_descriptor: "Z2 på platta partier, Z3-Z4 i backuppgångar, Z1-Z2 i nedförsbackar. Inga intervalltider — terrängen bestämmer."
         pace_unreliable: true
         description: "Hitta slinga med 4-8 backar, kör 2-3 varv. Eller punkt-till-punkt med varierande lutning."
       - segment: cooldown
-        duration_min: 10
+        duration_pct: 0.17
         zone: 1
         pace_unreliable: true
     total_duration_min:
@@ -133,7 +147,7 @@ workouts:
       eller bara som mental variation från klockstyrning.
 
   # ─────────────────────────────────────────────────────────────
-  # MF3 — Hill Repeats (längre uppförsintervaller)
+  # MF3 — Hill Repeats
   # ─────────────────────────────────────────────────────────────
 
   - code: MF3_run_01
@@ -142,13 +156,19 @@ workouts:
     type_code: MF3
     name: "6×90 sek backintervall"
     phase_appropriate: [base_3, build_1, build_2]
+    parameterized: true
+    parameters:
+      duration_min:
+        default: 60
+        range: [55, 70]
+        description: "Stridor + main = ~35 min FAST"
     intent: |
       Längre backreps. Kraft möter uthållighet — kombinationen som
       saknas i platta tempopass. Bygger benstyrka och tröskel-tolerans
       samtidigt.
     main_set:
       - segment: warmup
-        duration_min: 15
+        duration_pct: 0.60
         zone: 1
       - segment: build
         sets: 3
@@ -163,7 +183,7 @@ workouts:
         rest_sec: 150
         description: "Z4-puls uppför 4-6% lutning. Aktiv vila: gå tillbaka."
       - segment: cooldown
-        duration_min: 10
+        duration_pct: 0.40
         zone: 1
     total_duration_min:
       estimated: 60
@@ -182,13 +202,19 @@ workouts:
     type_code: MF3
     name: "5×3 min backintervall"
     phase_appropriate: [build_1, build_2]
+    parameterized: true
+    parameters:
+      duration_min:
+        default: 65
+        range: [60, 75]
+        description: "Stridor + main = ~42 min FAST"
     intent: |
       Långa hill repeats. Här blir det också aerob kapacitet — 3 min
       uppför pressar både muskelstyrka och VO2-systemet. Tunga reps
       mentalt, blir lättare med upprepning.
     main_set:
       - segment: warmup
-        duration_min: 15
+        duration_pct: 0.60
         zone: 1
       - segment: build
         sets: 4
@@ -203,7 +229,7 @@ workouts:
         rest_sec: 180
         description: "Övre Z4. Gå/jogga tillbaka. Vid kortare backe: kör 3 min med Garmin oavsett om det betyder att backen tar slut."
       - segment: cooldown
-        duration_min: 10
+        duration_pct: 0.40
         zone: 1
     total_duration_min:
       estimated: 65

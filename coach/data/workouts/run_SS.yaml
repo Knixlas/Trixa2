@@ -3,8 +3,8 @@
 # SS1 — Strides: korta fartökningar 20-30 sek på platt mark.
 # SS2 — Pickups: gradvis stigande pace över en kontinuerlig löprunda.
 #
-# Båda är primärt parametriserade mallar. Strides är så enkla att
-# konkreta varianter knappast ger värde.
+# Båda är parametriserade mallar — strides är så enkla att konkreta
+# varianter knappast ger värde.
 
 workouts:
 
@@ -81,7 +81,7 @@ workouts:
     phase_appropriate: [prep, base_1, base_2, base_3, build_1, build_2]
     parameterized: true
     parameters:
-      total_duration_min:
+      duration_min:
         default: 50
         range: [30, 70]
       pickup_count:
@@ -125,6 +125,3 @@ workouts:
     coach_notes: |
       Renderaren plockar fram pickup-schema: "Pickup vid 14, 18, 22…
       min in i passet." Bättre än "var 4:e minut" för adepten i fält.
-      
-      Bra alternativ till stride-pass när långsiktig motorik-vana
-      ska tränas under ackumulerad trötthet.
