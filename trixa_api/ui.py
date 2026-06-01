@@ -18,6 +18,7 @@ from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 from coach.trixa.db import get_postgrest
 from coach.trixa.planner import (
+    _resolve_activity_sources,
     generate_week,
     list_workout_alternatives,
     swap_workout_code,
@@ -183,7 +184,9 @@ def strava_callback(
             client, uid, tok["access_token"], tok["refresh_token"],
             tok["expires_at"], (tok.get("athlete") or {}).get("id"), tok.get("scope"),
         )
-        client.table("athlete_profiles").update({"use_strava": True}).eq("user_id", uid).execute()
+        # Koppling gör INTE Strava till aktiv källa: Garmin förblir primär och
+        # Strava blir reserv (glappfyllare). Vill adepten tvinga Strava finns
+        # nödutgången /strava/use. Garmin-lösa adepter läser Strava ändå.
         strava_client.sync_recent(client, uid, days=45)
     except Exception:  # noqa: BLE001
         return RedirectResponse("/ui/settings?strava=error", status_code=303)
@@ -208,6 +211,27 @@ def strava_disconnect(request: Request) -> Any:
     strava_client.delete_tokens(client, uid)
     client.table("athlete_profiles").update({"use_strava": False}).eq("user_id", uid).execute()
     return RedirectResponse("/ui/settings?strava=disconnected", status_code=303)
+
+
+@router.post("/strava/use")
+def strava_use(request: Request) -> Any:
+    """Manuell nödutgång: tvinga Strava som källa (Garmin ignoreras).
+
+    För perioder då Garmin-synken ligger nere. Återställs med /strava/auto.
+    """
+    uid = _current_user_id(request)
+    client = get_postgrest()
+    client.table("athlete_profiles").update({"use_strava": True}).eq("user_id", uid).execute()
+    return RedirectResponse("/ui/settings?strava=using", status_code=303)
+
+
+@router.post("/strava/auto")
+def strava_auto(request: Request) -> Any:
+    """Återgå till Garmin-primär (Strava som reserv/glappfyllare)."""
+    uid = _current_user_id(request)
+    client = get_postgrest()
+    client.table("athlete_profiles").update({"use_strava": False}).eq("user_id", uid).execute()
+    return RedirectResponse("/ui/settings?strava=auto", status_code=303)
 
 
 # ---------- Styrkelogg (set/reps/vikt/ansträngning mot styrkepassen) ----------
@@ -398,8 +422,7 @@ def _build_season_context(client, athlete, today, this_monday) -> dict | None:
     if not timeline:
         return None
 
-    garmin_id = athlete.get("garmin_athlete_id")
-    strava_user_id = None if garmin_id else athlete.get("user_id")
+    garmin_id, strava_user_id = _resolve_activity_sources(athlete)
 
     comp_map: dict = {}
     try:
@@ -466,15 +489,9 @@ def dashboard(request: Request) -> HTMLResponse:
     this_iso = this_monday.isocalendar()
     next_iso = next_monday.isocalendar()
 
-    # Primärkälla per adept: har adepten valt Strava (use_strava) → Strava,
-    # annars Garmin om kopplat, annars Strava (för Strava-only-vänner).
+    # Garmin primär, Strava reserv/nödutgång (se _resolve_activity_sources).
     uid = athlete.get("user_id")
-    if athlete.get("use_strava"):
-        garmin_id = None
-        strava_user_id = uid
-    else:
-        garmin_id = athlete.get("garmin_athlete_id")
-        strava_user_id = None if garmin_id else uid
+    garmin_id, strava_user_id = _resolve_activity_sources(athlete)
     this_week = _fetch_current_week_data(
         client, athlete["id"], this_iso[0], this_iso[1], garmin_id, strava_user_id, today, uid
     )
@@ -717,15 +734,20 @@ def _fetch_week_activities(
     strava_user_id: str | None,
     week_monday: date_type,
 ) -> dict[str, list[dict]]:
-    """Källagnostisk aktivitetsläsning för veckan, grupperad på lokalt datum.
+    """Källprioriterad aktivitetsläsning för veckan, grupperad på lokalt datum.
 
-    En adept har EN primärkälla: har den ett garmin_athlete_id läses
-    garmin_coach.activities, annars Strava (public.strava_activities för
-    externa vänner). Båda normaliseras till samma dict-form som
+    Garmin är primär: finns ett garmin_athlete_id läses garmin_coach.activities
+    och DEN datan litar vi på. Bara om veckan saknar Garmin-pass (sync-glapp)
+    faller vi tillbaka på Strava för just den veckan. Garmin-lösa adepter läser
+    Strava direkt. Båda normaliseras till samma dict-form som
     `_compute_status`/`_build_actual` konsumerar.
     """
     if garmin_athlete_id:
-        return _fetch_garmin_week_activities(client, garmin_athlete_id, week_monday)
+        by_date = _fetch_garmin_week_activities(client, garmin_athlete_id, week_monday)
+        if by_date or not strava_user_id:
+            return by_date
+        # Garmin-glapp denna vecka → reserv från Strava (rör Strava bara här).
+        return _fetch_strava_week_activities(client, strava_user_id, week_monday)
     if strava_user_id:
         return _fetch_strava_week_activities(client, strava_user_id, week_monday)
     return {}

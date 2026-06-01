@@ -129,6 +129,29 @@ def _fetch_athlete(client, athlete_user_id: str) -> dict:
     return res.data
 
 
+def _resolve_activity_sources(athlete: dict) -> tuple[str | None, str | None]:
+    """Källprioritet för läsning av UTFÖRDA pass: Garmin primär, Strava reserv.
+
+    Returnerar ``(garmin_athlete_id, strava_user_id)`` att skicka till
+    aktivitetsläsarna:
+
+    - ``use_strava=True`` → manuell nödutgång: tvinga Strava (Garmin ignoreras).
+      För perioder då Garmin-synken ligger nere.
+    - Annars Garmin om kopplad, med Strava som reserv. Reserven fyller bara
+      veckoglapp (läsaren faller tillbaka på Strava enbart när Garmin saknar
+      pass den veckan) och är enda källa för Garmin-lösa adepter.
+
+    "Lita på sin databas": ``garmin_coach.activities`` är sanning när den
+    svarar — Strava når bara in i glappen. Att passera ``strava_user_id`` även
+    för rena Garmin-adepter är gratis: läsaren rör Strava först när Garmin är
+    tom, och en Strava-lös adept får då bara ett tomt (indexerat) svar.
+    """
+    uid = athlete.get("user_id")
+    if athlete.get("use_strava"):
+        return None, uid
+    return athlete.get("garmin_athlete_id"), uid
+
+
 def _fetch_active_overrides(client, athlete_id: str) -> list[dict]:
     res = (
         client.table("coach_overrides")
@@ -1329,13 +1352,10 @@ def generate_week(
     recent_workouts = _fetch_recent_workouts(client, athlete_id, weeks_back=4)
 
     # 2. Hämta aktivitetsdata (primärkälla för faktisk volym + OT-signaler).
-    # Garmin om kopplat, annars Strava (externa adepter). En källa per adept.
-    if athlete.get("use_strava"):
-        garmin_id = None
-        strava_user_id = athlete_user_id
-    else:
-        garmin_id = athlete.get("garmin_athlete_id")
-        strava_user_id = None if garmin_id else athlete_user_id
+    # Garmin primär, Strava reserv (se _resolve_activity_sources). OT-signaler
+    # (HRV/sömn/RHR) finns bara i Garmin → de faller tillbaka på profil/
+    # självskattning när Garmin saknas.
+    garmin_id, strava_user_id = _resolve_activity_sources(athlete)
     garmin_metrics = _fetch_garmin_metrics(client, garmin_id, today, days_back=28)
     actual_weekly_hours = _fetch_actual_weekly_hours(client, garmin_id, today, weeks=4)
     if actual_weekly_hours is None and strava_user_id:

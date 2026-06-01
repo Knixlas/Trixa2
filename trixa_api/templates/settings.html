@@ -14,25 +14,40 @@ Trixa väljer (default lör för cykel, sön för löpning, mån som vila).</p>
   {% elif strava.flash == "disconnected" %}<p style="color: var(--ink-3);">Strava frånkopplad.</p>
   {% elif strava.flash == "error" %}<p style="color: var(--coral); font-weight: 600;">Något gick fel med Strava — försök igen.</p>
   {% elif strava.flash == "noconfig" %}<p style="color: var(--coral); font-weight: 600;">Strava-integrationen är inte konfigurerad (saknar nycklar).</p>
+  {% elif strava.flash == "using" %}<p style="color: var(--coral); font-weight: 600;">Strava är nu tvingad källa — Garmin ignoreras tills du återgår.</p>
+  {% elif strava.flash == "auto" %}<p style="color: var(--palm-deep); font-weight: 600;">✓ Tillbaka till Garmin som primär källa (Strava som reserv).</p>
   {% endif %}
   <article>
     {% if strava.connected %}
       <p style="margin-top: 0;">
         <strong>Ansluten</strong>{% if strava.athlete_id %} (Strava-id {{ strava.athlete_id }}){% endif %}.
         {% if strava.last_activity %}Senaste pass: {{ strava.last_activity }}.{% endif %}
-        {% if strava.use_strava %}<span class="badge" style="background: var(--palm-soft); color: var(--palm-deep);">aktiv källa</span>{% endif %}
+        {% if strava.use_strava %}<span class="badge" style="background: var(--coral); color: #fff;">tvingad källa</span>{% endif %}
       </p>
+      {% if not strava.has_garmin %}
+      <p style="font-size: 0.875rem; color: var(--ink-3);">Du har ingen Garmin-koppling — Trixa läser dina utförda pass från Strava.</p>
+      {% elif strava.use_strava %}
+      <p style="font-size: 0.875rem; color: var(--ink-3);">Strava är just nu <strong>tvingad källa</strong> — Garmin ignoreras tills du återgår. Använd bara när Garmin-synken ligger nere.</p>
+      {% else %}
+      <p style="font-size: 0.875rem; color: var(--ink-3);">Garmin är primär källa. Strava är <strong>reserv</strong> och fyller bara i de veckor Garmin saknar pass.</p>
+      {% endif %}
       <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
         <form method="post" action="/ui/strava/sync"><button type="submit">Synka nu</button></form>
         <form method="post" action="/ui/strava/disconnect" onsubmit="return confirm('Koppla från Strava?');">
           <button type="submit" class="outline">Koppla från</button>
         </form>
-        {% if strava.has_garmin and not strava.use_strava %}
-        <a href="/ui/strava/connect" style="display:inline-flex;align-items:center;background:var(--hibiscus);color:#fff;padding:12px 22px;border-radius:var(--r-pill);text-decoration:none;font-weight:700;">Gör Strava till aktiv källa</a>
+        {% if strava.has_garmin %}
+          {% if strava.use_strava %}
+          <form method="post" action="/ui/strava/auto"><button type="submit">Återgå till Garmin</button></form>
+          {% else %}
+          <form method="post" action="/ui/strava/use" onsubmit="return confirm('Tvinga Strava som källa? Garmin ignoreras tills du återgår.');">
+            <button type="submit" class="outline">Använd Strava istället</button>
+          </form>
+          {% endif %}
         {% endif %}
       </div>
     {% else %}
-      <p style="margin-top: 0;">Koppla Strava så läser Trixa dina utförda pass därifrån (stabilare än Garmin).</p>
+      <p style="margin-top: 0;">Koppla Strava som reserv — Trixa läser i första hand Garmin och fyller bara i från Strava de veckor Garmin saknar pass.</p>
       {% if strava.configured %}
       <a href="/ui/strava/connect" style="display:inline-flex;align-items:center;background:var(--hibiscus);color:#fff;padding:12px 22px;border-radius:var(--r-pill);text-decoration:none;font-weight:700;box-shadow:var(--shadow-hibiscus);">
         <i data-lucide="link" style="width:16px;height:16px;margin-right:8px;"></i>Anslut Strava
