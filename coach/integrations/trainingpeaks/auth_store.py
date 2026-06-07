@@ -22,7 +22,7 @@ from __future__ import annotations
 import os
 from typing import Any, Callable
 
-from .client import ENV_VAR_NAME
+from .client import ENV_VAR_NAME, valid_env_cookie
 
 
 def store_cookie(cookie: str, pg: Any = None) -> None:
@@ -43,9 +43,9 @@ def supabase_cookie_provider(pg: Any = None) -> Callable[[], "str | None"]:
     TPAuthError med tydlig åtgärd.
     """
     def _provider() -> str | None:
-        env = os.environ.get(ENV_VAR_NAME)
+        env = valid_env_cookie(os.environ.get(ENV_VAR_NAME))
         if env:
-            return env.strip()
+            return env  # giltig env-cookie vinner; trasig ignoreras → Supabase
         try:
             client = pg
             if client is None:

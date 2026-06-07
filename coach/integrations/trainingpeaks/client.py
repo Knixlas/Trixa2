@@ -67,14 +67,24 @@ class TPRateLimitError(TPError):
 ENV_VAR_NAME = "TP_AUTH_COOKIE"
 
 
-def default_cookie_provider() -> str | None:
-    """Hämta cookien från env. Headless-vägen för Railway-workern.
+def valid_env_cookie(raw: str | None) -> str | None:
+    """Returnera env-cookien om den ser rimlig ut, annars None.
 
-    Task 8 ersätter/kompletterar denna med en Supabase-backad provider;
-    klienten behöver inte ändras — skicka bara in en annan `cookie_provider`.
+    Skyddar mot en trasig env-variabel (t.ex. inklistrad kommandotext) som
+    annars tyst tar precedens och 500:ar token-växlingen. En äkta
+    `Production_tpAuth` är lång och saknar whitespace.
     """
-    cookie = os.environ.get(ENV_VAR_NAME)
-    return cookie.strip() if cookie else None
+    if not raw:
+        return None
+    raw = raw.strip()
+    if not raw or len(raw) < 50 or any(c.isspace() for c in raw):
+        return None
+    return raw
+
+
+def default_cookie_provider() -> str | None:
+    """Hämta cookien från env (headless-vägen). Trasig env-cookie ignoreras."""
+    return valid_env_cookie(os.environ.get(ENV_VAR_NAME))
 
 
 # ---------- Klient ----------

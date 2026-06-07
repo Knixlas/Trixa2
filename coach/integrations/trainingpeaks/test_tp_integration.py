@@ -381,6 +381,15 @@ def test_tp_to_training_log_row():
          "startTime": "2026-06-03T07:00:00"}, "u") is None
 
 
+def test_valid_env_cookie_filters_garbage():
+    from coach.integrations.trainingpeaks.client import valid_env_cookie
+    assert valid_env_cookie(None) is None
+    assert valid_env_cookie('cd "C:\\x" python -c garbage') is None   # whitespace → trasig
+    assert valid_env_cookie("short") is None                          # för kort
+    good = "V001" + "x" * 300
+    assert valid_env_cookie(good) == good                             # äkta TP-cookie
+
+
 def test_dedup_training_log_skips_strava_match():
     tp = [
         {"date": "2026-06-03", "sport": "Cykel", "duration_min": 60.0, "tp_workout_id": 1},
