@@ -19,6 +19,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import random
 import sys
 from dataclasses import dataclass, field, asdict
@@ -1316,6 +1317,61 @@ def _apply_overrides(
     return modified, honored
 
 
+# ---------- TrainingPeaks-push (skriv-väg → klockan) ----------
+
+
+def _push_to_trainingpeaks(plan: WeekPlan, profile: AthleteProfile) -> dict:
+    """Skapa veckans pass som planerade strukturerade pass i TrainingPeaks.
+
+    TP→Garmin AutoSync levererar dem sedan till klockan (se docs/06). Ersätter
+    .fit-exporten. Egenskaper:
+
+    - **Gated** på env ``TRIXA_PUSH_TO_TP`` (default av tills go-live-ceremonin
+      gjorts: TP Premium, Garmin↔TP AutoSync, cookie i `public.tp_auth`).
+    - **Best-effort:** plan-persisteringen är redan klar när detta körs; TP-fel
+      (utgången cookie, nätverk) fångas och rapporteras i planen, kraschar inte.
+    - Hoppar över vila/styrka (ingen struktur). Brick/styrka som ändå skickas
+      flaggas av writern som "når ej klockan".
+    """
+    if os.environ.get("TRIXA_PUSH_TO_TP", "").lower() not in ("1", "true", "yes"):
+        return {"enabled": False}
+
+    from coach.integrations.trainingpeaks.auth_store import supabase_cookie_provider
+    from coach.integrations.trainingpeaks.client import TPClient, TPError
+    from coach.integrations.trainingpeaks.workout_writer import create_week
+
+    items = [
+        {
+            "workout": sw.workout_data,
+            "day": sw.date,
+            "total_duration_min": sw.duration_minutes,
+            "css_sec_per_100m": profile.css_sec_per_100m,
+            "threshold_pace_sec_per_km": profile.threshold_pace_sec_per_km,
+            "title": sw.title,
+        }
+        for sw in plan.workouts
+        if sw.workout_data and sw.sport not in ("rest", "strength")
+    ]
+    if not items:
+        return {"enabled": True, "created": 0}
+
+    try:
+        client = TPClient(cookie_provider=supabase_cookie_provider())
+        results = create_week(client, items, dry_run=False)
+        client.close()
+    except TPError as e:
+        return {"enabled": True, "created": 0, "error": str(e)}
+    except Exception as e:  # noqa: BLE001 — TP får aldrig fälla plan-persisteringen
+        return {"enabled": True, "created": 0, "error": f"oväntat: {e}"}
+
+    return {
+        "enabled": True,
+        "created": sum(1 for r in results if r.workout_id),
+        "not_reaching_watch": [r.code for r in results if not r.reaches_watch],
+        "warnings": [w for r in results for w in r.warnings],
+    }
+
+
 # ---------- Huvudfunktion ----------
 
 
@@ -1572,6 +1628,11 @@ def generate_week(
                 athlete_user_id=athlete_user_id,
             )
             plan.engine_decisions["alerts_written"] = len(inserted)
+
+        # 6b. Pusha planerade pass till TrainingPeaks (TP→Garmin AutoSync → klockan).
+        # Best-effort + gated på TRIXA_PUSH_TO_TP. Plan-persisteringen ovan är klar
+        # och får inte påverkas av ev. TP-fel.
+        plan.engine_decisions["tp_push"] = _push_to_trainingpeaks(plan, zones_profile)
 
     return plan
 

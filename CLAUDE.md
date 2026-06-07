@@ -85,6 +85,17 @@ Detaljerade hälso-konversationer hör hemma i planeringstrådar med Nils, inte 
 
 ## Datainsamling — Garmin→Supabase
 
+> **⚠️ Arkitektur under omläggning (2026-06-07): TrainingPeaks blir enda integration.**
+> Garmins kortlivade MFA-tokens gör direktsynken ohållbar. Ny modell: Garmin-klockan
+> AutoSyncar till TrainingPeaks (aktiviteter + HRV/sömn/RHR/Body Battery), Trixa läser
+> **bara TP** och skriver strukturerade pass tillbaka via TP→Garmin AutoSync. Koden ligger
+> i `coach/integrations/trainingpeaks/` (client/mapping/structure/sync/workout_writer,
+> 12 tester gröna). `garmin_coach.activities`/`daily_metrics` blir en intern cache som
+> fylls från TP — engine/adapter rörs inte. **Design:** `docs/06_TP_INTEGRATION_REBUILD.md`.
+> **Drift/go-live:** `docs/07_TP_SYNC_RUNBOOK.md`. Vinst: TP-cookien lever veckor (ej dagar),
+> ingen MFA/TTY; och TP:s CTL/ATL/TSB fyller `load_ratio` som Garmin-synken lämnade NULL.
+> Garmin-cronen nedan pensioneras vid go-live (behålls för rollback).
+
 Sync-pipelinen lever i ett separat GitHub-repo: **`Knixlas/Trixa2`** (publikt).
 
 **Detaljerad runbook & troubleshooting:** se `02_GARMIN_SYNC_RUNBOOK.md` (uppladdad i projektkunskap). Vid sync-problem — **kolla alltid `garmin_coach.sync_log` först, inte `activities`/`daily_metrics`**. De senare uppdateras bara när det finns ny data och säger ingenting om huruvida synken funkar.
@@ -259,11 +270,19 @@ Projektet (CLAUDE.md + md-källdokument + kod) bär delad kunskap. Tråden är a
 - ✓ Token-rotation-skript (`refresh_garmin_tokens.ps1`, ett kommando)
 - ✓ Garmin sync runbook (`02_GARMIN_SYNC_RUNBOOK.md` i projektkunskap)
 
+**TrainingPeaks-rebuild (startad 2026-06-07 — TP som enda integration):**
+- ✓ Designdok + runbook (`docs/06_TP_INTEGRATION_REBUILD.md`, `docs/07_TP_SYNC_RUNBOOK.md`)
+- ✓ `coach/integrations/trainingpeaks/`: `client` (auth/läs/skriv), `mapping` (passbank→TP-struktur, bike/run inkl. distansreps), `structure` (wire+IF/TSS+payload), `workout_writer` (pass→TP, AutoSync-flagga), `sync` (TP→`garmin_coach.*`-cache: HRV-baseline beräknas, PMC→load, sleep-proxy), `auth_store` (Supabase-cookie), `run_sync` (worker-CLI) — **12 tester gröna**
+- ✓ Wire planner + worker: planner pushar pass till TP efter `generate_week` (gated `TRIXA_PUSH_TO_TP`); befintliga workern (`coach/trixa/cron.py`) kör daglig TP-läs-sync (gated `TRIXA_TP_SYNC`). Läs-vägen funkar via cachen. **14 tester gröna.**
+- ✓ **Go-live läs-väg (2026-06-07):** TP Premium ✓, Garmin↔TP AutoSync ✓, cookie i `public.tp_auth` ✓ (RLS på). Garmin-synken var redan **död** sedan 1 juni (MFA-token, "CI utan TTY"); TP tog vid rent vid gapet (skarp `run_sync` 2–7 juni). Verifierat: TP-matad RHR/HRV/sömn + **`load_ratio` nu fylld** (0.81–1.20, var alltid NULL). Engine läser TP-datan (`tunga_lastveckor` lever). Live-fält-fixar: faktisk passtid = `totalTime` (h), sporttyp = `workoutTypeValueId`, `garmin_activity_id` = bigint (TP workoutId).
+- ✓ **Garmin pensionerad (2026-06-07):** GitHub-workflowen "Garmin Sync" `disabled_manually` via `gh`, och `schedule`-triggern borttagen i `sync.yml` (workflow_dispatch kvar för rollback). Strava-resolvern lämnad som vilande fallback (läser `strava_activities`, får ingen ny data).
+- ☐ Kvar (Niklas, Railway): sätt `TRIXA_TP_SYNC=1` + `TRIXA_PUSH_TO_TP=1` på workern för automatisk daglig sync + pass-push (körs manuellt tills dess); ev. Railway-garmin-worker tas bort om en sådan service finns; live-test av skriv-vägen (pass→klocka).
+
 **Pågående (Trixa-go-live-spår startat 2026-05-25):**
 - ☐ Supabase: strukturerad datamodell (injuries-jsonb, health_conditions, weekly_reports, coach_overrides)
 - ☐ `coach/trixa/planner.py` — knyt ihop engine + passbank + DB-skrivning
 - ☐ Alert-protokoll i `data/alerts.yaml` (deterministiska eskaleringar utan LLM-tolkning)
-- ☐ `.fit`-export-pipeline
+- ☑ `.fit`-export-pipeline — **ersatt** av TP-skrivvägen (`workout_writer` → TP → Garmin AutoSync); `.fit` behålls bara som ev. nödutgång för brick/styrka
 - ☐ FastAPI-skal med Nils-vänliga endpoints (`/api/week/current`, `/api/override` m.fl.)
 - ☐ Trixa-formulär (HTMX/Jinja) — onboarding, hälsotillstånd, testvärden, veckorapport
 - ☐ Railway-deploy (web + worker)

@@ -29,6 +29,13 @@ _RUN_HOUR_UTC = int(os.environ.get("TRIXA_CRON_HOUR_UTC", "20"))
 _RUN_WEEKDAY = int(os.environ.get("TRIXA_CRON_WEEKDAY", "6"))  # 6 = söndag
 _POLL_INTERVAL_SEC = int(os.environ.get("TRIXA_CRON_POLL_SEC", "3600"))  # 1h
 
+# Daglig TP→Supabase läs-sync (recovery + aktiviteter). Gated av TRIXA_TP_SYNC
+# tills go-live (kräver TP-cookie). Samma worker kör då både den dagliga
+# läs-synken och den veckovisa planner-pushen — ingen ny Railway-service behövs.
+_TP_SYNC_ENABLED = os.environ.get("TRIXA_TP_SYNC", "").lower() in ("1", "true", "yes")
+_TP_SYNC_HOUR_UTC = int(os.environ.get("TRIXA_TP_SYNC_HOUR_UTC", "5"))  # ≈07 svensk sommartid
+_TP_SYNC_DAYS = int(os.environ.get("TRIXA_TP_SYNC_DAYS", "2"))
+
 
 def _next_monday(today: date) -> date:
     """Nästa måndag (även om idag är måndag, returnerar om 7 dagar framåt)."""
@@ -76,11 +83,26 @@ def _run_once_for(athlete_user_id: str) -> None:
         logger.error("Fel vid generering för %s: %s", athlete_user_id, exc)
 
 
+def _run_tp_sync() -> None:
+    """Daglig TP→Supabase-sync (recovery + aktiviteter). Best-effort — fel
+    loggas men fäller aldrig worker-loopen."""
+    try:
+        from coach.integrations.trainingpeaks.run_sync import main as tp_sync_main
+        rc = tp_sync_main(["--days", str(_TP_SYNC_DAYS)])
+        logger.info("TP-sync klar (rc=%d)", rc)
+    except Exception as exc:  # noqa: BLE001
+        logger.error("TP-sync fel: %s", exc)
+
+
 def main() -> int:
-    """Loopa och kör planner på schemaTime. Stoppar aldrig självmant."""
-    logger.info("Trixa-cron startad. Schemavalt: vid %02d:00 UTC, weekday=%d. Poll var %ds.",
-                _RUN_HOUR_UTC, _RUN_WEEKDAY, _POLL_INTERVAL_SEC)
+    """Loopa och kör planner + (ev.) daglig TP-sync. Stoppar aldrig självmant."""
+    logger.info(
+        "Trixa-cron startad. Planner: %02d:00 UTC weekday=%d. TP-sync: %s (%02d:00 UTC). Poll var %ds.",
+        _RUN_HOUR_UTC, _RUN_WEEKDAY,
+        "på" if _TP_SYNC_ENABLED else "av", _TP_SYNC_HOUR_UTC, _POLL_INTERVAL_SEC,
+    )
     last_run: datetime | None = None
+    last_tp_sync: date | None = None
     while True:
         now = datetime.now(timezone.utc)
         if _should_run_now(now, last_run):
@@ -90,6 +112,10 @@ def main() -> int:
                 if a.get("user_id"):
                     _run_once_for(a["user_id"])
             last_run = now
+        # Daglig TP-sync (gated). En gång per dygn vid TP-sync-timmen.
+        if _TP_SYNC_ENABLED and now.hour == _TP_SYNC_HOUR_UTC and last_tp_sync != now.date():
+            _run_tp_sync()
+            last_tp_sync = now.date()
         time.sleep(_POLL_INTERVAL_SEC)
 
 
