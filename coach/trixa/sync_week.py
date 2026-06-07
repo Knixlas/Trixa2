@@ -64,7 +64,7 @@ def main(argv: list[str] | None = None) -> int:
         print(f"    ? {u['date']} {str(u['sport']):8} '{u['title']}' — OMATCHAD (kräver coach-beslut)")
 
     # Steg 2: idempotent push.
-    client = TPClient(cookie_provider=supabase_cookie_provider()) if args.apply else None
+    client = TPClient(cookie_provider=supabase_cookie_provider(args.user)) if args.apply else None
     results = sync_planned_week_to_tp(
         client, pg, args.user, week_start,
         css_sec_per_100m=prof.css_sec_per_100m,

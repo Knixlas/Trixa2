@@ -120,17 +120,23 @@ def _run_structure_and_push() -> None:
         pool = {w["code"]: w for w in load_workouts()}
         monday = date.today() - timedelta(days=date.today().weekday())
         weeks = [monday, monday + timedelta(days=7)]
-        client = TPClient(cookie_provider=supabase_cookie_provider())
-        try:
-            for a in _all_athletes():
-                uid = a.get("user_id")
-                if not uid:
-                    continue
-                try:
-                    prof = _build_athlete_profile_for_zones(_fetch_athlete(pg, uid))
-                except Exception as exc:  # noqa: BLE001
-                    logger.error("Profil-fel %s: %s", uid, exc)
-                    continue
+        for a in _all_athletes():
+            uid = a.get("user_id")
+            if not uid:
+                continue
+            # Per-användares TP-cookie (multi-tenant). Egen klient per adept;
+            # saknas cookie → hoppa adepten (ingen koppling till andras TP).
+            provider = supabase_cookie_provider(uid, pg)
+            if provider() is None:
+                logger.info("Hoppar %s — ingen TP-cookie lagrad", uid)
+                continue
+            try:
+                prof = _build_athlete_profile_for_zones(_fetch_athlete(pg, uid))
+            except Exception as exc:  # noqa: BLE001
+                logger.error("Profil-fel %s: %s", uid, exc)
+                continue
+            client = TPClient(cookie_provider=provider)
+            try:
                 for ws in weeks:
                     try:
                         sres = structure_week(pg, uid, ws, pool, apply=True)
@@ -147,8 +153,8 @@ def _run_structure_and_push() -> None:
                         )
                     except Exception as exc:  # noqa: BLE001
                         logger.error("structure+push fel %s %s: %s", uid, ws, exc)
-        finally:
-            client.close()
+            finally:
+                client.close()
     except Exception as exc:  # noqa: BLE001
         logger.error("structure+push topp-fel: %s", exc)
 

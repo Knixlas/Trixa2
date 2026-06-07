@@ -582,3 +582,80 @@ def test_sync_dry_run_writes_nothing():
     assert r[0].action == "would_create"
     assert c.created == [] and c.deleted == []
     assert rows[0]["tp_workout_id"] is None
+
+
+# ---------- multi-tenant cookie (en cookie per användare) ----------
+
+from coach.integrations.trainingpeaks.auth_store import (  # noqa: E402
+    store_cookie,
+    supabase_cookie_provider,
+)
+
+
+class _AuthQ:
+    def __init__(self, store, captured):
+        self.store = store
+        self.captured = captured
+        self._eq: dict = {}
+
+    def select(self, *a, **k):
+        return self
+
+    def eq(self, col, val):
+        self._eq[col] = val
+        return self
+
+    def limit(self, n):
+        return self
+
+    def upsert(self, vals, on_conflict=None):
+        self.captured["upsert"] = (dict(vals), on_conflict)
+        uid = vals.get("user_id")
+        for r in self.store:
+            if r["user_id"] == uid:
+                r["cookie"] = vals["cookie"]
+                break
+        else:
+            self.store.append(dict(vals))
+        return self
+
+    def execute(self):
+        if "user_id" in self._eq:
+            uid = self._eq["user_id"]
+            data = [{"cookie": r["cookie"]} for r in self.store if r["user_id"] == uid]
+            return types.SimpleNamespace(data=data)
+        return types.SimpleNamespace(data=None)
+
+
+class _AuthPG:
+    def __init__(self, rows=None):
+        self.store = rows or []
+        self.captured: dict = {}
+
+    def table(self, name):
+        return _AuthQ(self.store, self.captured)
+
+
+def test_cookie_provider_isolates_per_user():
+    pg = _AuthPG([{"user_id": "A", "cookie": "cookieA"},
+                  {"user_id": "B", "cookie": "cookieB"}])
+    assert supabase_cookie_provider("A", pg)() == "cookieA"
+    assert supabase_cookie_provider("B", pg)() == "cookieB"
+    assert supabase_cookie_provider("C", pg)() is None      # okänd → None (eskalerar)
+
+
+def test_cookie_provider_requires_user_id():
+    raised = False
+    try:
+        supabase_cookie_provider("", _AuthPG())
+    except ValueError:
+        raised = True
+    assert raised
+
+
+def test_store_cookie_upserts_on_user_id():
+    pg = _AuthPG()
+    store_cookie("V001" + "x" * 200, "userX", pg)
+    vals, on_conflict = pg.captured["upsert"]
+    assert vals["user_id"] == "userX" and on_conflict == "user_id"
+    assert supabase_cookie_provider("userX", pg)() == "V001" + "x" * 200

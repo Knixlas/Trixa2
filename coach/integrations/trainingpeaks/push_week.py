@@ -42,7 +42,7 @@ def main(argv: list[str] | None = None) -> int:
         pg = get_postgrest()
         week_start = date.fromisoformat(args.week_start) if args.week_start else _next_monday(date.today())
         prof = _build_athlete_profile_for_zones(_fetch_athlete(pg, args.user_id))
-        client = None if args.dry_run else TPClient(cookie_provider=supabase_cookie_provider())
+        client = None if args.dry_run else TPClient(cookie_provider=supabase_cookie_provider(args.user_id))
 
         results = sync_planned_week_to_tp(
             client, pg, args.user_id, week_start,

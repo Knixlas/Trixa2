@@ -1418,7 +1418,7 @@ def _push_to_trainingpeaks(
     from coach.integrations.trainingpeaks.workout_writer import sync_planned_week_to_tp
 
     try:
-        client = TPClient(cookie_provider=supabase_cookie_provider())
+        client = TPClient(cookie_provider=supabase_cookie_provider(user_id))
         results = sync_planned_week_to_tp(
             client, pg, user_id, plan.week_start,
             css_sec_per_100m=profile.css_sec_per_100m,
