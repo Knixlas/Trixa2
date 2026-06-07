@@ -37,8 +37,8 @@ USER_ENDPOINT = "/users/v3/user"
 DEFAULT_TIMEOUT = 30.0
 MIN_REQUEST_INTERVAL = 0.15   # ≥150 ms mellan anrop (samma som MCP:n)
 TOKEN_REFRESH_BUFFER = 60     # förnya token 60 s före utgång
-TOKEN_EXCHANGE_RETRIES = 3    # TP:s /users/v3/token 500:ar sporadiskt → retry
-TOKEN_EXCHANGE_BACKOFF = 1.5  # sek, linjär backoff mellan försök
+TOKEN_EXCHANGE_RETRIES = 5    # TP:s /users/v3/token 500:ar sporadiskt (ibland flera sek) → retry
+TOKEN_EXCHANGE_BACKOFF = 2.0  # sek, linjär backoff (0,2,4,6,8 → ~20s total marginal)
 
 CookieProvider = Callable[[], "str | None"]
 
