@@ -92,14 +92,42 @@ def _run_once_for(athlete_user_id: str) -> None:
 
 
 def _run_tp_sync() -> None:
-    """Daglig TP→Supabase-sync (recovery + aktiviteter). Best-effort — fel
-    loggas men fäller aldrig worker-loopen."""
+    """Daglig TP→Supabase recovery-sync, **per adept**. Varje adept synkas med
+    sin egen cookie till sin egen recovery-nyckel (``garmin_athlete_id`` ur
+    athlete_profiles — samma nyckel planner läser recovery med, så write/read är
+    överens). Adept utan cookie eller utan recovery-nyckel hoppas. Best-effort —
+    fel loggas men fäller aldrig worker-loopen."""
     try:
+        from coach.integrations.trainingpeaks.auth_store import supabase_cookie_provider
         from coach.integrations.trainingpeaks.run_sync import main as tp_sync_main
-        rc = tp_sync_main(["--days", str(_TP_SYNC_DAYS)])
-        logger.info("TP-sync klar (rc=%d)", rc)
+        from coach.trixa.planner import _fetch_athlete
+
+        pg = get_postgrest()
+        for a in _all_athletes():
+            uid = a.get("user_id")
+            if not uid:
+                continue
+            if supabase_cookie_provider(uid, pg)() is None:
+                logger.info("TP-sync hoppar %s — ingen TP-cookie", uid)
+                continue
+            try:
+                garmin_id = _fetch_athlete(pg, uid).get("garmin_athlete_id")
+            except Exception as exc:  # noqa: BLE001
+                logger.error("TP-sync profil-fel %s: %s", uid, exc)
+                continue
+            if not garmin_id:
+                logger.info("TP-sync hoppar %s — saknar garmin_athlete_id (recovery-nyckel)", uid)
+                continue
+            try:
+                rc = tp_sync_main(
+                    ["--user", uid, "--athlete-id", str(garmin_id),
+                     "--days", str(_TP_SYNC_DAYS)]
+                )
+                logger.info("TP-sync %s klar (rc=%d)", uid, rc)
+            except Exception as exc:  # noqa: BLE001
+                logger.error("TP-sync fel %s: %s", uid, exc)
     except Exception as exc:  # noqa: BLE001
-        logger.error("TP-sync fel: %s", exc)
+        logger.error("TP-sync topp-fel: %s", exc)
 
 
 def _run_structure_and_push() -> None:
