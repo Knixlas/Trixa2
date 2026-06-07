@@ -30,30 +30,42 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--week-start", default=None, help="måndag YYYY-MM-DD (default: nästa måndag)")
     ap.add_argument("--user-id", default=DEFAULT_USER_ID)
     ap.add_argument("--dry-run", action="store_true", help="bygg payloads utan att skriva till TP")
+    ap.add_argument("--out", default=None, help="skriv resultatet till denna fil (robust mot shell-redirect)")
     args = ap.parse_args(argv)
 
-    from coach.trixa.db import get_postgrest
-    from coach.trixa.planner import _build_athlete_profile_for_zones, _fetch_athlete
+    lines: list[str] = []
+    rc = 0
+    try:
+        from coach.trixa.db import get_postgrest
+        from coach.trixa.planner import _build_athlete_profile_for_zones, _fetch_athlete
 
-    pg = get_postgrest()
-    week_start = date.fromisoformat(args.week_start) if args.week_start else _next_monday(date.today())
-    prof = _build_athlete_profile_for_zones(_fetch_athlete(pg, args.user_id))
-    client = None if args.dry_run else TPClient(cookie_provider=supabase_cookie_provider())
+        pg = get_postgrest()
+        week_start = date.fromisoformat(args.week_start) if args.week_start else _next_monday(date.today())
+        prof = _build_athlete_profile_for_zones(_fetch_athlete(pg, args.user_id))
+        client = None if args.dry_run else TPClient(cookie_provider=supabase_cookie_provider())
 
-    results = push_week_from_planned_sessions(
-        client, pg, args.user_id, week_start,
-        css_sec_per_100m=prof.css_sec_per_100m,
-        threshold_pace_sec_per_km=prof.threshold_pace_sec_per_km,
-        dry_run=args.dry_run,
-    )
+        results = push_week_from_planned_sessions(
+            client, pg, args.user_id, week_start,
+            css_sec_per_100m=prof.css_sec_per_100m,
+            threshold_pace_sec_per_km=prof.threshold_pace_sec_per_km,
+            dry_run=args.dry_run,
+        )
+        lines.append(f"Vecka {week_start} -> {len(results)} pass:")
+        for r in results:
+            tag = " [dry-run]" if r.dry_run else ""
+            lines.append(f"  {r.day} {r.sport} -> workout_id={r.workout_id}{tag}")
+            for w in r.warnings:
+                lines.append(f"    warn: {w}")
+    except Exception as e:  # noqa: BLE001 — fånga så resultatfilen alltid skrivs
+        lines.append(f"FEL: {type(e).__name__}: {e}")
+        rc = 1
 
-    print(f"Vecka {week_start} → {len(results)} pass:")
-    for r in results:
-        tag = " [dry-run]" if r.dry_run else ""
-        print(f"  {r.day} {r.sport} → workout_id={r.workout_id}{tag}")
-        for w in r.warnings:
-            print(f"    warn: {w}")
-    return 0
+    text = "\n".join(lines)
+    print(text)
+    if args.out:
+        with open(args.out, "w", encoding="utf-8") as f:
+            f.write(text + "\n")
+    return rc
 
 
 if __name__ == "__main__":
