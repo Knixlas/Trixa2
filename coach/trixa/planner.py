@@ -22,7 +22,7 @@ import json
 import random
 import sys
 from dataclasses import dataclass, field, asdict
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 from typing import Any
 
 from coach.engine._loader import load_yaml
@@ -187,6 +187,151 @@ def _fetch_latest_weekly_report(client, athlete_id: str) -> dict | None:
         .execute()
     )
     return res.data[0] if res.data else None
+
+
+# ---------- Coachplan — grind + projektion (Nils är auktoritativ) ----------
+#
+# BESLUT: Nils (coachens plan i garmin_coach.planned_workouts) vinner ALLTID
+# över Trixa-motorn. Motorn får aldrig generera eller skriva över en dag som
+# redan finns i coachens plan. Flödet i generate_week:
+#     läs coachplan  ->  grinda (motorn hoppar coachade dagar)
+#                    ->  projicera coachplan -> planned_sessions (origin='nils')
+#                    ->  generera resten av veckan fritt
+#
+# planned_sessions är SaaS-vyns källa. Coachens plan speglas dit så att vyn
+# visar exakt det Nils lagt — utan tolkning.
+
+# garmin_coach.planned_workouts.discipline -> public.planned_sessions.sport (svenska)
+_DISCIPLINE_TO_SPORT_SV = {
+    "bike": "Cykel",
+    "swim": "Sim",
+    "run": "Löpning",
+    "rest": "Vila",
+}
+
+
+def _coach_plan_date(row: dict) -> date | None:
+    """Tolerant datumparsning av planned_workouts.plan_date (str eller date)."""
+    raw = row.get("plan_date")
+    if isinstance(raw, date):
+        return raw
+    if isinstance(raw, str):
+        try:
+            return date.fromisoformat(raw[:10])
+        except ValueError:
+            return None
+    return None
+
+
+def _fetch_coach_plan(client, week_start: date) -> list[dict]:
+    """Coachens (Nils) plan för veckan ur garmin_coach.planned_workouts.
+
+    Auktoritativ källa: dagar som finns här ägs av Nils och rörs aldrig av
+    motorn. Returnerar [] om tabellen saknas/är tom — motorn genererar då fritt.
+    """
+    end = week_start + timedelta(days=6)
+    try:
+        res = (
+            client.schema("garmin_coach")
+            .table("planned_workouts")
+            .select(
+                "plan_date, discipline, workout_code, title, duration_min,"
+                " zone, details, conditional, status"
+            )
+            .gte("plan_date", week_start.isoformat())
+            .lte("plan_date", end.isoformat())
+            .order("plan_date")
+            .execute()
+        )
+        return res.data or []
+    except Exception:  # noqa: BLE001
+        return []
+
+
+def _coached_dates(coach_rows: list[dict]) -> set[date]:
+    """Datum coachen lagt pass på — motorns grind hoppar dessa."""
+    return {d for r in coach_rows if (d := _coach_plan_date(r)) is not None}
+
+
+def _coach_row_to_session(row: dict, user_id: str) -> dict:
+    """Mappa en planned_workouts-rad -> planned_sessions-rad (origin='nils').
+
+    Mapping (rakt av där inget annat anges):
+        plan_date  -> date
+        discipline -> sport   (bike->Cykel, swim->Sim, run->Löpning, rest->Vila)
+        zone       -> intensity (null -> "—")
+        title, duration_min, workout_code, details, status -> oförändrat
+    'conditional' finns inte i planned_sessions — titlarna bär redan
+    "(villkorad)". exercises/steps lämnas null tills vi renderar pass-stegen.
+    """
+    disc = (row.get("discipline") or "").strip()
+    d = _coach_plan_date(row)
+    return {
+        "user_id": user_id,
+        "date": d.isoformat() if d else row.get("plan_date"),
+        "sport": _DISCIPLINE_TO_SPORT_SV.get(disc, disc),
+        "title": row.get("title"),
+        "duration_min": row.get("duration_min"),
+        "workout_code": row.get("workout_code"),
+        "details": row.get("details"),
+        "intensity": row.get("zone") or "—",
+        "status": row.get("status") or "planned",
+        "origin": "nils",
+        "purpose": None,
+        "exercises": None,
+        "steps": None,
+    }
+
+
+def _project_coach_plan(client, user_id: str, coach_rows: list[dict]) -> dict:
+    """Spegla coachens plan in i planned_sessions så SaaS-vyn visar den.
+
+    Nils vinner: för varje coachad dag raderas FÖRST alla planned_sessions
+    (oavsett origin — även en ev. 'trixa2'-rad) för (user_id, dag), sedan
+    skrivs färska 'nils'-rader. Det gör att det aldrig finns två rader för
+    samma dag (konflikten löses i tabellen, inte bara i läsningen) och att
+    projektionen är idempotent — körs om utan dubbletter.
+    """
+    if not coach_rows:
+        return {"projected": 0, "dates": []}
+    dates = sorted({d for r in coach_rows if (d := _coach_plan_date(r))})
+    for d in dates:
+        (
+            client.table("planned_sessions")
+            .delete()
+            .eq("user_id", user_id)
+            .eq("date", d.isoformat())
+            .execute()
+        )
+    rows = [_coach_row_to_session(r, user_id) for r in coach_rows]
+    if rows:
+        client.table("planned_sessions").insert(rows).execute()
+    return {"projected": len(rows), "dates": [d.isoformat() for d in dates]}
+
+
+def _mark_overrides_honored(client, honored: list[dict]) -> int:
+    """Stäng honoring-loopen: markera de overrides planeraren respekterat.
+
+    Sätter honored_by_planner=true + honored_at=now() för varje override som
+    faktiskt införlivats i veckoplanen. Idempotent — att sätta flaggan igen
+    är harmlöst.
+    """
+    if not honored:
+        return 0
+    now_iso = datetime.now(timezone.utc).isoformat()
+    count = 0
+    for ov in honored:
+        ov_id = ov.get("id")
+        if not ov_id:
+            continue
+        (
+            client.table("coach_overrides")
+            .update({"honored_by_planner": True, "honored_at": now_iso})
+            .eq("id", ov_id)
+            .execute()
+        )
+        count += 1
+    return count
 
 
 # ---------- Garmin-data (primärkälla för OT-bedömning + faktisk volym) ----------
@@ -1351,6 +1496,11 @@ def generate_week(
     weekly_report = _fetch_latest_weekly_report(client, athlete_id)
     recent_workouts = _fetch_recent_workouts(client, athlete_id, weeks_back=4)
 
+    # 1b. Coachens plan (Nils) — auktoritativ. Dagar Nils lagt rör motorn aldrig
+    #     (grind nedan). coach_rows speglas till planned_sessions vid apply.
+    coach_rows = _fetch_coach_plan(client, week_start)
+    coached = _coached_dates(coach_rows)
+
     # 2. Hämta aktivitetsdata (primärkälla för faktisk volym + OT-signaler).
     # Garmin primär, Strava reserv (se _resolve_activity_sources). OT-signaler
     # (HRV/sömn/RHR) finns bara i Garmin → de faller tillbaka på profil/
@@ -1517,6 +1667,17 @@ def generate_week(
         include_strength="strength" in raw_sports,
     )
 
+    # 5a. GRIND: Nils vinner. Släng motor-genererade pass för dagar coachen
+    #     redan lagt — motorn skriver inget för dem. Resten av veckan står kvar.
+    if coached:
+        skipped = sorted({sw.date for sw in scheduled if sw.date in coached})
+        scheduled = [sw for sw in scheduled if sw.date not in coached]
+        for d in skipped:
+            warnings.append(
+                f"{d.isoformat()}: motorn hoppade dagen — coachens plan (Nils) gäller"
+            )
+    decisions["_coached_dates"] = sorted(d.isoformat() for d in coached)
+
     # 5b. Rendera fullständig pass-text per pass (intent + main_set + zoner)
     zones_profile = _build_athlete_profile_for_zones(athlete)
     drill_map = {d["code"]: d for d in drills}
@@ -1559,6 +1720,18 @@ def generate_week(
             race_date=athlete.get("race_date"),
         )
         plan.engine_decisions["persisted_week_id"] = week_id
+
+        # GRIND-komplement: spegla coachens plan -> planned_sessions (origin='nils')
+        # så SaaS-vyn visar exakt Nils plan. Idempotent + löser ev. konflikt
+        # (raderar andra origins på coachade dagar).
+        plan.engine_decisions["coach_projection"] = _project_coach_plan(
+            client, athlete_user_id, coach_rows
+        )
+
+        # Stäng honoring-loopen för respekterade overrides.
+        plan.engine_decisions["overrides_honored_marked"] = _mark_overrides_honored(
+            client, honored
+        )
 
         # Skriv strukturerade alerts till coach_alerts
         from coach.trixa.alerts import build_alerts, persist_alerts
