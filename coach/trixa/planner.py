@@ -1677,22 +1677,16 @@ def generate_week(
 
     # 6. Persist om inte dry-run
     if not dry_run:
-        week_id = _persist_plan(
-            client,
-            plan,
-            race_name=athlete.get("race_type") or "Ironman",
-            race_date=athlete.get("race_date"),
-        )
-        plan.engine_decisions["persisted_week_id"] = week_id
-
-        # 6a. Skriv även till MASTER planned_sessions (origin='trixa2'), idempotent.
-        # Best-effort: får inte fälla workouts/alerts-persisteringen ovan.
+        # MASTER-persist: planen skrivs till planned_sessions (docs/08 steg 4-7).
+        # De gamla engine-tabellerna (workouts/training_weeks/training_plans)
+        # skrivs INTE längre — planned_sessions är enda plan-källan.
         try:
             plan.engine_decisions["planned_sessions_written"] = _persist_to_planned_sessions(
                 client, plan, athlete_user_id
             )
         except Exception as exc:  # noqa: BLE001
             plan.engine_decisions["planned_sessions_error"] = str(exc)
+        plan.engine_decisions["persisted_week_id"] = None
 
         # Skriv strukturerade alerts till coach_alerts
         from coach.trixa.alerts import build_alerts, persist_alerts
