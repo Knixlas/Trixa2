@@ -99,6 +99,7 @@ workouts:
       - segment: main
         sets: 6
         duration_min: 1
+        zone: 4
         effort_descriptor: "Stegrande Z4 — börja på nedre Z4 (≈95% FTP), avsluta mitten/övre Z4 (≈103% FTP). Kadens fast vid 55-65 rpm hela repet."
         cadence_rpm: [55, 65]
         rest_sec: 180
@@ -260,6 +261,7 @@ workouts:
         description: "Aerobt bas i kuperat — backarna får drifta upp till Z3"
       - segment: continuous
         duration_pct: 0.25
+        zone: 3
         effort_descriptor: "Z3 i snitt med Z4-spikar i backarna. Hitta 4-6 backar på 1-3 min styck — tryck på."
         cadence_rpm: [70, 90]
         description: "Block där du jagar backarna istället för att rulla över dem"
@@ -419,6 +421,7 @@ workouts:
       - segment: main
         sets: 3
         duration_min: 8
+        zone: 4
         effort_descriptor: "Sweet Spot — 88-93% FTP (övre Z3 / nedre Z4) i backe. Lås watt-target och håll. Andning kontrollerad, samtal i korta meningar."
         cadence_rpm: [70, 85]
         rest_sec: 360

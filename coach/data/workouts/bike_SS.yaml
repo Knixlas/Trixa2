@@ -56,6 +56,7 @@ workouts:
       - segment: main
         sets: "{sets}"
         duration_min: 1
+        zone: 2
         effort_descriptor: "Bygg från naturlig kadens till {target_cadence} rpm över 30 sek, håll resten av minuten. Watt drifter upp till nedre-mitten Z3 men det är inte fokus."
         cadence_rpm: [105, "{target_cadence}"]
         rest_sec: 120
@@ -126,6 +127,7 @@ workouts:
       - segment: main
         sets: "{sets_per_leg}"
         duration_sec: "{rep_duration_sec}"
+        zone: 1
         effort_descriptor: "Höger ben tramp ensamt vid 80-90 rpm. Lågt motstånd — Z1-watt. Fokus: rund cirkel, inget dödläge upptill, inget hack vid nedslag."
         cadence_rpm: [80, 90]
         rest_sec: 30
@@ -133,6 +135,7 @@ workouts:
       - segment: main
         sets: "{sets_per_leg}"
         duration_sec: "{rep_duration_sec}"
+        zone: 1
         effort_descriptor: "Vänster ben tramp ensamt vid 80-90 rpm. Samma fokus."
         cadence_rpm: [80, 90]
         rest_sec: 60

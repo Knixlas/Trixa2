@@ -35,6 +35,7 @@ workouts:
       - segment: build
         sets: 4
         duration_sec: 20
+        zone: 4
         effort_descriptor: "stridor, gradvis upp till nedre Z4"
         rest_sec: 40
       - segment: rest
@@ -42,6 +43,7 @@ workouts:
         description: "Lugn jogg eller stå. Förbered mentalt."
       - segment: test
         duration_min: 30
+        zone: 4
         effort_descriptor: "Maximal hållbar fart över 30 min — inte sprint, inte tempo. Pacingen ska vara så att du kan hålla den exakt 30 minuter, inte mer."
         description: "VIKTIGT: starta KONSERVATIVT — första 5 min ska kännas 'för lätt'. De flesta över-pacear första milen. Notera totaltid, total distans, snitt-HR sista 20 min, snittpace sista 20 min."
       - segment: cooldown
@@ -90,11 +92,13 @@ workouts:
       - segment: build
         sets: 4
         duration_sec: 20
+        zone: 4
         effort_descriptor: "stridor"
         rest_sec: 40
       - segment: test
         sets: 1
         duration_min: 8
+        zone: 5
         effort_descriptor: "Maximalt hållbar fart i 8 min. Försiktig start, jämn pace."
       - segment: rest
         duration_min: 4
@@ -102,6 +106,7 @@ workouts:
       - segment: test
         sets: 1
         duration_min: 8
+        zone: 5
         effort_descriptor: "Maximalt hållbar fart i 8 min. Ska helst bli marginellt snabbare än första blocket."
         description: "Notera total tid och snitt-HR per block, snittpace per block."
       - segment: cooldown

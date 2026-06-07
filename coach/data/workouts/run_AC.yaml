@@ -33,6 +33,7 @@ workouts:
         description: "Före gruppen samlas"
       - segment: continuous
         duration_pct: 0.75
+        zone: 3
         effort_descriptor: "Z2 som baseline, Z3-Z4 i pickup-segment som gruppen genererar. Var den som backar om HR sticker till Z5."
         pace_unreliable: true
         description: "Längd och intensitet bestäms av gruppen — vanligast 60-90 min med 2-4 'hårda partier'."
@@ -79,6 +80,7 @@ workouts:
       - segment: build
         sets: 4
         duration_sec: 30
+        zone: 4
         effort_descriptor: "stridor, sista i nedre Z4"
         rest_sec: 60
       - segment: main
@@ -128,6 +130,7 @@ workouts:
       - segment: build
         sets: 4
         duration_sec: 30
+        zone: 5
         effort_descriptor: "stridor"
         rest_sec: 60
       - segment: main
@@ -170,6 +173,7 @@ workouts:
       - segment: build
         sets: 4
         duration_sec: 30
+        zone: 5
         effort_descriptor: "stridor"
         rest_sec: 60
       - segment: main
@@ -234,6 +238,7 @@ workouts:
       - segment: build
         sets: 3
         duration_sec: 20
+        zone: 5
         effort_descriptor: "stridor"
         rest_sec: 60
       - segment: main

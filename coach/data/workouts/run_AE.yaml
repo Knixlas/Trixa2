@@ -218,6 +218,7 @@ workouts:
       - segment: main
         sets: 6
         duration_sec: 20
+        zone: 5
         effort_descriptor: "smooth fast — ~90% maxfart, kontrollerad teknik, ingen sprint"
         rest_sec: 60
         description: "Aktiv vila: lugn jogg eller gång. Hela strides-blocket ~8 min."

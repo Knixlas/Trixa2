@@ -98,6 +98,7 @@ workouts:
       - segment: main
         sets: 20
         duration_sec: 30
+        zone: 5
         effort_descriptor: "30 sek vid 120-130% FTP. Watt-target ≈ 1.25 × FTP. Smooth tramp, hög kadens."
         cadence_rpm: [95, 110]
         rest_sec: 30
@@ -263,51 +264,61 @@ workouts:
         erg_mode: false
       - segment: main
         duration_sec: 30
+        zone: 5
         effort_descriptor: "120% FTP, smooth"
         cadence_rpm: [100, 110]
         rest_sec: 30
       - segment: main
         duration_sec: 60
+        zone: 5
         effort_descriptor: "118% FTP"
         cadence_rpm: [95, 105]
         rest_sec: 60
       - segment: main
         duration_sec: 90
+        zone: 5
         effort_descriptor: "115% FTP"
         cadence_rpm: [95, 105]
         rest_sec: 90
       - segment: main
         duration_sec: 60
+        zone: 5
         effort_descriptor: "118% FTP"
         cadence_rpm: [95, 105]
         rest_sec: 60
       - segment: main
         duration_sec: 30
+        zone: 5
         effort_descriptor: "120% FTP, smooth"
         cadence_rpm: [100, 110]
         rest_sec: 60
       - segment: main
         duration_sec: 30
+        zone: 5
         effort_descriptor: "120% FTP — pyramid 2 börjar"
         cadence_rpm: [100, 110]
         rest_sec: 30
       - segment: main
         duration_sec: 60
+        zone: 5
         effort_descriptor: "118% FTP"
         cadence_rpm: [95, 105]
         rest_sec: 60
       - segment: main
         duration_sec: 90
+        zone: 5
         effort_descriptor: "115% FTP"
         cadence_rpm: [95, 105]
         rest_sec: 90
       - segment: main
         duration_sec: 60
+        zone: 5
         effort_descriptor: "118% FTP"
         cadence_rpm: [95, 105]
         rest_sec: 60
       - segment: main
         duration_sec: 30
+        zone: 5
         effort_descriptor: "120% FTP, smooth"
         cadence_rpm: [100, 110]
       - segment: cooldown
@@ -410,6 +421,7 @@ workouts:
       - segment: main
         sets: 8
         duration_sec: 90
+        zone: 5
         effort_descriptor: "Hög Z5 / nedre Z6 (≈120-125% FTP). Hård och smooth — inte all-out sprint."
         cadence_rpm: [85, 100]
         rest_sec: 180
