@@ -92,12 +92,22 @@ def _seg_zone(seg: dict) -> int:
 
 
 def _resolve_sets(value: Any) -> int:
-    """sets: int eller {default, range} → konkret antal (default-värdet)."""
+    """sets: int eller {default, range} → konkret antal (default-värdet).
+
+    Tål ouppslagna mall-placeholders (t.ex. '{sets_per_leg}') och annat icke-
+    numeriskt → faller tillbaka på 1 set i stället för att krascha hela passet.
+    """
     if isinstance(value, dict):
-        return int(value.get("default", 1))
+        try:
+            return int(value.get("default", 1))
+        except (TypeError, ValueError):
+            return 1
     if value is None:
         return 1
-    return int(value)
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return 1
 
 
 def _step(name: str, seconds: int, intensity: tuple[float, float],

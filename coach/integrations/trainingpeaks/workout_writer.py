@@ -15,6 +15,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import date as date_type
 from datetime import datetime as datetime_type
+from datetime import timedelta
 from typing import Any
 
 from .client import TPClient
@@ -87,6 +88,62 @@ def create_planned_workout(
         sport=res.sport, reaches_watch=reaches_watch,
         workout_id=created.get("workoutId"), warnings=warnings,
     )
+
+
+_PS_SPORT_TO_DISCIPLINE = {
+    "Sim": "swim", "Cykel": "bike", "Löpning": "run", "Lopning": "run",
+    "Styrka": "strength", "Vila": "rest", "Brick": "brick",
+}
+
+
+def push_week_from_planned_sessions(
+    client: TPClient | None,
+    pg: Any,
+    user_id: str,
+    week_start: date_type,
+    css_sec_per_100m: float | None = None,
+    threshold_pace_sec_per_km: float | None = None,
+    dry_run: bool = False,
+) -> list[WriteResult]:
+    """Läs veckans rader ur MASTER planned_sessions och skapa strukturerade
+    TP-pass av dem (→ TP→Garmin AutoSync → klockan).
+
+    Det här är vägen för "Nils/Trixa2 har planerat/ändrat i planned_sessions →
+    skicka till klockan". Vila/strukturlösa rader hoppas över.
+    """
+    week_end = (week_start + timedelta(days=6)).isoformat()
+    rows = (
+        pg.table("planned_sessions")
+        .select("date, sport, title, workout_code, duration_min, steps")
+        .eq("user_id", user_id)
+        .gte("date", week_start.isoformat())
+        .lte("date", week_end)
+        .order("date")
+        .execute()
+    ).data or []
+
+    results: list[WriteResult] = []
+    for r in rows:
+        discipline = _PS_SPORT_TO_DISCIPLINE.get(r.get("sport"), (r.get("sport") or "").lower())
+        steps = r.get("steps") or []
+        if discipline == "rest" or not steps:
+            continue
+        workout = {
+            "discipline": discipline,
+            "main_set": steps,
+            "code": r.get("workout_code"),
+            "name": r.get("title"),
+            "intent": "",
+        }
+        day = date_type.fromisoformat(str(r["date"])[:10])
+        results.append(create_planned_workout(
+            client, workout, day, r.get("duration_min") or 60,
+            css_sec_per_100m=css_sec_per_100m,
+            threshold_pace_sec_per_km=threshold_pace_sec_per_km,
+            title=r.get("title"),
+            dry_run=dry_run,
+        ))
+    return results
 
 
 def create_week(
