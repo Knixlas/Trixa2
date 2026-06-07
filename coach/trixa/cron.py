@@ -36,6 +36,14 @@ _TP_SYNC_ENABLED = os.environ.get("TRIXA_TP_SYNC", "").lower() in ("1", "true", 
 _TP_SYNC_HOUR_UTC = int(os.environ.get("TRIXA_TP_SYNC_HOUR_UTC", "5"))  # ≈07 svensk sommartid
 _TP_SYNC_DAYS = int(os.environ.get("TRIXA_TP_SYNC_DAYS", "2"))
 
+# Daglig strukturering av Nils fritext-pass + idempotent TP-push (innevarande +
+# nästa vecka). Fångar ad-hoc-redigeringar i planned_sessions så de når klockan
+# utan manuell körning. Gated av TRIXA_PUSH_TO_TP (samma flagga som planner-pushen);
+# idempotent → säker att köra dagligen (oförändrade pass hoppas). Körs efter
+# läs-synken så ev. färsk recovery-data redan finns.
+_PUSH_ENABLED = os.environ.get("TRIXA_PUSH_TO_TP", "").lower() in ("1", "true", "yes")
+_PUSH_HOUR_UTC = int(os.environ.get("TRIXA_PUSH_HOUR_UTC", "6"))
+
 
 def _next_monday(today: date) -> date:
     """Nästa måndag (även om idag är måndag, returnerar om 7 dagar framåt)."""
@@ -94,15 +102,69 @@ def _run_tp_sync() -> None:
         logger.error("TP-sync fel: %s", exc)
 
 
+def _run_structure_and_push() -> None:
+    """Daglig: strukturera Nils fritext-pass → steps + idempotent push till TP,
+    för innevarande och nästa vecka, för alla adepter. Best-effort — fel loggas
+    men fäller aldrig worker-loopen. Idempotent: oförändrade pass hoppas."""
+    from collections import Counter
+
+    try:
+        from coach.engine.loader import load_workouts
+        from coach.integrations.trainingpeaks.auth_store import supabase_cookie_provider
+        from coach.integrations.trainingpeaks.client import TPClient
+        from coach.integrations.trainingpeaks.workout_writer import sync_planned_week_to_tp
+        from coach.trixa.planner import _build_athlete_profile_for_zones, _fetch_athlete
+        from coach.trixa.structure_sessions import structure_week
+
+        pg = get_postgrest()
+        pool = {w["code"]: w for w in load_workouts()}
+        monday = date.today() - timedelta(days=date.today().weekday())
+        weeks = [monday, monday + timedelta(days=7)]
+        client = TPClient(cookie_provider=supabase_cookie_provider())
+        try:
+            for a in _all_athletes():
+                uid = a.get("user_id")
+                if not uid:
+                    continue
+                try:
+                    prof = _build_athlete_profile_for_zones(_fetch_athlete(pg, uid))
+                except Exception as exc:  # noqa: BLE001
+                    logger.error("Profil-fel %s: %s", uid, exc)
+                    continue
+                for ws in weeks:
+                    try:
+                        sres = structure_week(pg, uid, ws, pool, apply=True)
+                        res = sync_planned_week_to_tp(
+                            client, pg, uid, ws,
+                            css_sec_per_100m=prof.css_sec_per_100m,
+                            threshold_pace_sec_per_km=prof.threshold_pace_sec_per_km,
+                            dry_run=False,
+                        )
+                        logger.info(
+                            "structure+push %s %s: strukturerade=%d push=%s omatchade=%d",
+                            uid, ws.isoformat(), len(sres.to_update),
+                            dict(Counter(r.action for r in res)), len(sres.unmatched),
+                        )
+                    except Exception as exc:  # noqa: BLE001
+                        logger.error("structure+push fel %s %s: %s", uid, ws, exc)
+        finally:
+            client.close()
+    except Exception as exc:  # noqa: BLE001
+        logger.error("structure+push topp-fel: %s", exc)
+
+
 def main() -> int:
     """Loopa och kör planner + (ev.) daglig TP-sync. Stoppar aldrig självmant."""
     logger.info(
-        "Trixa-cron startad. Planner: %02d:00 UTC weekday=%d. TP-sync: %s (%02d:00 UTC). Poll var %ds.",
+        "Trixa-cron startad. Planner: %02d:00 UTC weekday=%d. TP läs-sync: %s (%02d:00). "
+        "Strukturera+push: %s (%02d:00). Poll var %ds.",
         _RUN_HOUR_UTC, _RUN_WEEKDAY,
-        "på" if _TP_SYNC_ENABLED else "av", _TP_SYNC_HOUR_UTC, _POLL_INTERVAL_SEC,
+        "på" if _TP_SYNC_ENABLED else "av", _TP_SYNC_HOUR_UTC,
+        "på" if _PUSH_ENABLED else "av", _PUSH_HOUR_UTC, _POLL_INTERVAL_SEC,
     )
     last_run: datetime | None = None
     last_tp_sync: date | None = None
+    last_push: date | None = None
     while True:
         now = datetime.now(timezone.utc)
         if _should_run_now(now, last_run):
@@ -112,10 +174,14 @@ def main() -> int:
                 if a.get("user_id"):
                     _run_once_for(a["user_id"])
             last_run = now
-        # Daglig TP-sync (gated). En gång per dygn vid TP-sync-timmen.
+        # Daglig TP läs-sync (gated). En gång per dygn vid TP-sync-timmen.
         if _TP_SYNC_ENABLED and now.hour == _TP_SYNC_HOUR_UTC and last_tp_sync != now.date():
             _run_tp_sync()
             last_tp_sync = now.date()
+        # Daglig strukturering + idempotent push (gated). Fångar Nils ad-hoc-pass.
+        if _PUSH_ENABLED and now.hour == _PUSH_HOUR_UTC and last_push != now.date():
+            _run_structure_and_push()
+            last_push = now.date()
         time.sleep(_POLL_INTERVAL_SEC)
 
 
