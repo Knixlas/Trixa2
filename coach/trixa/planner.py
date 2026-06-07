@@ -220,29 +220,44 @@ def _fetch_garmin_metrics(
 
 
 def _fetch_actual_weekly_hours(
-    client, garmin_athlete_id: str, today: date, weeks: int = 4
+    client, user_id: str, today: date, weeks: int = 4
 ) -> float | None:
-    """Snitt-träningstimmar per vecka från garmin_coach.activities."""
-    if not garmin_athlete_id:
+    """Snitt-träningstimmar per vecka från MASTER `public.training_log` (utfört).
+
+    training_log är den konsoliderade utfört-mastern (strava + tp + manuellt +
+    chat), så en källa täcker allt. Nyckel: `user_id` (profiles.id). Ersätter
+    den gamla läsningen från garmin_coach.activities (docs/08, steg 3)."""
+    if not user_id:
         return None
     start = (today - timedelta(weeks=weeks)).isoformat()
     try:
         res = (
-            client.schema("garmin_coach")
-            .table("activities")
-            .select("duration_sec")
-            .eq("athlete_id", garmin_athlete_id)
-            .gte("start_time", start)
+            client.table("training_log")
+            .select("date,sport,duration_min")
+            .eq("user_id", user_id)
+            .gte("date", start)
             .execute()
         )
     except Exception:  # noqa: BLE001
         return None
-    if not res.data:
+    rows = res.data or []
+    if not rows:
         return None
-    total_sec = sum((row.get("duration_sec") or 0) for row in res.data)
-    if total_sec == 0:
+    # OBS: legacy-strava-synken skapar dubbletter (samma pass 10-37 ggr) i
+    # training_log. Tills tabellen städats: summera UNIKA pass
+    # (date, sport, duration_min) så volymen inte blir 10-30× för hög.
+    seen: set[tuple] = set()
+    total_min = 0.0
+    for row in rows:
+        dur = float(row.get("duration_min") or 0)
+        key = (str(row.get("date"))[:10], row.get("sport"), round(dur, 1))
+        if key in seen:
+            continue
+        seen.add(key)
+        total_min += dur
+    if total_min == 0:
         return None
-    return total_sec / 3600.0 / weeks
+    return total_min / 60.0 / weeks
 
 
 def _fetch_strava_weekly_hours(
@@ -1275,6 +1290,59 @@ def _persist_plan(client, plan: WeekPlan, race_name: str, race_date: str | None)
     return week_id
 
 
+# ---------- Skriv till MASTER planned_sessions (docs/08, steg 4) ----------
+
+# Trixa2-disciplin → planned_sessions.sport (korrekt svenska, matchar Nils/dashboard).
+_PS_SPORT = {"swim": "Sim", "bike": "Cykel", "run": "Löpning",
+             "strength": "Styrka", "rest": "Vila", "brick": "Brick"}
+
+
+def _planned_session_row(sw: ScheduledWorkout, user_id: str) -> dict:
+    """ScheduledWorkout → planned_sessions-rad (origin='trixa2')."""
+    return {
+        "user_id": user_id,
+        "date": sw.date.isoformat(),
+        "sport": _PS_SPORT.get(sw.sport, sw.sport),
+        "title": sw.title,
+        "details": (sw.details_markdown or sw.notes or "").strip(),
+        "purpose": sw.category,
+        "status": "planned",
+        "duration_min": sw.duration_minutes,
+        "steps": (sw.workout_data or {}).get("main_set", []),
+        "workout_code": sw.code,
+        "intensity": sw.intensity,
+        "origin": "trixa2",
+    }
+
+
+def _persist_to_planned_sessions(client, plan: WeekPlan, user_id: str) -> int:
+    """Skriv veckans pass till MASTER public.planned_sessions.
+
+    Idempotent + säkert i en fler-användar, legacy-delad tabell:
+    - raderar FÖRST bara veckans EGNA rader (user_id + origin='trixa2'),
+    - rör ALDRIG legacy/Nils-rader (origin NULL eller annat),
+    - skriver sedan de nya. user_id = athlete_user_id (profiles.id).
+    """
+    if not user_id:
+        return 0
+    week_start = plan.week_start
+    week_end = (week_start + timedelta(days=6)).isoformat()
+    # Radera bara våra egna trixa2-rader för veckan (clobbra aldrig legacy/Nils).
+    (
+        client.table("planned_sessions")
+        .delete()
+        .eq("user_id", user_id)
+        .eq("origin", "trixa2")
+        .gte("date", week_start.isoformat())
+        .lte("date", week_end)
+        .execute()
+    )
+    rows = [_planned_session_row(sw, user_id) for sw in plan.workouts]
+    if rows:
+        client.table("planned_sessions").insert(rows).execute()
+    return len(rows)
+
+
 # ---------- Override-hantering ----------
 
 
@@ -1413,7 +1481,8 @@ def generate_week(
     # självskattning när Garmin saknas.
     garmin_id, strava_user_id = _resolve_activity_sources(athlete)
     garmin_metrics = _fetch_garmin_metrics(client, garmin_id, today, days_back=28)
-    actual_weekly_hours = _fetch_actual_weekly_hours(client, garmin_id, today, weeks=4)
+    # Veckovolym från MASTER training_log (user_id), som redan rymmer strava+tp+manuellt.
+    actual_weekly_hours = _fetch_actual_weekly_hours(client, athlete_user_id, today, weeks=4)
     if actual_weekly_hours is None and strava_user_id:
         # Strava-adept: härled veckovolym ur strava_activities. (HRV/sömn/RHR
         # saknas i Strava → OT-signaler faller tillbaka på profil/självskattning.)
@@ -1615,6 +1684,15 @@ def generate_week(
             race_date=athlete.get("race_date"),
         )
         plan.engine_decisions["persisted_week_id"] = week_id
+
+        # 6a. Skriv även till MASTER planned_sessions (origin='trixa2'), idempotent.
+        # Best-effort: får inte fälla workouts/alerts-persisteringen ovan.
+        try:
+            plan.engine_decisions["planned_sessions_written"] = _persist_to_planned_sessions(
+                client, plan, athlete_user_id
+            )
+        except Exception as exc:  # noqa: BLE001
+            plan.engine_decisions["planned_sessions_error"] = str(exc)
 
         # Skriv strukturerade alerts till coach_alerts
         from coach.trixa.alerts import build_alerts, persist_alerts

@@ -353,3 +353,40 @@ def test_token_exchange_auth_error_no_retry():
         raised = True
     assert raised
     assert c._session.calls == 1              # ingen retry på auth-fel
+
+
+# ---------- TP → training_log (master) + dedup ----------
+
+def test_canon_sport_folds_variants():
+    assert sync.canon_sport("Lopning") == "run"
+    assert sync.canon_sport("Löpning") == "run"
+    assert sync.canon_sport("Cykel") == "bike"
+    assert sync.canon_sport("Cykling") == "bike"
+    assert sync.canon_sport("Sim") == "swim"
+    assert sync.canon_sport("Styrka") == "strength"
+    assert sync.canon_sport("VirtualRun") == "run"
+
+
+def test_tp_to_training_log_row():
+    w = {"workoutId": 555, "startTime": "2026-06-03T07:00:00", "workoutTypeValueId": 2,
+         "totalTime": 1.0, "distance": 28000, "heartRateAverage": 140, "tssActual": 75}
+    r = sync.tp_workout_to_training_log_row(w, "user-x")
+    assert r["user_id"] == "user-x" and r["tp_workout_id"] == 555
+    assert r["sport"] == "Cykel" and r["source"] == "tp"
+    assert r["duration_min"] == 60.0 and r["distance_km"] == 28.0
+    assert r["avg_hr"] == 140 and r["tss"] == 75.0
+    # bara planerat (ingen totalTime) → None
+    assert sync.tp_workout_to_training_log_row(
+        {"workoutId": 1, "workoutTypeValueId": 3, "totalTimePlanned": 1.0,
+         "startTime": "2026-06-03T07:00:00"}, "u") is None
+
+
+def test_dedup_training_log_skips_strava_match():
+    tp = [
+        {"date": "2026-06-03", "sport": "Cykel", "duration_min": 60.0, "tp_workout_id": 1},
+        {"date": "2026-06-04", "sport": "Lopning", "duration_min": 30.0, "tp_workout_id": 2},
+    ]
+    existing = [{"date": "2026-06-03", "sport": "cycling", "duration_min": 62.0, "source": "strava"}]
+    fresh, skipped = sync.dedup_training_log_rows(tp, existing)
+    assert [r["tp_workout_id"] for r in fresh] == [2]      # bara det nya passet
+    assert [r["tp_workout_id"] for r in skipped] == [1]    # dubbletten mot strava

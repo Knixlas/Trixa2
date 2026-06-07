@@ -206,6 +206,91 @@ def _to_int(v: float | None) -> int | None:
     return int(round(v)) if v is not None else None
 
 
+# ---------- TP utfört → training_log (MASTER) ----------
+
+# TP workoutTypeValueId → training_log.sport. Matchar legacy-MAJORITETEN i
+# training_log (svenska namn) så TP-rader är konsekventa med strava-raderna.
+_TL_SPORT_BY_VALUE_ID = {1: "Sim", 2: "Cykel", 3: "Lopning", 4: "Brick",
+                         5: "Crosstrain", 8: "Cykel", 9: "Styrka", 12: "Rodd",
+                         13: "Promenad"}
+
+# Normalisering för dedup: folda alla stavningar/språk → kanonisk disciplin.
+_SPORT_CANON = {
+    "run": "run", "running": "run", "löpning": "run", "lopning": "run", "virtualrun": "run",
+    "bike": "bike", "biking": "bike", "cycling": "bike", "ride": "bike",
+    "cykel": "bike", "cykling": "bike", "mtb": "bike",
+    "swim": "swim", "swimming": "swim", "sim": "swim", "simning": "swim",
+    "strength": "strength", "styrka": "strength",
+}
+
+
+def canon_sport(s: str | None) -> str:
+    """Folda en sport-sträng till kanonisk disciplin (run/bike/swim/strength/…)."""
+    key = (s or "").strip().lower()
+    return _SPORT_CANON.get(key, key)
+
+
+def tp_workout_to_training_log_row(w: dict, user_id: str) -> dict | None:
+    """Ett genomfört TP-pass → en training_log-rad (source='tp'). None om ej genomfört."""
+    actual_h = w.get("totalTime")          # faktisk tid i timmar; None/0 = bara planerat
+    if not actual_h:
+        return None
+    wid = w.get("workoutId") or w.get("id")
+    day = w.get("startTime") or w.get("workoutDay")
+    if wid is None or not day:
+        return None
+    try:
+        tp_id = int(wid)
+    except (TypeError, ValueError):
+        return None
+
+    row: dict[str, Any] = {
+        "user_id": user_id,
+        "tp_workout_id": tp_id,
+        "date": str(day)[:10],
+        "sport": _TL_SPORT_BY_VALUE_ID.get(w.get("workoutTypeValueId"), "other"),
+        "title": w.get("title"),
+        "duration_min": round(float(actual_h) * 60.0, 1),
+        "source": "tp",
+    }
+    dist = w.get("distance")
+    if dist:
+        row["distance_km"] = round(float(dist) / 1000.0, 2)
+    for tp_key, tl_key in (("heartRateAverage", "avg_hr"), ("heartRateMaximum", "max_hr"),
+                           ("powerAverage", "avg_power"), ("normalizedPowerActual", "normalized_power")):
+        v = w.get(tp_key)
+        if v is not None:
+            row[tl_key] = int(round(float(v)))
+    tss = w.get("tssActual")
+    if tss is not None:
+        row["tss"] = float(tss)
+    return row
+
+
+def dedup_training_log_rows(tp_rows: list[dict], existing_non_tp: list[dict]) -> tuple[list[dict], list[dict]]:
+    """Filtrera bort TP-rader som redan finns som icke-TP-pass (t.ex. strava).
+
+    Matchning: samma user, samma datum, kanonisk sport, varaktighet inom ±10 %
+    (minst ±2 min). Skyddar mot dubbelräkning. Returnerar (fresh, skipped).
+    """
+    fresh: list[dict] = []
+    skipped: list[dict] = []
+    for r in tp_rows:
+        c = canon_sport(r.get("sport"))
+        d = r["date"]
+        dur = r.get("duration_min") or 0
+        tol = max(2.0, 0.10 * dur)
+        is_dup = any(
+            str(e.get("date"))[:10] == d
+            and canon_sport(e.get("sport")) == c
+            and e.get("duration_min") is not None
+            and abs(float(e["duration_min"]) - dur) <= tol
+            for e in existing_non_tp
+        )
+        (skipped if is_dup else fresh).append(r)
+    return fresh, skipped
+
+
 # ---------- orkestrering ----------
 
 
@@ -275,3 +360,46 @@ def sync_activities(
         return SyncResult("activities", records=len(rows))
     except Exception as e:  # noqa: BLE001
         return SyncResult("activities", status="failed", error=str(e))
+
+
+def sync_completed_to_training_log(
+    client: TPClient,
+    user_id: str,
+    start: date,
+    end: date,
+    pg: Any = None,
+    dry_run: bool = False,
+) -> SyncResult:
+    """TP genomförda pass → public.training_log (MASTER utfört).
+
+    Dedup mot befintliga icke-TP-rader (strava etc.) på user+datum+sport+varaktighet
+    så vi aldrig dubbelräknar. Idempotent upsert på (user_id, tp_workout_id).
+    `pg` används för läsning även i dry_run; `dry_run` hoppar bara skrivningen.
+    """
+    try:
+        workouts = client.get_workouts(start, end)
+        tp_rows = [r for r in (tp_workout_to_training_log_row(w, user_id) for w in workouts) if r]
+
+        existing_non_tp: list[dict] = []
+        if pg is not None:
+            res = (
+                pg.from_("training_log")
+                .select("date,sport,duration_min,source")
+                .eq("user_id", user_id)
+                .gte("date", start.isoformat())
+                .lte("date", end.isoformat())
+                .execute()
+            )
+            existing_non_tp = [e for e in (getattr(res, "data", None) or []) if e.get("source") != "tp"]
+
+        fresh, skipped = dedup_training_log_rows(tp_rows, existing_non_tp)
+
+        if not dry_run and pg is not None and fresh:
+            pg.from_("training_log").upsert(fresh, on_conflict="user_id,tp_workout_id").execute()
+
+        warnings = []
+        if skipped:
+            warnings.append(f"{len(skipped)} TP-pass hoppade (dubblett mot befintlig icke-TP-rad)")
+        return SyncResult("training_log", records=len(fresh), warnings=warnings)
+    except Exception as e:  # noqa: BLE001
+        return SyncResult("training_log", status="failed", error=str(e))
