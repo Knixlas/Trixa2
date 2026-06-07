@@ -12,15 +12,17 @@ modulen exponerar per-pass-funktionen som loopen anropar, plus en batch-helper.
 
 from __future__ import annotations
 
+import hashlib
+import json
 from dataclasses import dataclass, field
 from datetime import date as date_type
 from datetime import datetime as datetime_type
-from datetime import timedelta
+from datetime import timedelta, timezone
 from typing import Any
 
-from .client import TPClient
+from .client import TPClient, TPNotFoundError
 from .mapping import build_tp_structure
-from .structure import AUTOSYNC_ELIGIBLE, build_create_payload
+from .structure import AUTOSYNC_ELIGIBLE, SPORT_TYPE_MAP, build_create_payload
 
 
 @dataclass
@@ -168,4 +170,138 @@ def create_week(
             title=it.get("title"),
             dry_run=dry_run,
         ))
+    return results
+
+
+# ---------- Idempotent vecko-sync (replace-by-id, skip-if-unchanged) ----------
+
+
+@dataclass
+class SyncResult:
+    code: str
+    title: str
+    day: str
+    sport: str
+    action: str  # created | replaced | unchanged | would_create | would_replace
+    workout_id: int | None = None
+    reaches_watch: bool = True
+    warnings: list[str] = field(default_factory=list)
+
+
+def _payload_hash(payload: dict) -> str:
+    """Stabil hash av det som faktiskt levereras till TP (titel/dag/tss/struktur)."""
+    key = json.dumps(
+        {"t": payload.get("title"), "d": payload.get("workoutDay"),
+         "tss": payload.get("tssPlanned"), "s": payload.get("structure")},
+        sort_keys=True, ensure_ascii=False,
+    )
+    return hashlib.sha256(key.encode("utf-8")).hexdigest()[:32]
+
+
+def _find_existing_tp_id(existing_tp: list[dict], day_iso: str, type_id: int) -> int | None:
+    """Matcha ett planerat (ej genomfört) TP-pass på (dag, sporttyp).
+
+    Fallback för rader som pushats utan lagrat tp_workout_id (t.ex. innan
+    spårningskolumnerna fanns). Rör aldrig genomförda pass (totalTime satt).
+    """
+    for w in existing_tp:
+        wd = (w.get("workoutDay") or w.get("startTime") or "")[:10]
+        if wd != day_iso or w.get("workoutTypeValueId") != type_id:
+            continue
+        if w.get("totalTime"):
+            continue
+        return w.get("workoutId")
+    return None
+
+
+def sync_planned_week_to_tp(
+    client: TPClient | None,
+    pg: Any,
+    user_id: str,
+    week_start: date_type,
+    css_sec_per_100m: float | None = None,
+    threshold_pace_sec_per_km: float | None = None,
+    dry_run: bool = False,
+) -> list[SyncResult]:
+    """Idempotent push av veckans planned_sessions → TrainingPeaks.
+
+    Per rad: bygg payload + hash, hitta ev. befintligt TP-pass (lagrat
+    ``tp_workout_id``, annars matchning på dag+sport). Oförändrat (samma hash) →
+    hoppa (ingen churn). Ändrat/nytt → radera ev. gammalt + skapa, och spara
+    ``tp_workout_id``/``tp_synced_hash``/``tp_synced_at`` på raden. Skapar
+    **aldrig dubbletter** — säker att köra dagligen.
+    """
+    week_end = (week_start + timedelta(days=6)).isoformat()
+    rows = (
+        pg.table("planned_sessions")
+        .select("id,date,sport,title,workout_code,duration_min,steps,tp_workout_id,tp_synced_hash")
+        .eq("user_id", user_id)
+        .gte("date", week_start.isoformat())
+        .lte("date", week_end)
+        .order("date")
+        .execute()
+    ).data or []
+
+    existing_tp: list[dict] = []
+    if client is not None:
+        try:
+            existing_tp = client.get_workouts(week_start, week_start + timedelta(days=6))
+        except Exception:  # noqa: BLE001 — fallback-matchning är best-effort
+            existing_tp = []
+
+    now_iso = datetime_type.now(timezone.utc).isoformat()
+    results: list[SyncResult] = []
+    for r in rows:
+        discipline = _PS_SPORT_TO_DISCIPLINE.get(r.get("sport"), (r.get("sport") or "").lower())
+        steps = r.get("steps") or []
+        if discipline == "rest" or not steps:
+            continue
+        day = date_type.fromisoformat(str(r["date"])[:10])
+        total = r.get("duration_min") or 60
+        workout = {"discipline": discipline, "main_set": steps,
+                   "code": r.get("workout_code"), "name": r.get("title"), "intent": ""}
+        res = build_tp_structure(workout, total, css_sec_per_100m, threshold_pace_sec_per_km)
+        title = r.get("title") or r.get("workout_code") or "Pass"
+        reaches_watch = res.sport in AUTOSYNC_ELIGIBLE
+        payload = build_create_payload(res, day, title)
+        new_hash = _payload_hash(payload)
+
+        existing_id = r.get("tp_workout_id")
+        if not existing_id and res.sport in SPORT_TYPE_MAP:
+            existing_id = _find_existing_tp_id(
+                existing_tp, day.isoformat(), SPORT_TYPE_MAP[res.sport][1])
+
+        warnings = list(res.warnings)
+        if not reaches_watch:
+            warnings.append(
+                f"{workout['code']}: {res.sport} når ej klockan via TP→Garmin AutoSync."
+            )
+
+        # Oförändrat → hoppa (ingen churn, idempotent no-op).
+        if existing_id and r.get("tp_synced_hash") == new_hash:
+            results.append(SyncResult(
+                r.get("workout_code") or "?", title, day.isoformat(), res.sport,
+                "unchanged", existing_id, reaches_watch, warnings))
+            continue
+
+        if dry_run or client is None:
+            results.append(SyncResult(
+                r.get("workout_code") or "?", title, day.isoformat(), res.sport,
+                "would_replace" if existing_id else "would_create",
+                existing_id, reaches_watch, warnings))
+            continue
+
+        if existing_id:
+            try:
+                client.delete_workout(existing_id)
+            except TPNotFoundError:
+                pass
+        created = client.create_workout(payload)
+        new_id = created.get("workoutId")
+        (pg.table("planned_sessions")
+            .update({"tp_workout_id": new_id, "tp_synced_hash": new_hash, "tp_synced_at": now_iso})
+            .eq("id", r["id"]).execute())
+        results.append(SyncResult(
+            r.get("workout_code") or "?", title, day.isoformat(), res.sport,
+            "replaced" if existing_id else "created", new_id, reaches_watch, warnings))
     return results

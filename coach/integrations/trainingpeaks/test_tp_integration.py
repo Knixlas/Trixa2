@@ -20,7 +20,10 @@ from coach.integrations.trainingpeaks.structure import (
     compute_if_tss,
 )
 from coach.integrations.trainingpeaks import sync
-from coach.integrations.trainingpeaks.workout_writer import create_planned_workout
+from coach.integrations.trainingpeaks.workout_writer import (
+    create_planned_workout,
+    sync_planned_week_to_tp,
+)
 
 _ROOT = Path(__file__).resolve().parents[3]
 _WORKOUTS = _ROOT / "coach" / "data" / "workouts"
@@ -455,3 +458,127 @@ def test_dedup_training_log_skips_strava_match():
     fresh, skipped = sync.dedup_training_log_rows(tp, existing)
     assert [r["tp_workout_id"] for r in fresh] == [2]      # bara det nya passet
     assert [r["tp_workout_id"] for r in skipped] == [1]    # dubbletten mot strava
+
+
+# ---------- idempotent vecko-sync (replace-by-id, skip-if-unchanged) ----------
+
+_SYNC_STEPS = [
+    {"segment": "warmup", "duration_pct": 0.2, "zone": 1},
+    {"segment": "main", "sets": 3, "duration_min": 8, "zone": 4, "rest_sec": 120},
+    {"segment": "cooldown", "duration_pct": 0.1, "zone": 1},
+]
+
+
+def _planned_row(**kw):
+    base = {"id": "r1", "date": "2026-07-06", "sport": "Cykel", "title": "Cykel Z2",
+            "workout_code": "AE2_bike_02", "duration_min": 60, "steps": list(_SYNC_STEPS),
+            "tp_workout_id": None, "tp_synced_hash": None}
+    base.update(kw)
+    return base
+
+
+class _SyncQ:
+    def __init__(self, store):
+        self.store = store
+        self._upd = None
+        self._eqs: dict = {}
+
+    def select(self, *a, **k):
+        return self
+
+    def eq(self, col, val):
+        self._eqs[col] = val
+        return self
+
+    def gte(self, *a, **k):
+        return self
+
+    def lte(self, *a, **k):
+        return self
+
+    def order(self, *a, **k):
+        return self
+
+    def update(self, vals):
+        self._upd = vals
+        return self
+
+    def execute(self):
+        if self._upd is not None:
+            rid = self._eqs.get("id")
+            for r in self.store:
+                if r.get("id") == rid:
+                    r.update(self._upd)
+            return types.SimpleNamespace(data=None)
+        return types.SimpleNamespace(data=list(self.store))
+
+
+class _SyncPG:
+    def __init__(self, rows):
+        self.rows = rows
+
+    def table(self, name):
+        return _SyncQ(self.rows)
+
+
+class _SyncTP:
+    def __init__(self, existing=None):
+        self.existing = existing or []
+        self.created: list = []
+        self.deleted: list = []
+        self._next = 9000
+
+    def get_workouts(self, s, e):
+        return self.existing
+
+    def create_workout(self, payload):
+        self._next += 1
+        self.created.append(payload)
+        return {"workoutId": self._next}
+
+    def delete_workout(self, wid):
+        self.deleted.append(wid)
+
+
+def test_sync_creates_then_skips_unchanged():
+    rows = [_planned_row()]
+    pg, c = _SyncPG(rows), _SyncTP()
+    r1 = sync_planned_week_to_tp(c, pg, "u", date(2026, 7, 6), dry_run=False)
+    assert r1[0].action == "created" and r1[0].workout_id
+    assert len(c.created) == 1
+    assert rows[0]["tp_workout_id"] == r1[0].workout_id and rows[0]["tp_synced_hash"]
+    # andra körningen: oförändrat → hoppa (ingen ny create, ingen delete)
+    r2 = sync_planned_week_to_tp(c, pg, "u", date(2026, 7, 6), dry_run=False)
+    assert r2[0].action == "unchanged"
+    assert len(c.created) == 1 and c.deleted == []
+
+
+def test_sync_replaces_on_change():
+    rows = [_planned_row()]
+    pg, c = _SyncPG(rows), _SyncTP()
+    sync_planned_week_to_tp(c, pg, "u", date(2026, 7, 6), dry_run=False)
+    first_id = rows[0]["tp_workout_id"]
+    rows[0]["title"] = "Cykel Z2 (justerad)"   # innehåll ändrat → hash ändras
+    r = sync_planned_week_to_tp(c, pg, "u", date(2026, 7, 6), dry_run=False)
+    assert r[0].action == "replaced"
+    assert c.deleted == [first_id] and len(c.created) == 2
+    assert rows[0]["tp_workout_id"] != first_id
+
+
+def test_sync_fallback_matches_day_sport():
+    # Rad utan lagrat id, men ett planerat TP-pass finns samma dag+sport → adoptera.
+    rows = [_planned_row(tp_workout_id=None, tp_synced_hash=None)]
+    existing = [{"workoutId": 555, "workoutDay": "2026-07-06T00:00:00",
+                 "workoutTypeValueId": 2, "totalTime": None}]
+    pg, c = _SyncPG(rows), _SyncTP(existing=existing)
+    r = sync_planned_week_to_tp(c, pg, "u", date(2026, 7, 6), dry_run=False)
+    assert r[0].action == "replaced" and 555 in c.deleted
+
+
+def test_sync_dry_run_writes_nothing():
+    rows = [_planned_row()]
+    pg, c = _SyncPG(rows), _SyncTP()
+    r = sync_planned_week_to_tp(c, pg, "u", date(2026, 7, 6), dry_run=True)
+    assert r[0].action == "would_create"
+    assert c.created == [] and c.deleted == []
+    assert rows[0]["tp_workout_id"] is None

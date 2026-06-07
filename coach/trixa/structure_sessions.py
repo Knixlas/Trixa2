@@ -10,7 +10,9 @@ fyller dem deterministiskt:
 
 Respekterar en `workout_code` som Nils redan satt (resolverar bara dess steps).
 Matchar ingen regel → raden lämnas orörd och rapporteras (eskalering, inte
-gissning). Push till TP sker separat (workout_writer.push_week_from_planned_sessions).
+gissning). Push till TP sker separat och idempotent
+(workout_writer.sync_planned_week_to_tp); eller kör hela kedjan via
+`python -m coach.trixa.sync_week --apply`.
 
 CLI:
     python -m coach.trixa.structure_sessions --week-start 2026-06-15 [--apply]

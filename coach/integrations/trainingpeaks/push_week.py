@@ -15,7 +15,7 @@ from datetime import date, timedelta
 
 from .auth_store import supabase_cookie_provider
 from .client import TPClient
-from .workout_writer import push_week_from_planned_sessions
+from .workout_writer import sync_planned_week_to_tp
 
 # Niklas (profiles.id). Multi-adept: skicka --user-id.
 DEFAULT_USER_ID = "09db449d-b8fd-409a-b475-3401b0de9858"
@@ -44,16 +44,15 @@ def main(argv: list[str] | None = None) -> int:
         prof = _build_athlete_profile_for_zones(_fetch_athlete(pg, args.user_id))
         client = None if args.dry_run else TPClient(cookie_provider=supabase_cookie_provider())
 
-        results = push_week_from_planned_sessions(
+        results = sync_planned_week_to_tp(
             client, pg, args.user_id, week_start,
             css_sec_per_100m=prof.css_sec_per_100m,
             threshold_pace_sec_per_km=prof.threshold_pace_sec_per_km,
             dry_run=args.dry_run,
         )
-        lines.append(f"Vecka {week_start} -> {len(results)} pass:")
+        lines.append(f"Vecka {week_start} -> {len(results)} pass (idempotent):")
         for r in results:
-            tag = " [dry-run]" if r.dry_run else ""
-            lines.append(f"  {r.day} {r.sport} -> workout_id={r.workout_id}{tag}")
+            lines.append(f"  {r.day} {r.sport} {r.action} workout_id={r.workout_id}")
             for w in r.warnings:
                 lines.append(f"    warn: {w}")
     except Exception as e:  # noqa: BLE001 — fånga så resultatfilen alltid skrivs

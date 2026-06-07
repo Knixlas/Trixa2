@@ -1391,53 +1391,52 @@ def _apply_overrides(
 # ---------- TrainingPeaks-push (skriv-väg → klockan) ----------
 
 
-def _push_to_trainingpeaks(plan: WeekPlan, profile: AthleteProfile) -> dict:
-    """Skapa veckans pass som planerade strukturerade pass i TrainingPeaks.
+def _push_to_trainingpeaks(
+    plan: WeekPlan, profile: AthleteProfile, pg: Any, user_id: str
+) -> dict:
+    """Pusha veckans planerade pass till TrainingPeaks — **idempotent**.
 
-    TP→Garmin AutoSync levererar dem sedan till klockan (se docs/06). Ersätter
-    .fit-exporten. Egenskaper:
+    TP→Garmin AutoSync levererar dem till klockan (se docs/06). Egenskaper:
 
-    - **Gated** på env ``TRIXA_PUSH_TO_TP`` (default av tills go-live-ceremonin
-      gjorts: TP Premium, Garmin↔TP AutoSync, cookie i `public.tp_auth`).
-    - **Best-effort:** plan-persisteringen är redan klar när detta körs; TP-fel
-      (utgången cookie, nätverk) fångas och rapporteras i planen, kraschar inte.
-    - Hoppar över vila/styrka (ingen struktur). Brick/styrka som ändå skickas
-      flaggas av writern som "når ej klockan".
+    - **Gated** på env ``TRIXA_PUSH_TO_TP``.
+    - **Idempotent:** läser den nyss persisterade ``planned_sessions`` och kör
+      ``sync_planned_week_to_tp`` (replace-by-id + skip-if-unchanged). Säker att
+      köra om/dagligen utan dubbletter — varje rad länkas till sitt TP-pass via
+      ``tp_workout_id``.
+    - **Best-effort:** plan-persisteringen är redan klar; TP-fel (utgången
+      cookie, nätverk) fångas och rapporteras i planen, kraschar inte.
+    - Hoppar över vila/styrka utan steps. Brick/styrka som ändå skickas flaggas
+      av writern som "når ej klockan".
     """
     if os.environ.get("TRIXA_PUSH_TO_TP", "").lower() not in ("1", "true", "yes"):
         return {"enabled": False}
 
+    from collections import Counter
+
     from coach.integrations.trainingpeaks.auth_store import supabase_cookie_provider
     from coach.integrations.trainingpeaks.client import TPClient, TPError
-    from coach.integrations.trainingpeaks.workout_writer import create_week
-
-    items = [
-        {
-            "workout": sw.workout_data,
-            "day": sw.date,
-            "total_duration_min": sw.duration_minutes,
-            "css_sec_per_100m": profile.css_sec_per_100m,
-            "threshold_pace_sec_per_km": profile.threshold_pace_sec_per_km,
-            "title": sw.title,
-        }
-        for sw in plan.workouts
-        if sw.workout_data and sw.sport not in ("rest", "strength")
-    ]
-    if not items:
-        return {"enabled": True, "created": 0}
+    from coach.integrations.trainingpeaks.workout_writer import sync_planned_week_to_tp
 
     try:
         client = TPClient(cookie_provider=supabase_cookie_provider())
-        results = create_week(client, items, dry_run=False)
+        results = sync_planned_week_to_tp(
+            client, pg, user_id, plan.week_start,
+            css_sec_per_100m=profile.css_sec_per_100m,
+            threshold_pace_sec_per_km=profile.threshold_pace_sec_per_km,
+            dry_run=False,
+        )
         client.close()
     except TPError as e:
-        return {"enabled": True, "created": 0, "error": str(e)}
+        return {"enabled": True, "error": str(e)}
     except Exception as e:  # noqa: BLE001 — TP får aldrig fälla plan-persisteringen
-        return {"enabled": True, "created": 0, "error": f"oväntat: {e}"}
+        return {"enabled": True, "error": f"oväntat: {e}"}
 
+    actions = Counter(r.action for r in results)
     return {
         "enabled": True,
-        "created": sum(1 for r in results if r.workout_id),
+        "actions": dict(actions),
+        "pushed": actions.get("created", 0) + actions.get("replaced", 0),
+        "unchanged": actions.get("unchanged", 0),
         "not_reaching_watch": [r.code for r in results if not r.reaches_watch],
         "warnings": [w for r in results for w in r.warnings],
     }
@@ -1707,7 +1706,9 @@ def generate_week(
         # 6b. Pusha planerade pass till TrainingPeaks (TP→Garmin AutoSync → klockan).
         # Best-effort + gated på TRIXA_PUSH_TO_TP. Plan-persisteringen ovan är klar
         # och får inte påverkas av ev. TP-fel.
-        plan.engine_decisions["tp_push"] = _push_to_trainingpeaks(plan, zones_profile)
+        plan.engine_decisions["tp_push"] = _push_to_trainingpeaks(
+            plan, zones_profile, client, athlete_user_id
+        )
 
     return plan
 
