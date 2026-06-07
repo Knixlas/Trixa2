@@ -122,6 +122,10 @@ def _check_zones(workouts: list[dict]) -> list[str]:
             for z in seg.get("zones_per_set", []):
                 if z not in range(1, 6):
                     errors.append(f"Pass {code!r} har ogiltig zon i zones_per_set: {z}")
+            for sub in seg.get("pattern", []) or []:
+                z = sub.get("zone")
+                if z is not None and z not in range(1, 6):
+                    errors.append(f"Pass {code!r} har ogiltig zon i pattern: {z}")
     return errors
 
 

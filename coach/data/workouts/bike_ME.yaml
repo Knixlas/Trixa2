@@ -144,6 +144,9 @@ workouts:
         sets: 5
         duration_min: 6
         zone: 4
+        pattern:
+          - { duration_min: 2, pct: [101, 105] }
+          - { duration_min: 4, pct: [98, 100] }
         effort_descriptor: "Första 2 min: mitten-övre Z4 (≈103% FTP). Resterande 4 min: nedre Z4 (98-100% FTP). Watt sjunker, ansträngning bibehålls."
         cadence_rpm: [85, 95]
         rest_sec: 180
@@ -298,6 +301,9 @@ workouts:
         sets: 3
         duration_min: 10
         zone: 4
+        pattern:
+          - { duration_min: 1, zone: 4 }
+          - { duration_min: 1, zone: 3 }
         effort_descriptor: "Crisscross inom blocket: 1 min Z4 (≈105% FTP) / 1 min Z3 (≈85% FTP) alternerande. Total 5 × 1 min Z4 + 5 × 1 min Z3 per block. Ingen vila inom blocket."
         cadence_rpm: [85, 95]
         rest_sec: 300
@@ -348,6 +354,9 @@ workouts:
         sets: 2
         duration_min: 15
         zone: 4
+        pattern:
+          - { duration_min: 2, zone: 4 }
+          - { duration_min: 2, zone: 3 }
         effort_descriptor: "Crisscross 2 min Z4 (≈103% FTP) / 2 min Z3 (≈85% FTP). 4 × Z4 + 4 × Z3 per block. Inget vila inom blocket."
         cadence_rpm: [85, 95]
         rest_sec: 600

@@ -12,7 +12,7 @@ from pathlib import Path
 
 import yaml
 
-from coach.integrations.trainingpeaks.mapping import build_tp_structure
+from coach.integrations.trainingpeaks.mapping import build_tp_structure, _intensity_pct
 from coach.integrations.trainingpeaks.structure import (
     AUTOSYNC_ELIGIBLE,
     build_create_payload,
@@ -94,13 +94,69 @@ def _leaf_steps(structure):
     return out
 
 
+# ---------- pattern (crisscross / over-under) ----------
+
+def test_pattern_bike_crisscross_block():
+    # ME3_bike_01: 3×10 min, 1 min Z4 / 1 min Z3, vila 5 min mellan block.
+    wk = _pass("bike_ME.yaml", "ME3_bike_01")
+    res = build_tp_structure(wk, total_duration_min=75)
+    assert res.warnings == []
+    reps = [b for b in res.structure["steps"] if b.get("type") == "repetition"]
+    assert len(reps) == 3                                  # 3 block
+    for b in reps:
+        assert b["reps"] == 5                              # 5 cykler/block (10 min / 2 min)
+        z4, z3 = b["steps"]
+        assert z4["duration_seconds"] == 60 and z3["duration_seconds"] == 60
+        assert (z4["intensity_min"], z4["intensity_max"]) == _intensity_pct("bike", 4)
+        assert (z3["intensity_min"], z3["intensity_max"]) == _intensity_pct("bike", 3)
+    work = sum(b["reps"] * sum(s["duration_seconds"] for s in b["steps"]) for b in reps)
+    assert work == 30 * 60                                 # 3×10 min crisscross (vila räknas separat)
+    rests = [s for s in res.structure["steps"] if s.get("intensityClass") == "rest"]
+    assert len(rests) == 2 and all(s["duration_seconds"] == 300 for s in rests)
+    _, _, total_s = compute_if_tss(res.structure)
+    assert total_s == 75 * 60                              # budget exakt
+
+
+def test_pattern_run_crisscross_continuous_not_skipped():
+    # Regressionsskydd: pattern utan duration_min hoppades tyst över förr →
+    # hela crisscross-huvudsetet försvann ur TP-strukturen.
+    wk = _pass("run_ME.yaml", "ME3_run_01")
+    res = build_tp_structure(wk, total_duration_min=60)
+    assert res.sport == "Run"
+    reps = [b for b in res.structure["steps"]
+            if b.get("type") == "repetition" and b["reps"] == 6]
+    assert len(reps) == 1                                  # 6×(2 min Z4 / 1 min Z3)
+    z4, z3 = reps[0]["steps"]
+    assert z4["duration_seconds"] == 120 and z3["duration_seconds"] == 60
+    assert z4["intensity_max"] > z3["intensity_max"]       # Z4 snabbare än Z3 (fart-%)
+    _, _, total_s = compute_if_tss(res.structure)
+    assert total_s == 60 * 60
+
+
+def test_pattern_over_under_uses_exact_pct():
+    # ME1_bike_03: over-under 103 % vs 99 % — båda Z4, måste skiljas via pct.
+    wk = _pass("bike_ME.yaml", "ME1_bike_03")
+    res = build_tp_structure(wk, total_duration_min=70)
+    assert res.warnings == []
+    leafs = list(_leaf_steps(res.structure))
+    highs = [s for s in leafs if (s["intensity_min"], s["intensity_max"]) == (101.0, 105.0)]
+    lows = [s for s in leafs if (s["intensity_min"], s["intensity_max"]) == (98.0, 100.0)]
+    assert len(highs) == 5 and len(lows) == 5
+    assert all(s["duration_seconds"] == 120 for s in highs)   # 2 min hög
+    assert all(s["duration_seconds"] == 240 for s in lows)    # 4 min låg
+    rests = [s for s in leafs if s.get("intensityClass") == "rest"]
+    assert len([r for r in rests if r["duration_seconds"] == 180]) == 4   # vila mellan 5 reps
+    _, _, total_s = compute_if_tss(res.structure)
+    assert total_s == 70 * 60
+
+
 # ---------- structure / wire / payload ----------
 
 def test_if_tss_and_payload():
     wk = _pass("bike_ME.yaml", "ME1_bike_01")
     res = build_tp_structure(wk, total_duration_min=70)
     IF, tss, total_s = compute_if_tss(res.structure)
-    assert total_s == 882 + 4 * (480 + 240) + 588
+    assert total_s == 70 * 60          # budget-normaliserad: warmup/cooldown fyller exakt
     assert 0.7 < IF < 1.0
     assert tss > 0
 
