@@ -164,13 +164,16 @@ def _fetch_active_overrides(client, athlete_id: str) -> list[dict]:
     return res.data or []
 
 
-def _fetch_recent_workouts(client, athlete_id: str, weeks_back: int = 4) -> list[dict]:
-    """Hämta passhistorik för variation-constraint i pass-val."""
+def _fetch_recent_workouts(client, user_id: str, weeks_back: int = 4) -> list[dict]:
+    """Passhistorik från MASTER planned_sessions för variation-constraint i
+    pass-val. Nyckel: user_id. (Tidigare från workouts; docs/08.)"""
+    if not user_id:
+        return []
     since = (date.today() - timedelta(weeks=weeks_back)).isoformat()
     res = (
-        client.table("workouts")
-        .select("date, sport, title_simple, intensity")
-        .eq("athlete_id", athlete_id)
+        client.table("planned_sessions")
+        .select("date, sport, workout_code, intensity")
+        .eq("user_id", user_id)
         .gte("date", since)
         .order("date", desc=True)
         .execute()
@@ -1473,7 +1476,7 @@ def generate_week(
     athlete_id = athlete["id"]
     overrides = _fetch_active_overrides(client, athlete_id)
     weekly_report = _fetch_latest_weekly_report(client, athlete_id)
-    recent_workouts = _fetch_recent_workouts(client, athlete_id, weeks_back=4)
+    recent_workouts = _fetch_recent_workouts(client, athlete_user_id, weeks_back=4)
 
     # 2. Hämta aktivitetsdata (primärkälla för faktisk volym + OT-signaler).
     # Garmin primär, Strava reserv (se _resolve_activity_sources). OT-signaler
@@ -1572,7 +1575,7 @@ def generate_week(
     # 4. Välj pass från passbanken
     workouts_pool = load_workouts()
     drills = load_drills()  # noqa: F841 — används av render om vi vill rendra här
-    recent_codes = {w.get("title_simple") for w in recent_workouts if w.get("title_simple")}
+    recent_codes = {w.get("workout_code") for w in recent_workouts if w.get("workout_code")}
     rng = random.Random(_seed_for(athlete_id, week_start))
     phase_filter = _phase_filter_value(phase, period)
     equipment = athlete.get("equipment") or {}
@@ -1746,31 +1749,17 @@ def swap_workout_code(
         Den uppdaterade workout-raden.
     """
     client = get_supabase()
-    res = client.table("workouts").select("*").eq("id", workout_db_id).execute()
+    res = client.table("planned_sessions").select("*").eq("id", workout_db_id).execute()
     if not res.data:
-        raise ValueError(f"Workout saknas: {workout_db_id}")
-    old = res.data[0]
+        raise ValueError(f"planned_sessions-rad saknas: {workout_db_id}")
 
-    # Hitta nytt pass i passbanken
     new_workout = next(
         (w for w in load_workouts() if w.get("code") == new_code), None
     )
     if new_workout is None:
         raise ValueError(f"Pass saknas i passbanken: {new_code}")
-
-    # Resolva ev. parameterized template
     resolved = (
         resolve_template(new_workout) if new_workout.get("parameterized") else new_workout
-    )
-
-    # Rendera fullständig text för audit
-    audit_line = (
-        f"[{date.today().isoformat()}] Substituerat från "
-        f"{old.get('title_simple', '?')} → {new_code} av adept."
-    )
-    existing_notes = (old.get("coach_notes") or "").strip()
-    new_coach_notes = (
-        f"{existing_notes}\n{audit_line}" if existing_notes else audit_line
     )
 
     td = resolved.get("total_duration_min") or {}
@@ -1778,19 +1767,19 @@ def swap_workout_code(
     zones = resolved.get("zone_refs") or []
     intensity = ", ".join(str(z) for z in zones) if zones else "Z2"
 
+    details = (resolved.get("intent") or "").strip()
+    if note:
+        details = f"{details}\nNot: {note}".strip()
+
     update = {
         "title": resolved.get("name") or new_code,
-        "title_simple": new_code,
-        "duration_minutes": duration,
+        "workout_code": new_code,
+        "duration_min": duration,
         "intensity": intensity,
         "steps": resolved.get("main_set") or [],
-        "notes": (resolved.get("intent") or "").strip(),
-        "coach_notes": new_coach_notes,
+        "details": details,
     }
-    if note:
-        update["coach_notes"] = f"{new_coach_notes}\nNot: {note}"
-
-    upd = client.table("workouts").update(update).eq("id", workout_db_id).execute()
+    upd = client.table("planned_sessions").update(update).eq("id", workout_db_id).execute()
     return upd.data[0] if upd.data else {}
 
 
@@ -1811,40 +1800,20 @@ def swap_workout_discipline_and_replan(
         Den uppdaterade veckoplanen.
     """
     client = get_supabase()
-    w_res = client.table("workouts").select("*").eq("id", workout_db_id).execute()
-    if not w_res.data:
-        raise ValueError(f"Workout saknas: {workout_db_id}")
-    old = w_res.data[0]
+    res = client.table("planned_sessions").select("*").eq("id", workout_db_id).execute()
+    if not res.data:
+        raise ValueError(f"planned_sessions-rad saknas: {workout_db_id}")
+    old = res.data[0]
 
-    # Hämta vecka för att veta week_start och athlete
-    week_res = (
-        client.table("training_weeks")
-        .select("id, year, week_number")
-        .eq("id", old["week_id"])
-        .execute()
-    )
-    if not week_res.data:
-        raise ValueError("training_weeks-rad saknas för workout")
-    week = week_res.data[0]
-    week_start = date.fromisocalendar(week["year"], week["week_number"], 1)
+    # user_id finns direkt på planned_sessions; week_start = måndagen för raden.
+    athlete_user_id = old["user_id"]
+    row_date = date.fromisoformat(old["date"]) if isinstance(old["date"], str) else old["date"]
+    week_start = row_date - timedelta(days=row_date.weekday())
 
-    # Hämta athlete user_id via athlete_id
-    a_res = (
-        client.table("athlete_profiles")
-        .select("user_id")
-        .eq("id", old["athlete_id"])
-        .execute()
-    )
-    if not a_res.data:
-        raise ValueError("athlete_profiles saknas")
-    athlete_user_id = a_res.data[0]["user_id"]
-
-    # Bestäm kategori — behåll om inte angiven
+    # Bestäm kategori — behåll om inte angiven (härled ur workout_code).
     target_category = new_category
     if target_category is None:
-        # Försök härleda från gamla passets title_simple
-        old_code = old.get("title_simple") or ""
-        # Format: AE2_swim_01 → AE
+        old_code = old.get("workout_code") or ""
         target_category = old_code.split("_")[0][:2] if "_" in old_code else "AE"
 
     # Hämta engine-state för phase

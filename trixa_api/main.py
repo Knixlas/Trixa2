@@ -257,73 +257,8 @@ def get_current_week(
             persisted_week_id=None,
         )
 
-    # 2) Fallback: engine-tabellen workouts (tills den pensioneras, steg 7)
-    if not athlete_id:
-        raise HTTPException(404, "Athlete saknas")
-
-    plan_res = (
-        client.table("training_plans")
-        .select("id")
-        .eq("athlete_id", athlete_id)
-        .eq("is_active", True)
-        .limit(1)
-        .execute()
-    )
-    if not plan_res.data:
-        return None
-    plan_id = plan_res.data[0]["id"]
-
-    week_res = (
-        client.table("training_weeks")
-        .select("*")
-        .eq("plan_id", plan_id)
-        .eq("week_number", iso_week)
-        .eq("year", iso_year)
-        .limit(1)
-        .execute()
-    )
-    if not week_res.data:
-        return None
-    week = week_res.data[0]
-
-    workouts_res = (
-        client.table("workouts")
-        .select("date, sport, title_simple, title, intensity, duration_minutes, notes, coach_notes")
-        .eq("week_id", week["id"])
-        .order("date")
-        .execute()
-    )
-    workouts = [
-        WorkoutSummary(
-            date=w["date"],
-            sport=w["sport"],
-            code=w.get("title_simple") or w["title"],
-            title=w["title"],
-            category="?",  # finns inte direkt i workouts-tabellen
-            duration_minutes=w.get("duration_minutes") or 0,
-            intensity=w.get("intensity") or "",
-            notes=w.get("notes") or "",
-        )
-        for w in (workouts_res.data or [])
-    ]
-
-    return WeekPlanResponse(
-        athlete_id=athlete_id,
-        athlete_user_id=athlete_user_id,
-        week_start=week_start,
-        phase=week.get("phase") or "",
-        period=None,
-        total_hours_target=0.0,
-        discipline_hours={},
-        categories=[],
-        strength_protocol="",
-        overtraining_level="",
-        overtraining_flags=[],
-        plan_adjustment=None,
-        workouts=workouts,
-        warnings=[],
-        persisted_week_id=week["id"],
-    )
+    # Ingen plan i mastern (planned_sessions) för veckan.
+    return None
 
 
 @app.post(
