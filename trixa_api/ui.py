@@ -940,30 +940,12 @@ def _fetch_current_week_data(
     # Coachens plan har företräde
     coach_sessions = _fetch_planned_sessions_week(client, user_id, week_monday)
 
-    # Engine-plan (training_weeks/workouts) — kan saknas
+    # MASTER: planen kommer från planned_sessions (coach_sessions). De gamla
+    # engine-tabellerna (training_weeks/workouts) läses inte längre (docs/08).
     phase = None
     week_id = None
-    engine_workouts: list[dict] = []
-    plan_res = (
-        client.table("training_plans").select("id")
-        .eq("athlete_id", athlete_id).eq("is_active", True).limit(1).execute()
-    )
-    if plan_res.data:
-        week_res = (
-            client.table("training_weeks").select("*")
-            .eq("plan_id", plan_res.data[0]["id"])
-            .eq("year", year).eq("week_number", week_num).limit(1).execute()
-        )
-        if week_res.data:
-            phase = week_res.data[0].get("phase")
-            week_id = week_res.data[0]["id"]
-            wres = (
-                client.table("workouts").select("*")
-                .eq("week_id", week_id).order("date").execute()
-            )
-            engine_workouts = wres.data or []
-
-    if not coach_sessions and not engine_workouts:
+    engine_workouts: list[dict] = []  # alltid tom — engine-tabellerna pensionerade
+    if not coach_sessions:
         return None
 
     week = {
@@ -1540,51 +1522,40 @@ def workout_swap_discipline(
 @router.post("/workouts/custom", response_class=HTMLResponse)
 def workout_add_custom(
     request: Request,
-    week_id: str = Form(...),
+    week_id: str = Form(""),   # legacy, ignoreras (passet kopplas via user_id+date)
     date: str = Form(...),
     sport: str = Form(...),
     distance: str = Form(""),
     duration_minutes: int | None = Form(None),
     description: str = Form(""),
 ) -> Any:
-    """Lägg till ett adept-skapat 'eget pass' på en dag. Markeras is_manual=true
-    så det överlever regenerering av veckan, och matchas i plan-vs-actual."""
+    """Lägg till ett eget pass i MASTER planned_sessions (origin='manual')."""
     if sport not in ("swim", "bike", "run", "strength"):
         raise HTTPException(400, "Gren måste vara swim, bike, run eller strength")
+    user_id = _current_user_id(request)
+    if not user_id:
+        raise HTTPException(401, "Inte inloggad")
+    sv_sport = {"swim": "Sim", "bike": "Cykel", "run": "Löpning",
+                "strength": "Styrka"}.get(sport, sport)
     client = get_postgrest()
-    wk = client.table("training_weeks").select("plan_id").eq("id", week_id).limit(1).execute()
-    if not wk.data:
-        raise HTTPException(404, "Vecka saknas")
-    pl = (
-        client.table("training_plans")
-        .select("athlete_id")
-        .eq("id", wk.data[0]["plan_id"])
-        .limit(1)
-        .execute()
-    )
-    if not pl.data:
-        raise HTTPException(404, "Plan saknas")
-    title = (description or "").strip() or "Eget pass"
-    client.table("workouts").insert({
-        "week_id": week_id,
-        "athlete_id": pl.data[0]["athlete_id"],
+    client.table("planned_sessions").insert({
+        "user_id": user_id,
         "date": date,
-        "sport": sport,
-        "title": title,
-        "duration_minutes": duration_minutes,
-        "distance": (distance or "").strip() or None,
-        "notes": (description or "").strip() or None,
-        "is_manual": True,
+        "sport": sv_sport,
+        "title": (description or "").strip() or "Eget pass",
+        "duration_min": duration_minutes,
+        "details": (description or "").strip() or None,
+        "status": "planned",
+        "origin": "manual",
     }).execute()
     return RedirectResponse(url="/ui/", status_code=303)
 
 
 @router.post("/workouts/{workout_id}/delete-custom", response_class=HTMLResponse)
 def workout_delete_custom(request: Request, workout_id: str) -> Any:
-    """Ta bort ett eget pass. Begränsat till is_manual=true — genererade pass
-    kan inte raderas den här vägen."""
+    """Ta bort ett eget pass i MASTER planned_sessions. Endast origin='manual'."""
     client = get_postgrest()
-    client.table("workouts").delete().eq("id", workout_id).eq("is_manual", True).execute()
+    client.table("planned_sessions").delete().eq("id", workout_id).eq("origin", "manual").execute()
     return RedirectResponse(url="/ui/", status_code=303)
 
 

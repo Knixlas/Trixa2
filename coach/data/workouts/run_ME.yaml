@@ -32,6 +32,7 @@ workouts:
       - segment: build
         sets: 4
         duration_sec: 20
+        zone: 4
         effort_descriptor: "stridor"
         rest_sec: 40
       - segment: main
@@ -81,6 +82,7 @@ workouts:
       - segment: build
         sets: 4
         duration_sec: 20
+        zone: 4
         effort_descriptor: "stridor"
         rest_sec: 40
       - segment: main
@@ -122,6 +124,7 @@ workouts:
       - segment: build
         sets: 4
         duration_sec: 20
+        zone: 4
         effort_descriptor: "stridor"
         rest_sec: 40
       - segment: main
@@ -168,6 +171,7 @@ workouts:
       - segment: build
         sets: 3
         duration_sec: 20
+        zone: 4
         effort_descriptor: "stridor"
         rest_sec: 40
       - segment: main
@@ -255,6 +259,7 @@ workouts:
       - segment: build
         sets: 3
         duration_sec: 20
+        zone: 4
         effort_descriptor: "stridor"
         rest_sec: 40
       - segment: main
@@ -301,6 +306,7 @@ workouts:
       - segment: build
         sets: 3
         duration_sec: 20
+        zone: 4
         effort_descriptor: "stridor"
         rest_sec: 40
       - segment: main

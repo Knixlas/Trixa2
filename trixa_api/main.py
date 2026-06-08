@@ -180,6 +180,13 @@ def get_athlete(user_id: str) -> AthleteResponse:
 
 # ---------- Plan ----------
 
+# planned_sessions använder svenska sportnamn; API svarar med Trixas discipliner.
+_SV_EN_SPORT = {
+    "Cykel": "bike", "Cykling": "bike", "Löpning": "run", "Lopning": "run",
+    "Sim": "swim", "Simning": "swim", "Styrka": "strength", "Vila": "rest",
+    "Brick": "brick", "Yoga": "rest", "Promenad": "rest",
+}
+
 
 @app.get(
     "/api/week/current",
@@ -191,8 +198,8 @@ def get_current_week(
 ) -> WeekPlanResponse | None:
     """Hämta veckan som innehåller dagens datum för en adept.
 
-    Läser training_weeks + workouts (skrivet av planner). Returnerar None om
-    ingen vecka är genererad än.
+    MASTER: läser planen från public.planned_sessions (docs/08). Faller tillbaka
+    på engine-tabellen workouts om ingen planned_sessions-rad finns för veckan.
     """
     client = get_postgrest()
     athlete_res = (
@@ -201,76 +208,57 @@ def get_current_week(
         .eq("user_id", athlete_user_id)
         .execute()
     )
-    if not athlete_res.data:
-        raise HTTPException(404, "Athlete saknas")
-    athlete_id = athlete_res.data[0]["id"]
+    athlete_id = athlete_res.data[0]["id"] if athlete_res.data else None
 
     today = date_type.today()
     iso_year, iso_week, _ = today.isocalendar()
+    week_start = date_type.fromisocalendar(iso_year, iso_week, 1)
+    week_end = date_type.fromisocalendar(iso_year, iso_week, 7)
 
-    plan_res = (
-        client.table("training_plans")
-        .select("id")
-        .eq("athlete_id", athlete_id)
-        .eq("is_active", True)
-        .limit(1)
-        .execute()
-    )
-    if not plan_res.data:
-        return None
-    plan_id = plan_res.data[0]["id"]
-
-    week_res = (
-        client.table("training_weeks")
-        .select("*")
-        .eq("plan_id", plan_id)
-        .eq("week_number", iso_week)
-        .eq("year", iso_year)
-        .limit(1)
-        .execute()
-    )
-    if not week_res.data:
-        return None
-    week = week_res.data[0]
-
-    workouts_res = (
-        client.table("workouts")
-        .select("date, sport, title_simple, title, intensity, duration_minutes, notes, coach_notes")
-        .eq("week_id", week["id"])
+    # 1) MASTER: planned_sessions (Nils/Trixa2). Nyckel = user_id.
+    ps_res = (
+        client.table("planned_sessions")
+        .select("date, sport, title, workout_code, intensity, duration_min, details, purpose")
+        .eq("user_id", athlete_user_id)
+        .gte("date", week_start.isoformat())
+        .lte("date", week_end.isoformat())
         .order("date")
         .execute()
     )
-    workouts = [
-        WorkoutSummary(
-            date=w["date"],
-            sport=w["sport"],
-            code=w.get("title_simple") or w["title"],
-            title=w["title"],
-            category="?",  # finns inte direkt i workouts-tabellen
-            duration_minutes=w.get("duration_minutes") or 0,
-            intensity=w.get("intensity") or "",
-            notes=w.get("notes") or "",
+    if ps_res.data:
+        workouts = [
+            WorkoutSummary(
+                date=w["date"],
+                sport=_SV_EN_SPORT.get(w.get("sport"), (w.get("sport") or "").lower()),
+                code=w.get("workout_code") or w.get("title") or "",
+                title=w.get("title") or "",
+                category=w.get("purpose") or "",
+                duration_minutes=int(w.get("duration_min") or 0),
+                intensity=w.get("intensity") or "",
+                notes=w.get("details") or "",
+            )
+            for w in ps_res.data
+        ]
+        return WeekPlanResponse(
+            athlete_id=athlete_id,
+            athlete_user_id=athlete_user_id,
+            week_start=week_start,
+            phase="",
+            period=None,
+            total_hours_target=0.0,
+            discipline_hours={},
+            categories=[],
+            strength_protocol="",
+            overtraining_level="",
+            overtraining_flags=[],
+            plan_adjustment=None,
+            workouts=workouts,
+            warnings=[],
+            persisted_week_id=None,
         )
-        for w in (workouts_res.data or [])
-    ]
 
-    return WeekPlanResponse(
-        athlete_id=athlete_id,
-        athlete_user_id=athlete_user_id,
-        week_start=date_type.fromisocalendar(iso_year, iso_week, 1),
-        phase=week.get("phase") or "",
-        period=None,
-        total_hours_target=0.0,
-        discipline_hours={},
-        categories=[],
-        strength_protocol="",
-        overtraining_level="",
-        overtraining_flags=[],
-        plan_adjustment=None,
-        workouts=workouts,
-        warnings=[],
-        persisted_week_id=week["id"],
-    )
+    # Ingen plan i mastern (planned_sessions) för veckan.
+    return None
 
 
 @app.post(

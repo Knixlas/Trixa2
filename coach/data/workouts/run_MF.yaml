@@ -34,11 +34,13 @@ workouts:
       - segment: build
         sets: 4
         duration_sec: 20
+        zone: 4
         effort_descriptor: "stridor — bygg upp tempot, väck steget"
         rest_sec: 40
       - segment: main
         sets: 8
         duration_sec: 30
+        zone: 5
         effort_descriptor: "MAX-kraft uppför 5-8% lutning. Korta steg, hög frekvens, eller långa kraftiga steg — välj en stil per pass."
         pace_unreliable: true
         rest_sec: 120
@@ -81,11 +83,13 @@ workouts:
       - segment: build
         sets: 4
         duration_sec: 15
+        zone: 4
         effort_descriptor: "lättare stridor"
         rest_sec: 30
       - segment: main
         sets: 12
         duration_sec: 15
+        zone: 5
         effort_descriptor: "snabb frekvens uppför ~6% — som om underlaget brände, kort markkontakt"
         pace_unreliable: true
         rest_sec: 75
@@ -127,6 +131,7 @@ workouts:
         pace_unreliable: true
       - segment: continuous
         duration_pct: 0.66
+        zone: 3
         effort_descriptor: "Z2 på platta partier, Z3-Z4 i backuppgångar, Z1-Z2 i nedförsbackar. Inga intervalltider — terrängen bestämmer."
         pace_unreliable: true
         description: "Hitta slinga med 4-8 backar, kör 2-3 varv. Eller punkt-till-punkt med varierande lutning."
@@ -173,6 +178,7 @@ workouts:
       - segment: build
         sets: 3
         duration_sec: 20
+        zone: 4
         effort_descriptor: "stridor"
         rest_sec: 60
       - segment: main
@@ -219,6 +225,7 @@ workouts:
       - segment: build
         sets: 4
         duration_sec: 20
+        zone: 4
         effort_descriptor: "stridor"
         rest_sec: 60
       - segment: main

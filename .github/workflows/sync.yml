@@ -22,8 +22,10 @@ on:
         required: false
         default: '20'
 
-  schedule:
-    - cron: '30 5 * * *'
+  # schedule: borttagen 2026-06-07 — Garmin-synken pensionerad, TrainingPeaks är
+  # enda integration (se docs/06_TP_INTEGRATION_REBUILD.md). Workflowen är även
+  # disabled på GitHub (gh workflow disable). workflow_dispatch behålls för
+  # ev. manuell rollback-sync.
 
 jobs:
   sync:

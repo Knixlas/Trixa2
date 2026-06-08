@@ -61,6 +61,7 @@ workouts:
         description: "Återhämtning innan testet"
       - segment: test
         duration_min: 20
+        zone: 4
         effort_descriptor: "Maximalt hållbar watt i 20 min. Starta kontrollerat — håll back 5%, släpp loss sista 5 min. Snitt-watt × 0.95 = FTP."
         cadence_rpm: [85, 100]
         description: "Notera snitt-watt, snitt-HR, snitt-kadens, peak-HR"
@@ -126,6 +127,7 @@ workouts:
         zone: 1
       - segment: test
         duration_min: 8
+        zone: 5
         effort_descriptor: "Maximalt hållbar watt i 8 min — block 1. Watt-target ≈ 105-110% av uppskattad FTP. Notera snitt."
         cadence_rpm: [85, 100]
       - segment: rest
@@ -134,6 +136,7 @@ workouts:
         description: "Generös vila — vi vill ha full återhämtning"
       - segment: test
         duration_min: 8
+        zone: 5
         effort_descriptor: "Maximalt hållbar watt i 8 min — block 2. Ska helst bli marginellt högre eller samma som block 1."
         cadence_rpm: [85, 100]
       - segment: cooldown
@@ -186,6 +189,7 @@ workouts:
         description: "Lugn uppvärmning, inga öppnare — vi vill ha full ben-energi"
       - segment: test
         duration_min: 20
+        zone: 3
         effort_descriptor: |
           Ramp: börja på 100 W. Öka 20 W per minut. Håll smooth kadens
           85-95 rpm. Fortsätt tills du inte längre kan hålla kadens > 60

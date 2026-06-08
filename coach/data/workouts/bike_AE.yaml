@@ -239,6 +239,7 @@ workouts:
       - segment: main
         sets: 6
         duration_min: 1
+        zone: 2
         effort_descriptor: "Mjuk spin-up till 110-115 rpm, watt får drifta upp till nedre Z3 men inte högre. Behåll smooth pedaltramp — inga hopp i sadeln."
         cadence_rpm: [110, 115]
         rest_sec: 180

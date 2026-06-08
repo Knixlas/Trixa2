@@ -1,0 +1,134 @@
+# Session-mappning: Nils fritext-pass → passbankskod (deterministisk)
+# ====================================================================
+# Nils skriver planerade pass i planned_sessions som fritext (titel + sport +
+# duration), ofta utan workout_code/steps. Trixa kan inte tolka fritext med en
+# LLM — men en regeltabell ÄR deterministisk. Den här filen mappar
+# (sport + nyckelord i titeln) → en kandidatlista passbankskoder.
+#
+# Matchning (coach/trixa/session_mapping.py):
+#   - Regler prövas UPPIFRÅN. Första regel vars villkor stämmer vinner.
+#   - sport måste matcha (Cykel/Löpning/Sim → bike/run/swim).
+#   - any_keywords: minst ETT nyckelord måste finnas i titeln (gemener, substring).
+#   - keywords: ALLA måste finnas (valfritt, för mer specifika regler).
+#   - exclude: ingen får finnas (valfritt).
+#   - Bland regelns `codes` väljs den vars duration-range rymmer passets
+#     duration_min; annars den med närmast default.
+#   - Ingen regel matchar → raden lämnas orörd och rapporteras (eskalering,
+#     inte gissning). Den sista regeln per sport är ett brett Z2-skyddsnät så
+#     att alla SPORT-namngivna pass får ett rimligt aerobt default.
+#
+# Ordning inom varje sport: mest specifik (test/kvalitet) → generisk (Z2).
+# Recovery ("lätt") står FÖRE den generiska Z2-regeln.
+
+rules:
+
+  # ───────────────────────── CYKEL ─────────────────────────
+  - sport: bike
+    any_keywords: ["ftp-test", "ftp test", "tröskeltest", "watttest", "testpass"]
+    codes: [T_bike_FTP_20min, T_bike_FTP_2x8, T_bike_FTP_Ramp]
+  - sport: bike
+    any_keywords: ["crisscross", "criss-cross", "over-under", "over under", "overunder"]
+    codes: [ME3_bike_01, ME3_bike_02]
+  - sport: bike
+    any_keywords: ["vo2", "vo2max", "30/30", "max-intervall", "vo2-max"]
+    codes: [AC1_bike_01, AC1_bike_02, AC1_bike_03]
+  - sport: bike
+    any_keywords: ["sweet spot", "sweetspot", "sweet-spot"]
+    codes: [TE1_bike_03]
+  - sport: bike
+    any_keywords: ["tempo"]
+    codes: [TE1_bike_01, TE1_bike_02, TE1_bike_04, TE1_bike_05]
+  - sport: bike
+    any_keywords: ["tröskel", "threshold", "cruise", "2x20", "2×20"]
+    codes: [ME1_bike_01, ME4_bike_01, ME1_bike_02]
+  - sport: bike
+    any_keywords: ["backe", "backintervall", "klättr", "hill", "force", "kraft", "låg kadens"]
+    codes: [MF3_bike_01, MF1_bike_01, ME2_bike_01]
+  - sport: bike
+    any_keywords: ["spin-up", "spin up", "spinup", "kadensarbete"]
+    codes: [SS1_bike_template, AE2_bike_03]
+  - sport: bike
+    any_keywords: ["isolated", "isolerat ben", "enbenstramp", "single leg"]
+    codes: [SS2_bike_template]
+  - sport: bike
+    any_keywords: ["kontrollerad", "strict", "erg", "trainer"]
+    codes: [AE2_bike_02]
+  - sport: bike
+    any_keywords: ["långpass", "lång distans", "långdistans", "ankare", "endurance", "kuperat"]
+    codes: [AE2_bike_template, AE2_bike_01]
+  - sport: bike
+    any_keywords: ["recovery", "återhämtning", "lätt", "lugnt ben"]
+    codes: [AE1_bike_template]
+  - sport: bike   # Z2-skyddsnät
+    any_keywords: ["z2", "aerob", "lugn", "bas", "cykel", "distans"]
+    codes: [AE2_bike_template, AE2_bike_02]
+
+  # ───────────────────────── LÖPNING ─────────────────────────
+  - sport: run
+    any_keywords: ["tidskörning", "time trial", "tempolopp", "löptest", "testlopp"]
+    codes: [RunTest_run_01, RunTest_run_02]
+  - sport: run
+    any_keywords: ["crisscross", "criss-cross", "over-under", "over under", "overunder"]
+    codes: [ME3_run_01, ME3_run_02]
+  - sport: run
+    any_keywords: ["vo2", "vo2max", "400m", "1000m", "bana", "korta intervall"]
+    codes: [AC2_run_02, AC2_run_01, ME1_run_01]
+  - sport: run
+    any_keywords: ["tempo"]
+    codes: [TE1_run_01, TE1_run_03, TE1_run_02]
+  - sport: run
+    any_keywords: ["tröskel", "threshold", "cruise", "1km", "1 km", "1500m"]
+    codes: [ME1_run_01, ME4_run_01, ME1_run_02]
+  - sport: run
+    any_keywords: ["backe", "backintervall", "backsprint", "hill", "kraft"]
+    codes: [MF3_run_01, MF1_run_01, ME2_run_01]
+  - sport: run
+    any_keywords: ["fartlek", "kuperat", "varierad fart", "klubblöp"]
+    codes: [MF2_run_01, AC1_run_01]
+  - sport: run
+    any_keywords: ["strides", "stridor", "pickup", "pickups"]
+    codes: [AE2_run_03, SS2_run_template]
+  - sport: run
+    any_keywords: ["trail", "stig", "terräng"]
+    codes: [AE2_run_02]
+  - sport: run
+    any_keywords: ["långpass", "lång distans", "långdistans", "progressiv"]
+    codes: [AE2_run_01, AE2_run_template]
+  - sport: run
+    any_keywords: ["recovery", "återhämtning", "lätt", "jogg"]
+    codes: [AE1_run_template]
+  - sport: run   # Z2-skyddsnät
+    any_keywords: ["z2", "aerob", "lugn", "bas", "löpning", "löp", "distans"]
+    codes: [AE2_run_template]
+
+  # ───────────────────────── SIM ─────────────────────────
+  - sport: swim
+    any_keywords: ["css-test", "css test", "csstest", "simtest"]
+    codes: [CSS_Test_swim_01, CSS_Test_swim_02]
+  - sport: swim
+    any_keywords: ["teknik", "drill", "driller"]
+    codes: [AE1_swim_01]
+  - sport: swim
+    any_keywords: ["kick", "glid", "bentag"]
+    codes: [AE1_swim_02]
+  - sport: swim
+    any_keywords: ["sprint", "all-out", "25:or", "snabbhet"]
+    codes: [SS1_swim_01, AC1_swim_01]
+  - sport: swim
+    any_keywords: ["vo2", "hård intervall"]
+    codes: [AC2_swim_01, AC1_swim_01]
+  - sport: swim
+    any_keywords: ["tröskel", "css", "threshold"]
+    codes: [ME2_swim_01, ME1_swim_02]
+  - sport: swim
+    any_keywords: ["tempo"]
+    codes: [TE1_swim_01, TE1_swim_02]
+  - sport: swim
+    any_keywords: ["paddle", "paddles", "pull", "styrka", "kraft"]
+    codes: [MF1_swim_02, MF3_swim_01]
+  - sport: swim
+    any_keywords: ["recovery", "återhämtning", "lätt"]
+    codes: [AE1_swim_template_01, AE1_swim_01]
+  - sport: swim   # Z2-skyddsnät
+    any_keywords: ["z2", "aerob", "lugn", "distans", "lång", "kontinuerligt", "sim", "400"]
+    codes: [AE2_swim_03, AE2_swim_01, AE2_swim_template_01]

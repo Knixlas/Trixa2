@@ -135,6 +135,7 @@ workouts:
       - segment: main
         sets: 4
         duration_min: 12
+        zone: 4
         effort_descriptor: "Sweet Spot — 88-93% FTP (övre Z3 / nedre Z4). Andningen tydlig men kontrollerad; samtal i korta meningar."
         cadence_rpm: [85, 95]
         rest_sec: 180
