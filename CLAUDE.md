@@ -81,7 +81,22 @@ Detaljerade hälso-konversationer hör hemma i planeringstrådar med Nils, inte 
 
 **`public.profiles`**: `ftp`, `at_hr`, `css`, tävlingsmål, självskattningar, `injuries`-fritext, `health_notes`-fritext.
 
-**Tomma tabeller redo att fyllas:** `training_weeks`, `workouts`, `training_plans`, `coach_alerts`, `personal_records`, `chat_messages`.
+### ⚠️ MASTER-tabeller sedan 2026-06-07 (docs/08) — LÄS HIT FÖRST
+
+All plan- och utfört-data bor i **två master-tabeller**. Nils, Trixa2 och mobil-Claude läser/skriver SAMMA tabeller:
+
+| Roll | Tabell | Nyckel | Not |
+|---|---|---|---|
+| **Planerade pass** | `public.planned_sessions` | `user_id` (= profiles.id) | `origin` skiljer skapare: `'nils'` / `'trixa2'` / `'manual'` / NULL (legacy). Sport på svenska: Cykel/Sim/Löpning/Styrka/Vila |
+| **Utförda pass** | `public.training_log` | `user_id` | källtaggad (`source`: strava/tp/chat/manual), `planned_session_id` länkar mot plan |
+
+**PENSIONERADE (DROPPADE) tabeller — finns INTE längre:** `training_weeks`, `workouts`, `training_plans` (migration `retire_redundant_plan_tables`, 2026-06-07). Gamla instruktioner som pekar dit ger tomma svar/fel — fråga `planned_sessions`/`training_log` istället.
+
+**Nils skriver plan:** direkt i `planned_sessions` med `origin='nils'` (eller via `garmin_coach.planned_workouts` som planeraren speglar in). **Nils vinner alltid:** motorn genererar aldrig pass för dagar som redan har mänskligt skapade rader.
+
+**Overrides:** `coach_overrides.athlete_id` pekar på **`athlete_profiles.id`** (Niklas: `81b667bc-f37c-4311-a45e-1b0a28d1ada7`), INTE user_id.
+
+Övriga app-tabeller: `coach_alerts`, `weekly_reports`, `exercise_logs`, `personal_records`, `chat_messages`.
 
 ## Datainsamling — Garmin→Supabase
 
@@ -241,7 +256,7 @@ Projektet (CLAUDE.md + md-källdokument + kod) bär delad kunskap. Tråden är a
 5. **Verifierar utgångsläget** med adepten om engine flaggar något
 6. Bygger veckan; om coach-beslut avviker från engine, dokumentera som manual_override
 7. Om passbanken finns: välj/generera konkreta pass med .fit-export
-8. (Senare:) skrivs som rader i `training_weeks` + `workouts`
+8. Skrivs som rader i `public.planned_sessions` med `origin='nils'` (en rad per pass: date, sport på svenska, title, duration_min, intensity, details)
 
 ## Veckoplaneringsflöde (Trixa — designprincip)
 
@@ -302,7 +317,7 @@ Projektet (CLAUDE.md + md-källdokument + kod) bär delad kunskap. Tråden är a
 
 - Passbanken är inte längre "ej byggd" — den är välspecificerad och valideringsbar. CLAUDE.md var stale; framtida trådar ska läsa `coach/data/workouts/` innan de tror på status-listan.
 - Två path-buggar i `coach/engine/`: `loader.py` och `profile.py` hade `parent.parent.parent` istället för `parent.parent`. Båda fixade. `verify_and_render` + smoke-test kör grönt.
-- Nils-via-Supabase-arkitekturen är fastslagen: Trixa skriver veckoplan till `training_weeks` + `workouts`, Nils läser samma data via MCP eller Trixa-API. Override skrivs till `coach_overrides` med engine_recommendation + override_decision + motivation. Trixa-planner respekterar override när nästa vecka genereras.
+- Nils-via-Supabase-arkitekturen är fastslagen: BÅDA skriver veckoplan till MASTER `public.planned_sessions` (Trixa med `origin='trixa2'`, Nils med `origin='nils'`), Nils läser samma tabell via MCP eller Trixa-API (`/api/week/current`). Utfört läses från `public.training_log`. Override skrivs till `coach_overrides` (athlete_id = athlete_profiles.id!) med engine_recommendation + override_decision + motivation. Trixa-planner respekterar override när nästa vecka genereras och kvitterar med `honored_by_planner`.
 
 ## Nästa checkpoints
 

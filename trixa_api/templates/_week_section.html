@@ -174,44 +174,6 @@
         </details>
         {% endif %}
 
-        {% if w.sport in ("swim", "bike", "run") and week.plan_source != "coach" %}
-        <details>
-          <summary>Ändra detta pass</summary>
-          <article style="margin-top: 0.5rem; font-size: 0.875rem;">
-
-            {% if w.alternatives %}
-            <form method="post" action="/ui/workouts/{{ w.id }}/swap"
-                  style="margin-bottom: 1rem;"
-                  onsubmit="return confirm('Byt ut passet?');">
-              <label for="swap-{{ w.id }}">Byt till annat pass (samma kategori)</label>
-              <select id="swap-{{ w.id }}" name="new_code" required>
-                <option value="">— välj —</option>
-                {% for alt in w.alternatives %}
-                <option value="{{ alt.code }}">{{ alt.name }} ({{ alt.code }})</option>
-                {% endfor %}
-              </select>
-              <button type="submit">Byt ut pass</button>
-            </form>
-            {% else %}
-            <p><em>Inga alternativa pass i passbanken för denna kategori + fas.</em></p>
-            {% endif %}
-
-            <form method="post" action="/ui/workouts/{{ w.id }}/swap-discipline"
-                  onsubmit="return confirm('Byt gren och planera om hela veckan?');">
-              <label for="swap-disc-{{ w.id }}">Byt till annan gren + planera om vecka</label>
-              <select id="swap-disc-{{ w.id }}" name="new_discipline" required>
-                <option value="">— välj gren —</option>
-                {% if w.sport != "swim" %}<option value="swim">Simning</option>{% endif %}
-                {% if w.sport != "bike" %}<option value="bike">Cykel</option>{% endif %}
-                {% if w.sport != "run" %}<option value="run">Löpning</option>{% endif %}
-              </select>
-              <button type="submit">Byt gren + replanera</button>
-            </form>
-
-          </article>
-        </details>
-        {% endif %}
-
         {% if w.is_manual %}
         <form method="post" action="/ui/workouts/{{ w.id }}/delete-custom"
               onsubmit="return confirm('Ta bort eget pass?');" style="margin-top: 6px;">
@@ -229,12 +191,10 @@
     </div>
     {% endfor %}
 
-    {% if week.plan_source != "coach" and week.id %}
     <details style="margin-top: 8px;">
       <summary>+ Lägg till eget pass</summary>
       <article>
         <form method="post" action="/ui/workouts/custom">
-          <input type="hidden" name="week_id" value="{{ week.id }}">
           <label>Dag
             <input type="date" name="date" value="{{ week.week_start }}"
                    min="{{ week.week_start }}" max="{{ week.week_end }}" required>
@@ -260,15 +220,18 @@
         </form>
       </article>
     </details>
-    {% endif %}
   {% else %}
     <article style="text-align: center; padding: 24px;">
       <i data-lucide="palmtree" style="width: 34px; height: 34px; color: var(--ink-3);"></i>
-      <p style="margin: 10px 0 16px; color: var(--ink-3);"><em>Ingen plan genererad för denna vecka.</em></p>
+      <p style="margin: 10px 0 16px; color: var(--ink-3);">
+        <em>Den här veckan har ingen plan än.</em><br>
+        <span style="font-size: 12.5px;">Trixa bygger nästa vecka automatiskt på söndag kväll —
+        eller skapa den direkt med knappen.</span>
+      </p>
       <form method="post" action="/ui/plan/regenerate"
-            onsubmit="return confirm('Generera plan för {{ fallback_week_start }}?');">
+            onsubmit="return confirm('Skapa plan för veckan som börjar {{ fallback_week_start }}?');">
         <input type="hidden" name="week_start" value="{{ fallback_week_start }}">
-        <button type="submit">Generera vecka {{ fallback_week_start }}</button>
+        <button type="submit">Skapa veckans plan nu</button>
       </form>
     </article>
   {% endif %}

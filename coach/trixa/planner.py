@@ -257,6 +257,37 @@ def _coached_dates(coach_rows: list[dict]) -> set[date]:
     return {d for r in coach_rows if (d := _coach_plan_date(r)) is not None}
 
 
+def _human_planned_dates(client, user_id: str, week_start: date) -> set[date]:
+    """Datum i veckan som redan har mänskligt skapade planned_sessions-rader.
+
+    Allt som INTE är origin='trixa2' räknas som mänskligt (nils, manual,
+    legacy-NULL) och skyddas av grinden — motorn får aldrig dubbelskriva en
+    dag en människa redan planerat, oavsett vilken väg planen kom in.
+    """
+    end = week_start + timedelta(days=6)
+    try:
+        res = (
+            client.table("planned_sessions")
+            .select("date, origin")
+            .eq("user_id", user_id)
+            .gte("date", week_start.isoformat())
+            .lte("date", end.isoformat())
+            .execute()
+        )
+    except Exception:  # noqa: BLE001
+        return set()
+    out: set[date] = set()
+    for row in res.data or []:
+        if (row.get("origin") or "") == "trixa2":
+            continue
+        raw = row.get("date")
+        try:
+            out.add(date.fromisoformat(str(raw)[:10]))
+        except (ValueError, TypeError):
+            continue
+    return out
+
+
 def _coach_row_to_session(row: dict, user_id: str) -> dict:
     """Mappa en planned_workouts-rad -> planned_sessions-rad (origin='nils').
 
@@ -1626,6 +1657,10 @@ def generate_week(
     #     (grind nedan). coach_rows speglas till planned_sessions vid apply.
     coach_rows = _fetch_coach_plan(client, week_start)
     coached = _coached_dates(coach_rows)
+    # Grinden gäller även dagar som redan har mänskligt skapade rader DIREKT i
+    # MASTER planned_sessions (origin nils/manual/legacy-NULL) — Nils behöver
+    # alltså inte gå via garmin_coach.planned_workouts för att vinna över motorn.
+    coached |= _human_planned_dates(client, athlete_user_id, week_start)
 
     # 2. Hämta aktivitetsdata (primärkälla för faktisk volym + OT-signaler).
     # Garmin primär, Strava reserv (se _resolve_activity_sources). OT-signaler
