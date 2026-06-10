@@ -20,9 +20,6 @@ from coach.trixa.db import get_postgrest
 from coach.trixa.planner import (
     _resolve_activity_sources,
     generate_week,
-    list_workout_alternatives,
-    swap_workout_code,
-    swap_workout_discipline_and_replan,
 )
 from trixa_api import season, supabase_auth, readiness, strava_client
 
@@ -286,24 +283,6 @@ def _monday_of(d: date_type) -> date_type:
 # ---------- Dashboard ----------
 
 
-def _enrich_with_alternatives(week_data: dict | None, phase: str, period: str | None) -> None:
-    """Lägg till alternative-listor per pass för 'byt ut'-dropdown."""
-    if not week_data or not week_data.get("workouts"):
-        return
-    for w in week_data["workouts"]:
-        if w["category"] and w["sport"] in ("swim", "bike", "run"):
-            alts = list_workout_alternatives(
-                category=w["category"],
-                discipline=w["sport"],
-                phase=phase,
-                period=period,
-                exclude_code=w["code"],
-            )
-            w["alternatives"] = [{"code": a["code"], "name": a["name"]} for a in alts]
-        else:
-            w["alternatives"] = []
-
-
 # ---------- Säsongs-tidslinje (fas-staplar + följsamhet bakåt) ----------
 
 # Vecko-cellernas följsamhetsfärger (mättare än fas-staplarna, så raden läses
@@ -314,25 +293,37 @@ _COMPLIANCE_LABEL = {
 }
 
 
-def _compliance_by_week(client, plan_id, athlete_id, garmin_id, strava_user_id, today, user_id=None) -> dict:
-    """Följsamhets-bucket per genererad, passerad vecka. Nyckel: (iso_year, iso_week)."""
+def _compliance_by_week(client, athlete_id, garmin_id, strava_user_id, today, user_id) -> dict:
+    """Följsamhets-bucket per planerad, passerad vecka. Nyckel: (iso_year, iso_week).
+
+    Veckolistan härleds ur MASTER planned_sessions (vilka veckor som har plan),
+    inte ur de pensionerade training_weeks/training_plans-tabellerna.
+    """
+    if not user_id:
+        return {}
     try:
-        weeks_res = (
-            client.table("training_weeks")
-            .select("year, week_number")
-            .eq("plan_id", plan_id)
+        dates_res = (
+            client.table("planned_sessions")
+            .select("date")
+            .eq("user_id", user_id)
+            .lte("date", today.isoformat())
             .execute()
         )
     except Exception:  # noqa: BLE001
         return {}
-    out: dict = {}
-    for row in weeks_res.data or []:
-        y, wn = row.get("year"), row.get("week_number")
-        if y is None or wn is None:
+    weeks: set[tuple[int, int]] = set()
+    for row in dates_res.data or []:
+        try:
+            d = date_type.fromisoformat(str(row.get("date"))[:10])
+        except (ValueError, TypeError):
             continue
+        iso = d.isocalendar()
+        weeks.add((iso[0], iso[1]))
+    out: dict = {}
+    for y, wn in sorted(weeks):
         monday = date_type.fromisocalendar(y, wn, 1)
         if monday > today:
-            continue  # framtida genererad vecka — ingen följsamhet att visa
+            continue  # framtida vecka — ingen följsamhet att visa
         wk = _fetch_current_week_data(client, athlete_id, y, wn, garmin_id, strava_user_id, today, user_id)
         if wk and wk.get("workouts"):
             bucket = season.compliance_bucket(wk["workouts"], today)
@@ -424,21 +415,11 @@ def _build_season_context(client, athlete, today, this_monday) -> dict | None:
 
     garmin_id, strava_user_id = _resolve_activity_sources(athlete)
 
-    comp_map: dict = {}
     try:
-        plan_res = (
-            client.table("training_plans")
-            .select("id")
-            .eq("athlete_id", athlete["id"])
-            .eq("is_active", True)
-            .limit(1)
-            .execute()
+        comp_map = _compliance_by_week(
+            client, athlete["id"], garmin_id, strava_user_id,
+            today, athlete.get("user_id"),
         )
-        if plan_res.data:
-            comp_map = _compliance_by_week(
-                client, plan_res.data[0]["id"], athlete["id"],
-                garmin_id, strava_user_id, today, athlete.get("user_id"),
-            )
     except Exception:  # noqa: BLE001
         comp_map = {}
 
@@ -523,10 +504,6 @@ def dashboard(request: Request) -> HTMLResponse:
     period = decisions["phase_recommendation"]["period"]
     optimal_phase = decisions["phase_recommendation"].get("optimal_phase")
     behind = decisions["phase_recommendation"].get("behind", False)
-
-    # Berika båda veckorna med alternativ-listor
-    _enrich_with_alternatives(this_week, phase, period)
-    _enrich_with_alternatives(next_week, phase, period)
 
     # Säsongs-tidslinje: fas-staplar bakåt från race + följsamhet per vecka
     timeline = _build_season_context(client, athlete, today, this_monday)
@@ -865,7 +842,10 @@ def _fetch_planned_sessions_week(client, user_id, week_monday):
     try:
         res = (
             client.table("planned_sessions")
-            .select("id, date, sport, title, details, purpose, duration_min, steps, exercises")
+            .select(
+                "id, date, sport, title, details, purpose, duration_min,"
+                " steps, exercises, origin, workout_code, intensity"
+            )
             .eq("user_id", user_id)
             .gte("date", start)
             .lte("date", end)
@@ -937,23 +917,22 @@ def _fetch_current_week_data(
             client, garmin_athlete_id, strava_user_id, week_monday
         )
 
-    # Coachens plan har företräde
-    coach_sessions = _fetch_planned_sessions_week(client, user_id, week_monday)
-
-    # MASTER: planen kommer från planned_sessions (coach_sessions). De gamla
-    # engine-tabellerna (training_weeks/workouts) läses inte längre (docs/08).
-    phase = None
-    week_id = None
-    engine_workouts: list[dict] = []  # alltid tom — engine-tabellerna pensionerade
-    if not coach_sessions:
+    # MASTER: planen läses från planned_sessions (docs/08). Raderna kan komma
+    # från Nils (origin='nils'), motorn (origin='trixa2') eller legacy (NULL).
+    sessions = _fetch_planned_sessions_week(client, user_id, week_monday)
+    if not sessions:
         return None
 
+    # Veckans källmärkning: finns en enda Nils-rad är veckan coach-styrd —
+    # då gäller hens plan och regenerering ska inte erbjudas.
+    has_coach_rows = any((ps.get("origin") or "") == "nils" for ps in sessions)
+
     week = {
-        "id": week_id,
+        "id": None,
         "week_start": week_monday.isoformat(),
         "week_end": (week_monday + timedelta(days=6)).isoformat(),
-        "phase": phase,
-        "plan_source": "coach" if coach_sessions else "engine",
+        "phase": None,
+        "plan_source": "coach" if has_coach_rows else "engine",
         "workouts": [],
     }
 
@@ -962,46 +941,25 @@ def _fetch_current_week_data(
             d, sport, code, dur, activities_by_date.get(str(d)[:10], []), today
         )
 
-    if coach_sessions:
-        for ps in coach_sessions:
-            sport = _PLANNED_SV_SPORT.get(
-                ps.get("sport"), (ps.get("sport") or "").strip().lower()
-            )
-            title = ps.get("title") or "Pass"
-            dur = ps.get("duration_min") or 0
-            week["workouts"].append({
-                "id": ps.get("id"), "date": ps["date"], "sport": sport,
-                "title": title, "code": "", "category": "", "setting": "",
-                "duration_minutes": dur, "distance": "",
-                "intensity": ps.get("purpose") or "",
-                "notes": ps.get("details") or "", "steps": ps.get("steps") or [],
-                "coach_notes": "", "is_manual": False,
-                "planned_exercises": ps.get("exercises") or [],
-                "status": _status(ps["date"], sport, title, dur),
-            })
-    else:
-        from coach.engine.loader import load_workouts
-        pool = {w["code"]: w for w in load_workouts()}
-        for w in engine_workouts:
-            code = w.get("title_simple") or w["title"]
-            category = code.split("_")[0][:2] if "_" in code else ""
-            wd = pool.get(code) or {}
-            setting = wd.get("setting") or ("either" if w["sport"] != "rest" else "")
-            if wd.get("requires_trainer"):
-                setting = "indoor"
-            elif wd.get("outdoor_only"):
-                setting = "outdoor"
-            week["workouts"].append({
-                "id": w["id"], "date": w["date"], "sport": w["sport"],
-                "title": w["title"], "code": code, "category": category,
-                "setting": setting, "duration_minutes": w.get("duration_minutes") or 0,
-                "distance": w.get("distance") or "", "intensity": w.get("intensity") or "",
-                "notes": w.get("notes") or "", "steps": w.get("steps") or [],
-                "coach_notes": w.get("coach_notes") or "",
-                "is_manual": w.get("is_manual", False),
-                "planned_exercises": [],
-                "status": _status(w["date"], w["sport"], code, w.get("duration_minutes") or 0),
-            })
+    for ps in sessions:
+        sport = _PLANNED_SV_SPORT.get(
+            ps.get("sport"), (ps.get("sport") or "").strip().lower()
+        )
+        title = ps.get("title") or "Pass"
+        dur = ps.get("duration_min") or 0
+        code = ps.get("workout_code") or ""
+        week["workouts"].append({
+            "id": ps.get("id"), "date": ps["date"], "sport": sport,
+            "title": title, "code": code, "category": "", "setting": "",
+            "duration_minutes": dur, "distance": "",
+            "intensity": ps.get("intensity") or ps.get("purpose") or "",
+            "notes": ps.get("details") or "", "steps": ps.get("steps") or [],
+            "coach_notes": "",
+            "is_manual": (ps.get("origin") or "") == "manual",
+            "origin": ps.get("origin") or "",
+            "planned_exercises": ps.get("exercises") or [],
+            "status": _status(ps["date"], sport, code or title, dur),
+        })
 
     _attach_strength_logs(client, week, user_id)
     return week
@@ -1010,21 +968,12 @@ def _fetch_current_week_data(
 # ---------- Plan-preview ----------
 
 
-@router.get("/plan", response_class=HTMLResponse)
-def plan_view(request: Request) -> HTMLResponse:
-    """Visa nästa veckas plan (dry-run-rendering — skriver inte till DB)."""
-    user_id = _current_user_id(request)
-    next_monday = _monday_of(date_type.today() + timedelta(days=7))
-    try:
-        plan = generate_week(
-            athlete_user_id=user_id,
-            week_start=next_monday,
-            dry_run=True,
-        )
-    except ValueError as exc:
-        raise HTTPException(404, str(exc))
-
-    return _render("plan.html", {"request": request, "plan": plan})
+@router.get("/plan")
+def plan_view(request: Request) -> Any:
+    """Hemmet visar redan både denna och nästa vecka — den gamla separata
+    "Veckans plan"-vyn (som förvirrande nog visade NÄSTA veckas dry-run)
+    är borttagen. Gamla bokmärken landar på hemskärmen."""
+    return RedirectResponse(url="/ui/", status_code=303)
 
 
 # ---------- Weekly report ----------
@@ -1489,34 +1438,9 @@ def plan_regenerate(request: Request, week_start: str = Form(...)) -> Any:
     return RedirectResponse(url="/ui/", status_code=303)
 
 
-@router.post("/workouts/{workout_id}/swap", response_class=HTMLResponse)
-def workout_swap(
-    request: Request,
-    workout_id: str,
-    new_code: str = Form(...),
-) -> Any:
-    """Byt ut ett pass mot ett annat från passbanken (samma kategori/disciplin)."""
-    try:
-        swap_workout_code(workout_id, new_code)
-    except ValueError as exc:
-        raise HTTPException(404, str(exc))
-    return RedirectResponse(url="/ui/", status_code=303)
-
-
-@router.post("/workouts/{workout_id}/swap-discipline", response_class=HTMLResponse)
-def workout_swap_discipline(
-    request: Request,
-    workout_id: str,
-    new_discipline: str = Form(...),
-) -> Any:
-    """Byt en specifik dag till annan disciplin och planera om resten av veckan."""
-    if new_discipline not in ("swim", "bike", "run"):
-        raise HTTPException(400, "new_discipline måste vara swim, bike eller run")
-    try:
-        swap_workout_discipline_and_replan(workout_id, new_discipline)
-    except ValueError as exc:
-        raise HTTPException(404, str(exc))
-    return RedirectResponse(url="/ui/", status_code=303)
+# "Byt pass"/"byt gren"-endpoints togs bort 2026-06-10: de skrev mot den
+# pensionerade workouts-tabellen och kraschade. Byggs om mot planned_sessions
+# när byt-pass-funktionen behövs igen.
 
 
 @router.post("/workouts/custom", response_class=HTMLResponse)

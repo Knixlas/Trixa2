@@ -14,20 +14,17 @@
   <nav>
     <ul>
       <li><a href="/"><span class="brand-ic"><i data-lucide="flower-2"></i></span>Trixa</a></li>
-      <li><a href="/ui/plan" class="{{ 'active' if path == '/ui/plan' }}">Veckans plan</a></li>
+      <li><a href="/ui/" class="{{ 'active' if path == '/ui/' }}">Hem</a></li>
       <li><a href="/ui/report" class="{{ 'active' if path == '/ui/report' }}">Veckorapport</a></li>
       <li><a href="/ui/health" class="{{ 'active' if path == '/ui/health' }}">Hälsa</a></li>
       <li><a href="/ui/settings" class="{{ 'active' if path == '/ui/settings' }}">Inställningar</a></li>
-      <li><a href="/ui/debug" class="{{ 'active' if path == '/ui/debug' }}">Vad Trixa ser</a></li>
-      <li><a href="/ui/admin" class="{{ 'active' if path == '/ui/admin' }}">Admin</a></li>
     </ul>
   </nav>
   <main>
     {% block content %}{% endblock %}
   </main>
   <footer>
-    Trixa — deterministisk triathlontränare. Engine + passbank + planner.<br>
-    Nils (LLM-coach) körs separat.
+    Trixa — din triathlontränare.
   </footer>
   <script>lucide.createIcons();</script>
 </body>
