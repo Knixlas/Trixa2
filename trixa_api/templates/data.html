@@ -49,6 +49,11 @@
 {# ---------- Träning ---------- #}
 <section>
   <h2>Träning</h2>
+  <p style="font-size: 12.5px; color: var(--ink-3); margin-top: -6px;">
+    Källa: träningsloggen. Nya pass räknas in här när de synkats från
+    TrainingPeaks (dagligen på morgonen) — de kan alltså synas i veckovyn
+    på hemskärmen någon dag innan de dyker upp i siffrorna här.
+  </p>
 
   <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px;">
     <article style="margin: 0;">
@@ -80,7 +85,7 @@
         {% for w in training.series %}
         <div style="flex: 1; text-align: center;">
           <div style="font-size: 11px; font-weight: 700;">{{ w.hours }}{% if w.hours %}h{% endif %}</div>
-          <div style="height: {{ [w.pct, 4] | max }}%; max-height: 56px; min-height: 3px; border-radius: 4px 4px 0 0;
+          <div style="height: {{ w.px }}px; border-radius: 4px 4px 0 0;
                       background: {{ 'var(--hibiscus)' if w.current else 'var(--lagoon)' }};
                       opacity: {{ '1' if w.current else '0.75' }};"></div>
           <div style="font-size: 11px; color: var(--ink-3); margin-top: 3px;">{{ w.label }}{% if w.current %} (nu){% endif %}</div>
