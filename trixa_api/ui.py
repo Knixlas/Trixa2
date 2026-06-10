@@ -308,42 +308,123 @@ _COMPLIANCE_LABEL = {
 }
 
 
+# Tidslinjens följsamhet behöver inte obegränsad historik.
+_COMPLIANCE_MAX_WEEKS = 12
+
+
+def _fetch_activities_range(
+    client, garmin_id, strava_user_id, start: date_type, end: date_type
+) -> dict[str, list[dict]]:
+    """Aktiviteter över ett datumspann, grupperade på lokalt datum.
+
+    EN query mot Garmin/TP-cachen + EN mot Strava (gap-fill per dag) — istället
+    för ett anrop per vecka. Samma normalisering som veckoläsarna.
+    """
+    by_date: dict[str, list[dict]] = {}
+    if garmin_id:
+        try:
+            res = (
+                client.schema("garmin_coach")
+                .table("activities")
+                .select(
+                    "start_time, start_time_local, activity_type, activity_name,"
+                    " duration_sec, avg_hr, max_hr, training_load, distance_m,"
+                    " normalized_power, avg_power"
+                )
+                .eq("athlete_id", garmin_id)
+                .gte("start_time", (start - timedelta(days=1)).isoformat())
+                .lt("start_time", (end + timedelta(days=2)).isoformat())
+                .order("start_time")
+                .execute()
+            )
+            for act in res.data or []:
+                day = _activity_local_date(act)
+                if not day:
+                    continue
+                act["_sport"] = _ACTIVITY_SPORT_MAP.get(act.get("activity_type"))
+                act["_dur_min"] = (act.get("duration_sec") or 0) / 60.0
+                by_date.setdefault(day, []).append(act)
+        except Exception:  # noqa: BLE001
+            pass
+    if strava_user_id:
+        try:
+            res = (
+                client.table("strava_activities")
+                .select("date, type, name, duration_min, distance_km, avg_hr, avg_power")
+                .eq("user_id", strava_user_id)
+                .gte("date", start.isoformat())
+                .lte("date", end.isoformat())
+                .order("date")
+                .execute()
+            )
+            for row in res.data or []:
+                day = str(row.get("date"))[:10]
+                if not day or day in by_date:
+                    continue  # Garmin/TP har dagen → den datan vinner
+                by_date.setdefault(day, []).append(_normalize_strava_activity(row))
+        except Exception:  # noqa: BLE001
+            pass
+    return by_date
+
+
 def _compliance_by_week(client, athlete_id, garmin_id, strava_user_id, today, user_id) -> dict:
     """Följsamhets-bucket per planerad, passerad vecka. Nyckel: (iso_year, iso_week).
 
-    Veckolistan härleds ur MASTER planned_sessions (vilka veckor som har plan),
-    inte ur de pensionerade training_weeks/training_plans-tabellerna.
+    Bulk-läsning: EN query för planerade pass + EN-TVÅ för aktiviteter över hela
+    fönstret. Tidigare gjordes en serie anrop PER VECKA (planned_sessions +
+    aktiviteter + styrkeloggar) — med veckor sedan mars blev det ~50 sekventiella
+    DB-roundtrips per dashboard-laddning, därav segheten.
     """
     if not user_id:
         return {}
+    this_monday = today - timedelta(days=today.weekday())
+    window_start = this_monday - timedelta(weeks=_COMPLIANCE_MAX_WEEKS)
+
     try:
-        dates_res = (
+        ps_res = (
             client.table("planned_sessions")
-            .select("date")
+            .select("date, sport, title, workout_code, duration_min")
             .eq("user_id", user_id)
+            .gte("date", window_start.isoformat())
             .lte("date", today.isoformat())
+            .order("date")
             .execute()
         )
     except Exception:  # noqa: BLE001
         return {}
-    weeks: set[tuple[int, int]] = set()
-    for row in dates_res.data or []:
+    sessions = ps_res.data or []
+    if not sessions:
+        return {}
+
+    activities_by_date = _fetch_activities_range(
+        client, garmin_id, strava_user_id, window_start, today
+    )
+
+    weeks: dict[tuple[int, int], list[dict]] = {}
+    for ps in sessions:
         try:
-            d = date_type.fromisoformat(str(row.get("date"))[:10])
+            d = date_type.fromisoformat(str(ps.get("date"))[:10])
         except (ValueError, TypeError):
             continue
+        sport = _PLANNED_SV_SPORT.get(
+            ps.get("sport"), (ps.get("sport") or "").strip().lower()
+        )
+        code = ps.get("workout_code") or ""
+        status = _compute_status(
+            ps["date"], sport, code or (ps.get("title") or ""),
+            ps.get("duration_min") or 0,
+            activities_by_date.get(str(ps["date"])[:10], []), today,
+        )
         iso = d.isocalendar()
-        weeks.add((iso[0], iso[1]))
+        weeks.setdefault((iso[0], iso[1]), []).append({"status": status})
+
     out: dict = {}
-    for y, wn in sorted(weeks):
-        monday = date_type.fromisocalendar(y, wn, 1)
-        if monday > today:
-            continue  # framtida vecka — ingen följsamhet att visa
-        wk = _fetch_current_week_data(client, athlete_id, y, wn, garmin_id, strava_user_id, today, user_id)
-        if wk and wk.get("workouts"):
-            bucket = season.compliance_bucket(wk["workouts"], today)
-            if bucket:
-                out[(y, wn)] = bucket
+    for (y, wn), workouts in weeks.items():
+        if date_type.fromisocalendar(y, wn, 1) > today:
+            continue
+        bucket = season.compliance_bucket(workouts, today)
+        if bucket:
+            out[(y, wn)] = bucket
     return out
 
 
