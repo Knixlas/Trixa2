@@ -1554,7 +1554,8 @@ def _build_data_context(client, athlete: dict, today: date_type) -> dict:
             "current": monday == this_monday,
         })
     for s in series:
-        s["pct"] = round(s["hours"] / max_h * 100) if max_h > 0 else 0
+        # Pixelhöjd (max 56 px) — procenthöjd kollapsar i flex utan förälderhöjd.
+        s["px"] = max(3, round(s["hours"] / max_h * 56)) if max_h > 0 else 3
 
     completed = [week_hours.get(this_monday - timedelta(weeks=i), 0.0) for i in range(1, 5)]
     avg4 = round(sum(completed) / 4, 1)
