@@ -8,9 +8,12 @@ För riktig deploy: byt till Supabase JWT med signing.
 from __future__ import annotations
 
 import json
+import logging
 import os
 from datetime import date as date_type, timedelta
 from pathlib import Path
+
+import requests
 
 from fastapi import APIRouter, Form, HTTPException, Request, status
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -23,6 +26,8 @@ from coach.trixa.planner import (
 )
 from trixa_api import season, supabase_auth, readiness, strava_client
 
+
+logger = logging.getLogger("trixa.ui")
 
 router = APIRouter(prefix="/ui", tags=["ui"])
 
@@ -194,9 +199,19 @@ def strava_callback(
 def strava_sync(request: Request) -> Any:
     uid = _current_user_id(request)
     client = get_postgrest()
+    if not strava_client.creds_configured():
+        # Utan STRAVA_CLIENT_ID/SECRET kan token-förnyelsen aldrig lyckas —
+        # säg det rakt ut istället för generiskt "något gick fel".
+        return RedirectResponse("/ui/settings?strava=noconfig", status_code=303)
     try:
         strava_client.sync_recent(client, uid, days=45)
+    except requests.HTTPError as exc:
+        code = exc.response.status_code if exc.response is not None else 0
+        body = (exc.response.text or "")[:300] if exc.response is not None else ""
+        logger.error("Strava-sync HTTP %s för %s: %s", code, uid, body)
+        return RedirectResponse(f"/ui/settings?strava=error&why=http{code}", status_code=303)
     except Exception:  # noqa: BLE001
+        logger.exception("Strava-sync kraschade för %s", uid)
         return RedirectResponse("/ui/settings?strava=error", status_code=303)
     return RedirectResponse("/ui/settings?strava=synced", status_code=303)
 
@@ -1173,7 +1188,9 @@ _DISCIPLINES_FOR_IMPACT = [
 
 
 @router.get("/settings", response_class=HTMLResponse)
-def settings_view(request: Request, saved: bool = False, strava: str = "") -> HTMLResponse:
+def settings_view(
+    request: Request, saved: bool = False, strava: str = "", why: str = ""
+) -> HTMLResponse:
     user_id = _current_user_id(request)
     client = get_postgrest()
     a_res = (
@@ -1207,6 +1224,7 @@ def settings_view(request: Request, saved: bool = False, strava: str = "") -> HT
         "last_activity": last.data[0]["date"] if last.data else None,
         "configured": strava_client.creds_configured(),
         "flash": strava,
+        "why": why,
     }
     return _render(
         "settings.html",
