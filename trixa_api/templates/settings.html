@@ -10,6 +10,23 @@ sön för löpning, mån som vila).</p>
 
 <section>
   <h2>Aktivitetskälla</h2>
+
+  {% if strava.tp_flash == "synced" %}<p style="color: var(--palm-deep); font-weight: 600;">✓ Hämtat från TrainingPeaks — nya pass och återhämtningsdata är inne.</p>
+  {% elif strava.tp_flash == "error" %}<p style="color: var(--coral); font-weight: 600;">TrainingPeaks-hämtningen misslyckades — försök igen om en stund (detaljer i serverloggen).</p>
+  {% elif strava.tp_flash == "nocookie" %}<p style="color: var(--coral); font-weight: 600;">Ingen TrainingPeaks-inloggning sparad — TP-cookien behöver läggas in på nytt.</p>
+  {% elif strava.tp_flash == "noprofile" %}<p style="color: var(--coral); font-weight: 600;">Profilen saknar recovery-nyckel (garmin_athlete_id) — kan inte synka TP.</p>
+  {% endif %}
+  {% if strava.has_garmin %}
+  <article>
+    <p style="margin-top: 0;"><strong>TrainingPeaks</strong> (klockan via TP) — primär källa för utförda pass och återhämtning.</p>
+    <p style="font-size: 0.875rem; color: var(--ink-3);">Workern hämtar automatiskt enligt schema. Vill du analysera ett pass direkt
+    efter att du klivit av — tryck här så hämtas det nu (klockan måste ha hunnit synka till TP, vanligen inom någon minut).</p>
+    <form method="post" action="/ui/tp/sync">
+      <button type="submit">Hämta från TrainingPeaks nu</button>
+    </form>
+  </article>
+  {% endif %}
+
   {% if strava.flash == "connected" %}<p style="color: var(--palm-deep); font-weight: 600;">✓ Strava ansluten och synkad.</p>
   {% elif strava.flash == "synced" %}<p style="color: var(--palm-deep); font-weight: 600;">✓ Strava synkad.</p>
   {% elif strava.flash == "disconnected" %}<p style="color: var(--ink-3);">Strava frånkopplad.</p>
