@@ -40,21 +40,6 @@
 </section>
 {% endif %}
 
-{% if alerts %}
-<section>
-  <h2>Aktuella varningar</h2>
-  {% for alert in alerts %}
-  <div class="alert {{ alert.severity }}">
-    <div class="ic"><i data-lucide="{{ alerticon.get(alert.severity, 'info') }}"></i></div>
-    <div class="alert-body">
-      <strong>{{ alert.title }}</strong>
-      <p>{{ alert.body | trim }}</p>
-    </div>
-  </div>
-  {% endfor %}
-</section>
-{% endif %}
-
 {% if athlete %}
 <div class="tabs">
   <button class="tab active" type="button" data-tab="week">Veckans träning</button>
@@ -83,6 +68,21 @@
   .tab.active { background: var(--bg-card); color: var(--ink); box-shadow: var(--shadow-sm); }
   .tab-panel { padding-top: 6px; }
 </style>
+{% if alerts %}
+<section style="margin-top: 22px;">
+  <h2>Aktuella varningar</h2>
+  {% for alert in alerts %}
+  <div class="alert {{ alert.severity }}">
+    <div class="ic"><i data-lucide="{{ alerticon.get(alert.severity, 'info') }}"></i></div>
+    <div class="alert-body">
+      <strong>{{ alert.title }}</strong>
+      <p>{{ alert.body | trim }}</p>
+    </div>
+  </div>
+  {% endfor %}
+</section>
+{% endif %}
+
 <script>
   (function () {
     var tabs = document.querySelectorAll('.tab');

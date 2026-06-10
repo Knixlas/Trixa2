@@ -1,0 +1,129 @@
+{% extends "base.html" %}
+{% block title %}Nyckeltal — Trixa{% endblock %}
+{% block content %}
+
+<h1>Nyckeltal</h1>
+<p>Det viktigaste ur din träning och återhämtning, på en sida.</p>
+
+{# ---------- Hälsa / återhämtning ---------- #}
+<section>
+  <h2>Återhämtning</h2>
+  {% if health.metric_date %}
+  <p style="font-size: 12.5px; color: var(--ink-3); margin-top: -6px;">
+    Senaste mätning: {{ health.metric_date }}
+    {% if health.stale %} — <span style="color: var(--mango);">{{ health.stale_days }} dagar gammal, ny data hämtas från TrainingPeaks i morgon bitti</span>{% endif %}
+  </p>
+  {% else %}
+  <p style="color: var(--ink-3);"><em>Ingen återhämtningsdata än — TrainingPeaks-synken fyller på dagligen.</em></p>
+  {% endif %}
+
+  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px;">
+    <article style="margin: 0;">
+      <h3 style="margin: 0; font-size: 13px; color: var(--ink-3);">Vilopuls</h3>
+      <p style="margin: 4px 0 0; font-size: 26px; font-weight: 800;">{{ health.rhr if health.rhr is not none else "—" }}<span style="font-size: 13px; font-weight: 400;"> bpm</span></p>
+      {% if health.rhr_avg7 %}<p style="margin: 0; font-size: 12px; color: var(--ink-3);">7-dagarssnitt: {{ health.rhr_avg7 }}</p>{% endif %}
+    </article>
+
+    <article style="margin: 0;">
+      <h3 style="margin: 0; font-size: 13px; color: var(--ink-3);">HRV (senaste natt)</h3>
+      <p style="margin: 4px 0 0; font-size: 26px; font-weight: 800;">{{ health.hrv if health.hrv is not none else "—" }}<span style="font-size: 13px; font-weight: 400;"> ms</span></p>
+      {% if health.hrv_low %}<p style="margin: 0; font-size: 12px; color: var(--ink-3);">Din baseline: {{ health.hrv_low|round|int }}–{{ health.hrv_high|round|int if health.hrv_high else "?" }} ms</p>{% endif %}
+      {% if health.hrv_status %}<p style="margin: 2px 0 0; font-size: 12px; font-weight: 700; color: {{ health.hrv_status.color }};">{{ health.hrv_status.label }}</p>{% endif %}
+    </article>
+
+    <article style="margin: 0;">
+      <h3 style="margin: 0; font-size: 13px; color: var(--ink-3);">Sömn</h3>
+      <p style="margin: 4px 0 0; font-size: 26px; font-weight: 800;">{{ health.sleep if health.sleep is not none else "—" }}<span style="font-size: 13px; font-weight: 400;"> /100</span></p>
+      {% if health.sleep_avg7 %}<p style="margin: 0; font-size: 12px; color: var(--ink-3);">7-dagarssnitt: {{ health.sleep_avg7 }}</p>{% endif %}
+    </article>
+
+    <article style="margin: 0;">
+      <h3 style="margin: 0; font-size: 13px; color: var(--ink-3);">Belastningskvot</h3>
+      <p style="margin: 4px 0 0; font-size: 26px; font-weight: 800;">{{ health.load_ratio if health.load_ratio is not none else "—" }}</p>
+      {% if health.load_zone %}<p style="margin: 2px 0 0; font-size: 12px; font-weight: 700; color: {{ health.load_zone.color }};">{{ health.load_zone.label }}</p>{% endif %}
+      {% if health.acute and health.chronic %}<p style="margin: 0; font-size: 12px; color: var(--ink-3);">Akut {{ health.acute }} / kronisk {{ health.chronic }}</p>{% endif %}
+    </article>
+  </div>
+</section>
+
+{# ---------- Träning ---------- #}
+<section>
+  <h2>Träning</h2>
+
+  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px;">
+    <article style="margin: 0;">
+      <h3 style="margin: 0; font-size: 13px; color: var(--ink-3);">Denna vecka</h3>
+      <p style="margin: 4px 0 0; font-size: 26px; font-weight: 800;">{{ training.this_week_hours }}<span style="font-size: 13px; font-weight: 400;"> h</span></p>
+      <p style="margin: 0; font-size: 12px; color: var(--ink-3);">
+        {{ training.this_week_count }} pass{% if training.this_week_tss %} · TSS {{ training.this_week_tss }}{% endif %}
+      </p>
+      {% if training.this_week_disc %}
+      <p style="margin: 2px 0 0; font-size: 12px; color: var(--ink-3);">
+        {% for d in training.this_week_disc %}{{ d.label }} {{ d.hours }}h{% if not loop.last %} · {% endif %}{% endfor %}
+      </p>
+      {% endif %}
+    </article>
+
+    <article style="margin: 0;">
+      <h3 style="margin: 0; font-size: 13px; color: var(--ink-3);">Snitt senaste 4 veckor</h3>
+      <p style="margin: 4px 0 0; font-size: 26px; font-weight: 800;">{{ training.avg4_hours }}<span style="font-size: 13px; font-weight: 400;"> h/v</span></p>
+      {% if training.goal_hours %}
+      <p style="margin: 0; font-size: 12px; color: var(--ink-3);">Mål: {{ training.goal_hours|round(1) }} h/v
+        {% if training.avg4_hours < training.goal_hours * 0.6 %}<span style="color: var(--mango); font-weight: 700;">— en bit kvar</span>{% endif %}
+      </p>
+      {% endif %}
+    </article>
+
+    <article style="margin: 0; grid-column: span 2;">
+      <h3 style="margin: 0 0 8px; font-size: 13px; color: var(--ink-3);">Veckovolym, senaste 6 veckorna</h3>
+      <div style="display: flex; align-items: flex-end; gap: 10px; height: 84px;">
+        {% for w in training.series %}
+        <div style="flex: 1; text-align: center;">
+          <div style="font-size: 11px; font-weight: 700;">{{ w.hours }}{% if w.hours %}h{% endif %}</div>
+          <div style="height: {{ [w.pct, 4] | max }}%; max-height: 56px; min-height: 3px; border-radius: 4px 4px 0 0;
+                      background: {{ 'var(--hibiscus)' if w.current else 'var(--lagoon)' }};
+                      opacity: {{ '1' if w.current else '0.75' }};"></div>
+          <div style="font-size: 11px; color: var(--ink-3); margin-top: 3px;">{{ w.label }}{% if w.current %} (nu){% endif %}</div>
+        </div>
+        {% endfor %}
+      </div>
+    </article>
+  </div>
+
+  {% if training.disc_4w %}
+  <article style="margin-top: 12px;">
+    <h3 style="margin: 0 0 6px; font-size: 13px; color: var(--ink-3);">Per gren, senaste 4 hela veckorna</h3>
+    <table style="width: 100%; font-size: 14px;">
+      <tr style="text-align: left; color: var(--ink-3); font-size: 12px;"><th>Gren</th><th>Timmar</th><th>Distans</th></tr>
+      {% for d in training.disc_4w %}
+      <tr><td>{{ d.label }}</td><td>{{ d.hours }} h</td><td>{% if d.dist_km %}{{ d.dist_km }} km{% else %}—{% endif %}</td></tr>
+      {% endfor %}
+    </table>
+  </article>
+  {% endif %}
+</section>
+
+{# ---------- Tävling + testvärden ---------- #}
+<section>
+  <h2>Mot tävlingen</h2>
+  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px;">
+    <article style="margin: 0;">
+      <h3 style="margin: 0; font-size: 13px; color: var(--ink-3);">Dagar kvar</h3>
+      <p style="margin: 4px 0 0; font-size: 26px; font-weight: 800;">{{ profile.days_to_race if profile.days_to_race is not none else "—" }}</p>
+      <p style="margin: 0; font-size: 12px; color: var(--ink-3);">{{ profile.race_type|capitalize if profile.race_type }} {{ profile.race_date }}</p>
+      {% if profile.time_goal %}<p style="margin: 2px 0 0; font-size: 12px; color: var(--ink-3);">Mål: {{ profile.time_goal }}</p>{% endif %}
+    </article>
+
+    <article style="margin: 0;">
+      <h3 style="margin: 0; font-size: 13px; color: var(--ink-3);">Testvärden</h3>
+      <p style="margin: 4px 0 0; font-size: 14px; line-height: 1.7;">
+        FTP: <strong>{{ profile.ftp or "—" }} W</strong><br>
+        Tröskelpuls löp: <strong>{{ profile.lthr or "—" }} bpm</strong><br>
+        CSS sim: <strong>{{ profile.swim_css or "—" }} /100m</strong><br>
+        Tröskelpace löp: <strong>{{ profile.run_threshold_pace or "—" }} /km</strong>
+      </p>
+    </article>
+  </div>
+</section>
+
+{% endblock %}

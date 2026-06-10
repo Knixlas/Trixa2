@@ -1383,6 +1383,247 @@ def settings_submit(
     return settings_view(request, saved=True)
 
 
+# ---------- Nyckeltal (datasida: träning + hälsa) ----------
+
+# training_log.sport är blandad vokabulär (svenska + engelska, gamla + nya
+# skrivare). Normalisera till intern disciplin för aggregering.
+_TL_SPORT = {
+    "lopning": "run", "löpning": "run", "run": "run", "trailrun": "run",
+    "cykel": "bike", "bike": "bike", "ride": "bike", "cykling": "bike",
+    "sim": "swim", "swim": "swim", "simning": "swim",
+    "styrka": "strength", "strength": "strength", "weighttraining": "strength",
+}
+_SPORT_LABEL = {
+    "swim": "Simning", "bike": "Cykel", "run": "Löpning",
+    "strength": "Styrka", "other": "Övrigt",
+}
+
+
+def _fnum(v) -> float | None:
+    """daily_metrics levererar numerics som strängar — tolerant float."""
+    if v is None:
+        return None
+    try:
+        return float(v)
+    except (TypeError, ValueError):
+        return None
+
+
+def _latest_value(metrics: list[dict], key: str):
+    """Senaste icke-null-värde (listan är nyast först)."""
+    for row in metrics:
+        if row.get(key) is not None:
+            return row[key], str(row.get("metric_date"))[:10]
+    return None, None
+
+
+def _avg7(metrics: list[dict], key: str) -> float | None:
+    vals = [_fnum(r.get(key)) for r in metrics[:7]]
+    vals = [v for v in vals if v is not None]
+    return round(sum(vals) / len(vals), 1) if vals else None
+
+
+def _load_zone(ratio: float | None) -> dict | None:
+    """ACWR-zon: under 0.8 = lugnt, 0.8-1.3 = lagom, över 1.3 = hög risk."""
+    if ratio is None:
+        return None
+    if ratio > 1.3:
+        return {"label": "Hög — över skadezonen", "color": "var(--coral)"}
+    if ratio >= 0.8:
+        return {"label": "Lagom belastningsökning", "color": "var(--palm)"}
+    return {"label": "Lugn — utrymme att bygga", "color": "var(--lagoon)"}
+
+
+def _hrv_status(latest: float | None, low: float | None, high: float | None) -> dict | None:
+    if latest is None or low is None:
+        return None
+    if latest < low:
+        return {"label": "Under din baseline — ta det lugnt", "color": "var(--coral)"}
+    if high is not None and latest > high:
+        return {"label": "Över baseline — välåterhämtad", "color": "var(--lagoon)"}
+    return {"label": "Inom din baseline", "color": "var(--palm)"}
+
+
+def _build_data_context(client, athlete: dict, today: date_type) -> dict:
+    """Nyckeltal för datasidan. Bulk: 1 query daily_metrics + 1 training_log."""
+    user_id = athlete.get("user_id")
+    this_monday = _monday_of(today)
+
+    # --- Hälsa: senaste 14 d ur daily_metrics (nyast först) ---
+    metrics: list[dict] = []
+    if athlete.get("garmin_athlete_id"):
+        try:
+            res = (
+                client.schema("garmin_coach")
+                .table("daily_metrics")
+                .select(
+                    "metric_date, resting_hr, hrv_last_night_ms, hrv_baseline_low,"
+                    " hrv_baseline_high, sleep_score, readiness_score, stress_avg,"
+                    " acute_load, chronic_load, load_ratio"
+                )
+                .eq("athlete_id", athlete["garmin_athlete_id"])
+                .gte("metric_date", (today - timedelta(days=14)).isoformat())
+                .order("metric_date", desc=True)
+                .execute()
+            )
+            metrics = res.data or []
+        except Exception:  # noqa: BLE001
+            metrics = []
+
+    rhr, _ = _latest_value(metrics, "resting_hr")
+    hrv_raw, _ = _latest_value(metrics, "hrv_last_night_ms")
+    hrv = _fnum(hrv_raw)
+    hrv_low = _fnum(metrics[0].get("hrv_baseline_low")) if metrics else None
+    hrv_high = _fnum(metrics[0].get("hrv_baseline_high")) if metrics else None
+    sleep, _ = _latest_value(metrics, "sleep_score")
+    ratio_raw, _ = _latest_value(metrics, "load_ratio")
+    ratio = _fnum(ratio_raw)
+    acute, _ = _latest_value(metrics, "acute_load")
+    chronic, _ = _latest_value(metrics, "chronic_load")
+    metric_date = str(metrics[0].get("metric_date"))[:10] if metrics else None
+    stale_days = (today - date_type.fromisoformat(metric_date)).days if metric_date else None
+
+    health = {
+        "metric_date": metric_date,
+        "stale": stale_days is not None and stale_days > 1,
+        "stale_days": stale_days,
+        "rhr": rhr,
+        "rhr_avg7": _avg7(metrics, "resting_hr"),
+        "hrv": round(hrv) if hrv is not None else None,
+        "hrv_low": hrv_low,
+        "hrv_high": hrv_high,
+        "hrv_status": _hrv_status(hrv, hrv_low, hrv_high),
+        "sleep": sleep,
+        "sleep_avg7": _avg7(metrics, "sleep_score"),
+        "load_ratio": round(ratio, 2) if ratio is not None else None,
+        "load_zone": _load_zone(ratio),
+        "acute": round(_fnum(acute)) if _fnum(acute) is not None else None,
+        "chronic": round(_fnum(chronic)) if _fnum(chronic) is not None else None,
+    }
+
+    # --- Träning: senaste 6 ISO-veckor (inkl. innevarande) ur MASTER training_log ---
+    window_start = this_monday - timedelta(weeks=5)
+    rows: list[dict] = []
+    try:
+        res = (
+            client.table("training_log")
+            .select("date, sport, duration_min, distance_km, tss")
+            .eq("user_id", user_id)
+            .gte("date", window_start.isoformat())
+            .lte("date", today.isoformat())
+            .order("date")
+            .execute()
+        )
+        rows = res.data or []
+    except Exception:  # noqa: BLE001
+        rows = []
+
+    week_hours: dict[date_type, float] = {}
+    week_tss: dict[date_type, float] = {}
+    week_count: dict[date_type, int] = {}
+    this_week_disc: dict[str, float] = {}
+    disc_4w_hours: dict[str, float] = {}
+    disc_4w_dist: dict[str, float] = {}
+    four_w_start = this_monday - timedelta(weeks=4)
+    for r in rows:
+        try:
+            d = date_type.fromisoformat(str(r.get("date"))[:10])
+        except (ValueError, TypeError):
+            continue
+        monday = _monday_of(d)
+        h = (_fnum(r.get("duration_min")) or 0.0) / 60.0
+        week_hours[monday] = week_hours.get(monday, 0.0) + h
+        week_tss[monday] = week_tss.get(monday, 0.0) + (_fnum(r.get("tss")) or 0.0)
+        week_count[monday] = week_count.get(monday, 0) + 1
+        disc = _TL_SPORT.get((r.get("sport") or "").strip().lower(), "other")
+        if monday == this_monday:
+            this_week_disc[disc] = this_week_disc.get(disc, 0.0) + h
+        if four_w_start <= d < this_monday:
+            disc_4w_hours[disc] = disc_4w_hours.get(disc, 0.0) + h
+            disc_4w_dist[disc] = disc_4w_dist.get(disc, 0.0) + (_fnum(r.get("distance_km")) or 0.0)
+
+    series = []
+    max_h = 0.0
+    for i in range(5, -1, -1):
+        monday = this_monday - timedelta(weeks=i)
+        h = round(week_hours.get(monday, 0.0), 1)
+        max_h = max(max_h, h)
+        series.append({
+            "label": f"v{monday.isocalendar()[1]}",
+            "hours": h,
+            "current": monday == this_monday,
+        })
+    for s in series:
+        s["pct"] = round(s["hours"] / max_h * 100) if max_h > 0 else 0
+
+    completed = [week_hours.get(this_monday - timedelta(weeks=i), 0.0) for i in range(1, 5)]
+    avg4 = round(sum(completed) / 4, 1)
+
+    training = {
+        "this_week_hours": round(week_hours.get(this_monday, 0.0), 1),
+        "this_week_count": week_count.get(this_monday, 0),
+        "this_week_tss": round(week_tss.get(this_monday, 0.0)),
+        "this_week_disc": [
+            {"label": _SPORT_LABEL.get(k, k), "hours": round(v, 1)}
+            for k, v in sorted(this_week_disc.items(), key=lambda x: -x[1])
+        ],
+        "avg4_hours": avg4,
+        "goal_hours": _fnum(athlete.get("weekly_hours")),
+        "series": series,
+        "disc_4w": [
+            {
+                "label": _SPORT_LABEL.get(k, k),
+                "hours": round(v, 1),
+                "dist_km": round(disc_4w_dist.get(k, 0.0)),
+            }
+            for k, v in sorted(disc_4w_hours.items(), key=lambda x: -x[1])
+        ],
+    }
+
+    # --- Tävling + testvärden ---
+    days_to_race = None
+    if athlete.get("race_date"):
+        try:
+            rd = date_type.fromisoformat(str(athlete["race_date"])[:10])
+            days_to_race = (rd - today).days
+        except (ValueError, TypeError):
+            pass
+
+    profile = {
+        "days_to_race": days_to_race,
+        "race_date": athlete.get("race_date"),
+        "race_type": athlete.get("race_type"),
+        "time_goal": athlete.get("time_goal"),
+        "ftp": athlete.get("ftp"),
+        "lthr": athlete.get("lthr"),
+        "swim_css": athlete.get("swim_css"),
+        "run_threshold_pace": athlete.get("run_threshold_pace"),
+    }
+
+    return {"health": health, "training": training, "profile": profile}
+
+
+@router.get("/data", response_class=HTMLResponse)
+def data_view(request: Request) -> HTMLResponse:
+    """Nyckeltal: träning + hälsa på en sida. Deterministisk läsning, bulk-queries."""
+    user_id = _current_user_id(request)
+    client = get_postgrest()
+    a_res = (
+        client.table("athlete_profiles")
+        .select(
+            "user_id, garmin_athlete_id, weekly_hours, race_date, race_type,"
+            " time_goal, ftp, lthr, swim_css, run_threshold_pace"
+        )
+        .eq("user_id", user_id)
+        .execute()
+    )
+    if not a_res.data:
+        raise HTTPException(404, "Athlete saknas")
+    ctx = _build_data_context(client, a_res.data[0], date_type.today())
+    ctx["request"] = request
+    return _render("data.html", ctx)
+
+
 # ---------- Debug: vad Trixa ser ----------
 
 
