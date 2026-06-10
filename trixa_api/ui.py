@@ -216,6 +216,33 @@ def strava_sync(request: Request) -> Any:
     return RedirectResponse("/ui/settings?strava=synced", status_code=303)
 
 
+@router.post("/tp/sync")
+def tp_sync_now(request: Request) -> Any:
+    """Hämta nya pass + recovery från TrainingPeaks DIREKT (utan att vänta på
+    workerns schemalagda sync). För 'analysera/omplanera direkt efter passet'."""
+    uid = _current_user_id(request)
+    client = get_postgrest()
+    try:
+        from coach.integrations.trainingpeaks.auth_store import supabase_cookie_provider
+        from coach.integrations.trainingpeaks.run_sync import main as tp_sync_main
+
+        if supabase_cookie_provider(uid, client)() is None:
+            return RedirectResponse("/ui/settings?tp=nocookie", status_code=303)
+        a = (
+            client.table("athlete_profiles").select("garmin_athlete_id")
+            .eq("user_id", uid).execute()
+        )
+        garmin_id = a.data[0].get("garmin_athlete_id") if a.data else None
+        if not garmin_id:
+            return RedirectResponse("/ui/settings?tp=noprofile", status_code=303)
+        rc = tp_sync_main(["--user", uid, "--athlete-id", str(garmin_id), "--days", "2"])
+        flash = "synced" if rc == 0 else "error"
+        return RedirectResponse(f"/ui/settings?tp={flash}", status_code=303)
+    except Exception:  # noqa: BLE001
+        logger.exception("TP-sync via knapp kraschade för %s", uid)
+        return RedirectResponse("/ui/settings?tp=error", status_code=303)
+
+
 @router.post("/strava/disconnect")
 def strava_disconnect(request: Request) -> Any:
     uid = _current_user_id(request)
@@ -1270,7 +1297,7 @@ _DISCIPLINES_FOR_IMPACT = [
 
 @router.get("/settings", response_class=HTMLResponse)
 def settings_view(
-    request: Request, saved: bool = False, strava: str = "", why: str = ""
+    request: Request, saved: bool = False, strava: str = "", why: str = "", tp: str = ""
 ) -> HTMLResponse:
     user_id = _current_user_id(request)
     client = get_postgrest()
@@ -1306,6 +1333,7 @@ def settings_view(
         "configured": strava_client.creds_configured(),
         "flash": strava,
         "why": why,
+        "tp_flash": tp,
     }
     return _render(
         "settings.html",
