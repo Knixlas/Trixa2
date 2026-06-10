@@ -891,6 +891,31 @@ def _attach_strength_logs(client, week: dict, user_id: str) -> None:
         w["logged_exercises"] = by_date.get(str(w["date"])[:10], [])
 
 
+def _display_steps(steps) -> list[dict]:
+    """Normalisera pass-steg för rendering.
+
+    Steps i planned_sessions kan bära passbankens template-form där t.ex.
+    `sets` är en dict ({"range": [4,10], "default": 6}) istället för ett tal.
+    Templaten jämför `s.sets > 1` — en dict där kraschar Jinja med TypeError
+    (orsakade 500 på dashboarden). Plocka default-värdet för visning.
+    """
+    def _scalar(v):
+        if isinstance(v, dict):
+            v = v.get("default") or v.get("estimated") or (v.get("range") or [None])[0]
+        return v if isinstance(v, (int, float, str)) or v is None else None
+
+    out: list[dict] = []
+    for s in steps or []:
+        if not isinstance(s, dict):
+            continue
+        c = dict(s)
+        for k in ("sets", "distance_m", "duration_min", "rest_sec", "zone"):
+            if k in c:
+                c[k] = _scalar(c[k])
+        out.append(c)
+    return out
+
+
 def _fetch_current_week_data(
     client,
     athlete_id: str,
@@ -953,7 +978,7 @@ def _fetch_current_week_data(
             "title": title, "code": code, "category": "", "setting": "",
             "duration_minutes": dur, "distance": "",
             "intensity": ps.get("intensity") or ps.get("purpose") or "",
-            "notes": ps.get("details") or "", "steps": ps.get("steps") or [],
+            "notes": ps.get("details") or "", "steps": _display_steps(ps.get("steps")),
             "coach_notes": "",
             "is_manual": (ps.get("origin") or "") == "manual",
             "origin": ps.get("origin") or "",
