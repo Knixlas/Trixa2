@@ -340,6 +340,62 @@ def settings_connections(
     return RedirectResponse("/ui/settings?saved=1", status_code=303)
 
 
+_EXPERIENCE_LEVELS = {"beginner", "intermediate", "advanced"}
+# Tävlingsdistanser (athlete_profiles.race_type lagras som fritext men styrs
+# av en lista så motorns label blir konsekvent). "ironman" = full 140.6.
+_RACE_TYPES = {"sprint", "olympic", "half", "full", "ironman", "other"}
+
+
+def _clean_pace(v: str | None) -> str | None:
+    """mm:ss-ish fritext → trimmad sträng eller None. Ren passthrough, ingen
+    validering utöver tomma värden (motorn tolkar zon-referenser separat)."""
+    v = (v or "").strip()
+    return v or None
+
+
+@router.post("/settings/profile")
+def settings_profile(
+    request: Request,
+    goal: str = Form(""),
+    experience_level: str = Form(""),
+    weekly_hours: float | None = Form(None),
+    weekly_days: int | None = Form(None),
+    race_type: str = Form(""),
+    race_date: str = Form(""),
+    time_goal: str = Form(""),
+    ftp: int | None = Form(None),
+    lthr: int | None = Form(None),
+    swim_css: str = Form(""),
+    run_threshold_pace: str = Form(""),
+) -> Any:
+    """Adeptens egen profil — måltävling, volym, erfarenhet, testvärden.
+
+    Egen form (nollställer inte tränings-/anslutningsinställningar). Justerbar
+    när som helst, inte bara vid onboarding. Tomma fält rörs inte destruktivt:
+    text → NULL, tal → NULL, men befintliga värden skrivs över medvetet av det
+    som skickas (formuläret är förifyllt så inget tappas av misstag).
+    """
+    uid = _current_user_id(request)
+    if not uid:
+        raise HTTPException(401, "Inte inloggad")
+    update: dict = {
+        "goal": (goal or "").strip() or None,
+        "experience_level": experience_level if experience_level in _EXPERIENCE_LEVELS else None,
+        "weekly_hours": weekly_hours if weekly_hours and weekly_hours > 0 else None,
+        "weekly_days": weekly_days if weekly_days and 1 <= weekly_days <= 7 else None,
+        "race_type": race_type if race_type in _RACE_TYPES else None,
+        "race_date": (race_date or "").strip() or None,
+        "time_goal": (time_goal or "").strip() or None,
+        "ftp": ftp if ftp and ftp > 0 else None,
+        "lthr": lthr if lthr and lthr > 0 else None,
+        "swim_css": _clean_pace(swim_css),
+        "run_threshold_pace": _clean_pace(run_threshold_pace),
+    }
+    client = get_postgrest()
+    client.table("athlete_profiles").update(update).eq("user_id", uid).execute()
+    return RedirectResponse("/ui/settings?saved=1", status_code=303)
+
+
 # ---------- Manuell passlogg (utfört → MASTER training_log, source='manual') ----------
 
 
@@ -1424,7 +1480,9 @@ def settings_view(
         .select(
             "sports, long_bike_day, long_run_day, preferred_rest_days,"
             " equipment, preferred_settings, use_strava, garmin_athlete_id,"
-            " conn_ai, conn_tp, conn_strava"
+            " conn_ai, conn_tp, conn_strava,"
+            " goal, experience_level, weekly_hours, weekly_days, race_type,"
+            " race_date, time_goal, ftp, lthr, swim_css, run_threshold_pace"
         )
         .eq("user_id", user_id)
         .execute()
