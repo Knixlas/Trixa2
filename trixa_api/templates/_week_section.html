@@ -28,7 +28,7 @@
   {% if week and week.workouts %}
     <p>
       {% if week.phase %}<strong>Fas:</strong> {{ week.phase }} | {% endif %}<strong>Pass:</strong> {{ week.workouts | length }}
-      {% if week.plan_source == "coach" %}
+      {% if week.plan_source == "coach" and conn_ai|default(true) %}
       <span class="badge" style="background: var(--lagoon-soft); color: var(--lagoon-deep);"
             title="Planen kommer från din coach (Nils), inte den automatiska generatorn">coachens plan</span>
       {% else %}
@@ -171,6 +171,38 @@
             </li>
             {% endfor %}
           </ol>
+        </details>
+        {% endif %}
+
+        {# Manuell passlogg — uthållighetspass som inte ligger i framtiden.
+           Förifylld med det passet föreskriver; sparas i training_log. #}
+        {% if w.sport in ("swim", "bike", "run") and w.status.key not in ("planned",) %}
+        <details {% if w.status.key in ("missed", "deviated") %}{% endif %}>
+          <summary>{% if w.status.actual %}Korrigera logg{% else %}Logga pass{% endif %}</summary>
+          <article style="margin-top: 6px;">
+            <form method="post" action="/ui/log/session" class="grid" style="align-items: end; gap: 0 10px;">
+              <input type="hidden" name="date" value="{{ w.date }}">
+              <input type="hidden" name="sport" value="{{ w.sport }}">
+              <input type="hidden" name="title" value="{{ w.title }}">
+              <input type="hidden" name="planned_session_id" value="{{ w.id }}">
+              <label>Tid (min)
+                <input type="number" name="duration_min" min="0" step="1"
+                       value="{{ (w.status.actual.duration_min if w.status.actual else w.duration_minutes) or '' }}">
+              </label>
+              <label>Distans (km)
+                <input type="number" name="distance_km" min="0" step="0.1"
+                       value="{{ w.status.actual.distance_km if w.status.actual and w.status.actual.distance_km else '' }}">
+              </label>
+              <label>Snittpuls
+                <input type="number" name="avg_hr" min="0" step="1"
+                       value="{{ w.status.actual.avg_hr if w.status.actual and w.status.actual.avg_hr else '' }}">
+              </label>
+              <label>Känsla (RPE 1–10)
+                <input type="number" name="rpe" min="1" max="10" step="1" placeholder="1–10">
+              </label>
+              <button type="submit" style="grid-column: 1 / -1;">Spara loggat pass</button>
+            </form>
+          </article>
         </details>
         {% endif %}
 
