@@ -15,7 +15,7 @@ from datetime import date, timedelta
 
 from .auth_store import supabase_cookie_provider
 from .client import TPClient
-from .sync import sync_activities, sync_daily
+from .sync import sync_activities, sync_completed_to_training_log, sync_daily
 
 # garmin_coach.athlete_profile.id (recovery-cachen nycklas på detta) — se CLAUDE.md
 DEFAULT_ATHLETE_ID = "98057fa1-4fb9-48f5-be86-b31272dcfed0"
@@ -45,8 +45,15 @@ def main(argv: list[str] | None = None) -> int:
 
     daily = sync_daily(client, args.athlete_id, start, end, pg=pg)
     acts = sync_activities(client, args.athlete_id, start, end, pg=pg)
+    # MASTER-skrivning: genomförda TP-pass → public.training_log (docs/08).
+    # Nycklas på user_id (args.user), inte athlete_id. Utan detta steg fyller
+    # synken bara garmin_coach.activities-cachen — och Nils (som läser
+    # training_log) ser inga nya pass.
+    tlog = sync_completed_to_training_log(
+        client, args.user, start, end, pg=pg, dry_run=args.dry_run
+    )
 
-    for r in (daily, acts):
+    for r in (daily, acts, tlog):
         line = f"[{r.sync_type}] {r.status} records={r.records}"
         if r.error:
             line += f" error={r.error}"
@@ -54,7 +61,8 @@ def main(argv: list[str] | None = None) -> int:
         for w in r.warnings:
             print(f"  warn: {w}")
 
-    return 0 if daily.status == "success" and acts.status == "success" else 1
+    ok = all(r.status == "success" for r in (daily, acts, tlog))
+    return 0 if ok else 1
 
 
 if __name__ == "__main__":
