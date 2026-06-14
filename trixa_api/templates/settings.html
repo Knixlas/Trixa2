@@ -9,6 +9,24 @@ pass läses. "Spelar ingen roll" = Trixa väljer (default lör för cykel,
 sön för löpning, mån som vila).</p>
 
 <section>
+  <h2>Vad du använder</h2>
+  <p style="font-size: 0.875rem; color: var(--ink-3); margin-top: 0;">
+    Kryssa i det du faktiskt har kopplat. Det du inte använder göms — och
+    saknar du TrainingPeaks/Strava loggar du dina pass manuellt på hemskärmen.
+  </p>
+  <form method="post" action="/ui/settings/connections">
+    <label><input type="checkbox" name="conn_ai" value="1" {% if athlete.conn_ai %}checked{% endif %}>
+      AI-coach (Nils) — personlig tolkning och plan ovanpå motorn</label>
+    <label><input type="checkbox" name="conn_tp" value="1" {% if athlete.conn_tp %}checked{% endif %}>
+      TrainingPeaks — pass + återhämtning från klockan via TP</label>
+    <label><input type="checkbox" name="conn_strava" value="1" {% if athlete.conn_strava %}checked{% endif %}>
+      Strava — utförda pass</label>
+    <button type="submit"><i data-lucide="check"></i> Spara anslutningar</button>
+  </form>
+</section>
+
+{% if athlete.conn_tp or athlete.conn_strava %}
+<section>
   <h2>Aktivitetskälla</h2>
 
   {% if strava.tp_flash == "synced" %}<p style="color: var(--palm-deep); font-weight: 600;">✓ Hämtat från TrainingPeaks — nya pass och återhämtningsdata är inne.</p>
@@ -16,7 +34,7 @@ sön för löpning, mån som vila).</p>
   {% elif strava.tp_flash == "nocookie" %}<p style="color: var(--coral); font-weight: 600;">Ingen TrainingPeaks-inloggning sparad — TP-cookien behöver läggas in på nytt.</p>
   {% elif strava.tp_flash == "noprofile" %}<p style="color: var(--coral); font-weight: 600;">Profilen saknar recovery-nyckel (garmin_athlete_id) — kan inte synka TP.</p>
   {% endif %}
-  {% if strava.has_garmin %}
+  {% if athlete.conn_tp %}
   <article>
     <p style="margin-top: 0;"><strong>TrainingPeaks</strong> (klockan via TP) — primär källa för utförda pass och återhämtning.</p>
     <p style="font-size: 0.875rem; color: var(--ink-3);">Workern hämtar automatiskt enligt schema. Vill du analysera ett pass direkt
@@ -27,6 +45,7 @@ sön för löpning, mån som vila).</p>
   </article>
   {% endif %}
 
+  {% if athlete.conn_strava %}
   {% if strava.flash == "connected" %}<p style="color: var(--palm-deep); font-weight: 600;">✓ Strava ansluten och synkad.</p>
   {% elif strava.flash == "synced" %}<p style="color: var(--palm-deep); font-weight: 600;">✓ Strava synkad.</p>
   {% elif strava.flash == "disconnected" %}<p style="color: var(--ink-3);">Strava frånkopplad.</p>
@@ -86,7 +105,18 @@ sön för löpning, mån som vila).</p>
       {% endif %}
     {% endif %}
   </article>
+  {% endif %}{# conn_strava #}
 </section>
+{% else %}
+<section>
+  <h2>Aktivitetskälla</h2>
+  <article>
+    <p style="margin: 0;">Du loggar dina pass <strong>manuellt</strong> — varje planerat pass
+    har en "Logga"-knapp på hemskärmen, förifylld med det passet föreskriver.
+    Koppla TrainingPeaks eller Strava ovan om du vill att utfört hämtas automatiskt.</p>
+  </article>
+</section>
+{% endif %}
 
 <form method="post" action="/ui/settings">
 

@@ -320,6 +320,81 @@ def strength_remove(request: Request, log_id: str = Form(...)) -> Any:
     return RedirectResponse("/ui/", status_code=303)
 
 
+@router.post("/settings/connections")
+def settings_connections(
+    request: Request,
+    conn_ai: str | None = Form(None),
+    conn_tp: str | None = Form(None),
+    conn_strava: str | None = Form(None),
+) -> Any:
+    """Spara bara kapabilitets-flaggorna (egen form → nollställer inte övrigt)."""
+    uid = _current_user_id(request)
+    if not uid:
+        raise HTTPException(401, "Inte inloggad")
+    client = get_postgrest()
+    client.table("athlete_profiles").update({
+        "conn_ai": conn_ai == "1",
+        "conn_tp": conn_tp == "1",
+        "conn_strava": conn_strava == "1",
+    }).eq("user_id", uid).execute()
+    return RedirectResponse("/ui/settings?saved=1", status_code=303)
+
+
+# ---------- Manuell passlogg (utfört → MASTER training_log, source='manual') ----------
+
+
+@router.post("/log/session")
+def log_session(
+    request: Request,
+    date: str = Form(...),
+    sport: str = Form(...),
+    duration_min: float | None = Form(None),
+    distance_km: float | None = Form(None),
+    avg_hr: int | None = Form(None),
+    rpe: int | None = Form(None),
+    title: str = Form(""),
+    planned_session_id: str = Form(""),
+) -> Any:
+    """Logga ett utfört uthållighetspass manuellt. Förifyllt från planen i UI:t.
+
+    Skriver MASTER training_log (source='manual'). Upsert på (user, datum, sport)
+    så att korrigera ett loggat pass uppdaterar samma rad. Driver plan-vs-utfall
+    även för adepter utan TP/Strava.
+    """
+    uid = _current_user_id(request)
+    if not uid:
+        raise HTTPException(401, "Inte inloggad")
+    if sport not in ("swim", "bike", "run", "strength"):
+        raise HTTPException(400, "Gren måste vara swim, bike, run eller strength")
+    if not date:
+        raise HTTPException(400, "datum krävs")
+    client = get_postgrest()
+    row: dict = {
+        "user_id": uid, "date": date, "sport": sport,
+        "title": (title or "").strip() or "Loggat pass", "source": "manual",
+    }
+    if duration_min is not None:
+        row["duration_min"] = duration_min
+    if distance_km is not None:
+        row["distance_km"] = distance_km
+    if avg_hr is not None:
+        row["avg_hr"] = avg_hr
+    if rpe is not None and 1 <= rpe <= 10:
+        row["rpe"] = rpe
+    if planned_session_id:
+        row["planned_session_id"] = planned_session_id
+    existing = (
+        client.table("training_log").select("id")
+        .eq("user_id", uid).eq("date", date).eq("sport", sport).eq("source", "manual")
+        .execute()
+    )
+    if existing.data:
+        client.table("training_log").update(row).eq("id", existing.data[0]["id"]).execute()
+    else:
+        client.table("training_log").insert(row).execute()
+    return RedirectResponse("/ui/", status_code=303)
+
+
 def _monday_of(d: date_type) -> date_type:
     return d - timedelta(days=d.weekday())
 
@@ -420,6 +495,22 @@ def _compliance_by_week(client, athlete_id, garmin_id, strava_user_id, today, us
     activities_by_date = _fetch_activities_range(
         client, garmin_id, strava_user_id, window_start, today
     )
+    # Manuella loggar räknas också (källagnostisk följsamhet).
+    try:
+        log_res = (
+            client.table("training_log")
+            .select("date, sport, title, duration_min, distance_km, avg_hr,"
+                    " max_hr, avg_power, normalized_power, tss, source")
+            .eq("user_id", user_id).eq("source", "manual")
+            .gte("date", window_start.isoformat()).lte("date", today.isoformat())
+            .execute()
+        )
+        for r in log_res.data or []:
+            day = str(r.get("date"))[:10] if r.get("date") else None
+            if day:
+                activities_by_date.setdefault(day, []).append(_normalize_log_activity(r))
+    except Exception:  # noqa: BLE001
+        pass
 
     weeks: dict[tuple[int, int], list[dict]] = {}
     for ps in sessions:
@@ -494,6 +585,10 @@ def _build_season_context(client, athlete, today, this_monday) -> dict | None:
 
     user_id = athlete.get("user_id")
     garmin_id, strava_user_id = _resolve_activity_sources(athlete)
+    if not athlete.get("conn_tp"):
+        garmin_id = None
+    if not athlete.get("conn_strava"):
+        strava_user_id = None
     peak_hours = float(athlete.get("weekly_hours") or 0) or 12.0
 
     # Faktisk veckovolym ur training_log över hela fönstret (lookback bakåt).
@@ -562,8 +657,13 @@ def dashboard(request: Request) -> HTMLResponse:
     next_iso = next_monday.isocalendar()
 
     # Garmin primär, Strava reserv/nödutgång (se _resolve_activity_sources).
+    # Kapabilitets-flaggor gömmer/avaktiverar källor adepten inte kopplat.
     uid = athlete.get("user_id")
     garmin_id, strava_user_id = _resolve_activity_sources(athlete)
+    if not athlete.get("conn_tp"):
+        garmin_id = None
+    if not athlete.get("conn_strava"):
+        strava_user_id = None
     this_week = _fetch_current_week_data(
         client, athlete["id"], this_iso[0], this_iso[1], garmin_id, strava_user_id, today, uid
     )
@@ -611,6 +711,7 @@ def dashboard(request: Request) -> HTMLResponse:
         "this_monday": this_monday.isoformat(),
         "next_monday": next_monday.isoformat(),
         "timeline": timeline,
+        "conn_ai": bool(athlete.get("conn_ai")),
     })
 
 
@@ -924,6 +1025,58 @@ _PLANNED_SV_SPORT = {
 }
 
 
+def _normalize_log_activity(row: dict) -> dict:
+    """En manuell training_log-rad → samma form som _compute_status konsumerar."""
+    dur_min = float(_fnum(row.get("duration_min")) or 0)
+    dist_km = _fnum(row.get("distance_km"))
+    return {
+        "_sport": _TL_SPORT.get((row.get("sport") or "").strip().lower()),
+        "_dur_min": dur_min,
+        "activity_name": row.get("title"),
+        "activity_type": row.get("sport"),
+        "duration_sec": int(round(dur_min * 60)),
+        "avg_hr": row.get("avg_hr"),
+        "max_hr": row.get("max_hr"),
+        "training_load": _fnum(row.get("tss")),
+        "distance_m": round(dist_km * 1000) if dist_km else None,
+        "normalized_power": row.get("normalized_power"),
+        "avg_power": row.get("avg_power"),
+        "start_time_local": str(row.get("date"))[:10],
+        "_manual": True,
+    }
+
+
+def _fetch_manual_week_log(client, user_id, week_monday) -> dict[str, list[dict]]:
+    """Manuellt loggade pass (training_log source='manual') för veckan.
+
+    Driver plan-vs-utfall även för adepter utan TP/Strava — manuell logg är
+    användarens egen sanning.
+    """
+    if not user_id:
+        return {}
+    start = week_monday.isoformat()
+    end = (week_monday + timedelta(days=7)).isoformat()
+    try:
+        res = (
+            client.table("training_log")
+            .select("date, sport, title, duration_min, distance_km, avg_hr,"
+                    " max_hr, avg_power, normalized_power, tss, source")
+            .eq("user_id", user_id)
+            .eq("source", "manual")
+            .gte("date", start)
+            .lt("date", end)
+            .execute()
+        )
+    except Exception:  # noqa: BLE001
+        return {}
+    by_date: dict[str, list[dict]] = {}
+    for r in res.data or []:
+        day = str(r.get("date"))[:10] if r.get("date") else None
+        if day:
+            by_date.setdefault(day, []).append(_normalize_log_activity(r))
+    return by_date
+
+
 def _fetch_planned_sessions_week(client, user_id, week_monday):
     """Coachens/Nils plan (public.planned_sessions) för veckan, eller None."""
     if not user_id:
@@ -1026,12 +1179,17 @@ def _fetch_current_week_data(
         today = date_type.today()
     week_monday = date_type.fromisocalendar(year, week_num, 1)
 
-    # Utfört (Garmin ELLER Strava) — hoppas över för rena framtidsveckor
+    # Utfört — hoppas över för rena framtidsveckor. TP/Strava (om kopplat) +
+    # manuell logg (alltid) slås ihop; manuell logg är användarens egen sanning
+    # och driver plan-vs-utfall även utan integrationer.
     activities_by_date: dict[str, list[dict]] = {}
-    if (garmin_athlete_id or strava_user_id) and week_monday <= today:
-        activities_by_date = _fetch_week_activities(
-            client, garmin_athlete_id, strava_user_id, week_monday
-        )
+    if week_monday <= today:
+        if garmin_athlete_id or strava_user_id:
+            activities_by_date = _fetch_week_activities(
+                client, garmin_athlete_id, strava_user_id, week_monday
+            )
+        for day, acts in _fetch_manual_week_log(client, user_id, week_monday).items():
+            activities_by_date.setdefault(day, []).extend(acts)
 
     # MASTER: planen läses från planned_sessions (docs/08). Raderna kan komma
     # från Nils (origin='nils'), motorn (origin='trixa2') eller legacy (NULL).
@@ -1273,7 +1431,8 @@ def settings_view(
         client.table("athlete_profiles")
         .select(
             "sports, long_bike_day, long_run_day, preferred_rest_days,"
-            " equipment, preferred_settings, use_strava, garmin_athlete_id"
+            " equipment, preferred_settings, use_strava, garmin_athlete_id,"
+            " conn_ai, conn_tp, conn_strava"
         )
         .eq("user_id", user_id)
         .execute()
