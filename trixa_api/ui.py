@@ -492,16 +492,14 @@ def _compliance_by_week(client, athlete_id, garmin_id, strava_user_id, today, us
     if not sessions:
         return {}
 
-    activities_by_date = _fetch_activities_range(
-        client, garmin_id, strava_user_id, window_start, today
-    )
-    # Manuella loggar räknas också (källagnostisk följsamhet).
+    # Följsamhet mot MASTER training_log (alla källor: tp/strava/manuellt).
+    activities_by_date: dict[str, list[dict]] = {}
     try:
         log_res = (
             client.table("training_log")
             .select("date, sport, title, duration_min, distance_km, avg_hr,"
                     " max_hr, avg_power, normalized_power, tss, source")
-            .eq("user_id", user_id).eq("source", "manual")
+            .eq("user_id", user_id)
             .gte("date", window_start.isoformat()).lte("date", today.isoformat())
             .execute()
         )
@@ -1046,11 +1044,12 @@ def _normalize_log_activity(row: dict) -> dict:
     }
 
 
-def _fetch_manual_week_log(client, user_id, week_monday) -> dict[str, list[dict]]:
-    """Manuellt loggade pass (training_log source='manual') för veckan.
+def _fetch_completed_week(client, user_id, week_monday) -> dict[str, list[dict]]:
+    """Utfört för veckan ur MASTER training_log — ALLA källor (tp/strava/manuellt).
 
-    Driver plan-vs-utfall även för adepter utan TP/Strava — manuell logg är
-    användarens egen sanning.
+    training_log är deduppat och källtaggat med rika fält (distans/puls/watt/TSS).
+    Ersätter den sparsa garmin_coach.activities-cachen som bara hade tid och
+    därför gav fattiga "Genomfört: X min"-rader.
     """
     if not user_id:
         return {}
@@ -1062,7 +1061,6 @@ def _fetch_manual_week_log(client, user_id, week_monday) -> dict[str, list[dict]
             .select("date, sport, title, duration_min, distance_km, avg_hr,"
                     " max_hr, avg_power, normalized_power, tss, source")
             .eq("user_id", user_id)
-            .eq("source", "manual")
             .gte("date", start)
             .lt("date", end)
             .execute()
@@ -1179,17 +1177,11 @@ def _fetch_current_week_data(
         today = date_type.today()
     week_monday = date_type.fromisocalendar(year, week_num, 1)
 
-    # Utfört — hoppas över för rena framtidsveckor. TP/Strava (om kopplat) +
-    # manuell logg (alltid) slås ihop; manuell logg är användarens egen sanning
-    # och driver plan-vs-utfall även utan integrationer.
+    # Utfört (plan-vs-actual) läses ur MASTER training_log — alla källor
+    # (tp/strava/manuellt), rika fält. Hoppas över för rena framtidsveckor.
     activities_by_date: dict[str, list[dict]] = {}
     if week_monday <= today:
-        if garmin_athlete_id or strava_user_id:
-            activities_by_date = _fetch_week_activities(
-                client, garmin_athlete_id, strava_user_id, week_monday
-            )
-        for day, acts in _fetch_manual_week_log(client, user_id, week_monday).items():
-            activities_by_date.setdefault(day, []).extend(acts)
+        activities_by_date = _fetch_completed_week(client, user_id, week_monday)
 
     # MASTER: planen läses från planned_sessions (docs/08). Raderna kan komma
     # från Nils (origin='nils'), motorn (origin='trixa2') eller legacy (NULL).
