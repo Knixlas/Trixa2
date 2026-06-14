@@ -50,15 +50,41 @@ values
   nästa körning. Direktskrivning i `planned_sessions` är att föredra (syns i
   appen direkt, TP-pushen plockar den).
 
-## Läsa utfört
+## Läsa utfört (genomförda pass)
+
+Det finns TVÅ ställen — läs båda och föredra `training_log`:
+
+**1. `public.training_log` — MASTER (primär).** Källtaggad, deduppad, rika fält.
+Pass från TrainingPeaks får `source='tp'`, från Strava `source='strava'`.
 
 ```sql
-select date, sport, title, duration_min, distance_km, avg_hr, tss, source
+select date, sport, title, duration_min, distance_km, avg_hr, max_hr,
+       avg_power, normalized_power, tss, source, tp_workout_id
 from public.training_log
 where user_id = '09db449d-b8fd-409a-b475-3401b0de9858'
   and date >= '<datum>'
 order by date desc;
 ```
+
+**2. `garmin_coach.activities` — TP-RÅCACHE (fallback).** Hit landar varje
+TP-synkat pass FÖRST (nyckel `athlete_id`, inte user_id). Workern propagerar
+sedan genomförda pass → `training_log`. Saknas ett mycket färskt pass i
+`training_log` ligger det här:
+
+```sql
+select start_time, activity_type, duration_sec/60 as min,
+       round(distance_m/1000.0,1) as km, avg_hr, normalized_power, training_load
+from garmin_coach.activities
+where athlete_id = '98057fa1-4fb9-48f5-be86-b31272dcfed0'
+  and start_time >= '<datum>'
+order by start_time desc;
+```
+
+`activity_type` här är engelska (`cycling`/`running`/`swimming`/`strength_training`).
+
+> Om ett pass syns i `garmin_coach.activities` men inte i `training_log`: synken
+> har cachat det men inte hunnit propagera till mastern (sker vid nästa
+> TP-sync, eller direkt när adepten trycker "Hämta från TrainingPeaks nu").
 
 ## Läsa recovery (HRV/sömn/RHR)
 

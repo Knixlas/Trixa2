@@ -235,7 +235,9 @@ def tp_sync_now(request: Request) -> Any:
         garmin_id = a.data[0].get("garmin_athlete_id") if a.data else None
         if not garmin_id:
             return RedirectResponse("/ui/settings?tp=noprofile", status_code=303)
-        rc = tp_sync_main(["--user", uid, "--athlete-id", str(garmin_id), "--days", "2"])
+        # Brett fönster (14 d): manuell knapp = "hämta ikapp", inte bara senaste
+        # dygnet. Fångar pass som låg före att master-skrivningen wire:ades in.
+        rc = tp_sync_main(["--user", uid, "--athlete-id", str(garmin_id), "--days", "14"])
         flash = "synced" if rc == 0 else "error"
         return RedirectResponse(f"/ui/settings?tp={flash}", status_code=303)
     except Exception:  # noqa: BLE001
