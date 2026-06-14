@@ -327,15 +327,7 @@ def _monday_of(d: date_type) -> date_type:
 # ---------- Dashboard ----------
 
 
-# ---------- Säsongs-tidslinje (fas-staplar + följsamhet bakåt) ----------
-
-# Vecko-cellernas följsamhetsfärger (mättare än fas-staplarna, så raden läses
-# som en egen "hur gick det"-axel).
-_COMPLIANCE_CELL = {"green": "#34d399", "yellow": "#fbbf24", "red": "#f87171"}
-_COMPLIANCE_LABEL = {
-    "green": "bra följsamhet", "yellow": "ok följsamhet", "red": "låg följsamhet",
-}
-
+# ---------- Säsongsplan (optimal fas+volym vs utfall) ----------
 
 # Tidslinjens följsamhet behöver inte obegränsad historik.
 _COMPLIANCE_MAX_WEEKS = 12
@@ -457,25 +449,6 @@ def _compliance_by_week(client, athlete_id, garmin_id, strava_user_id, today, us
     return out
 
 
-def _decorate_timeline(timeline: dict, comp_map: dict, today, this_monday) -> None:
-    """Lägg på vecko-cellernas färg/etikett (compliance bakåt, faint framåt)."""
-    for w in timeline["weeks"]:
-        bucket = comp_map.get((w["iso_year"], w["iso_week"]))
-        w["is_current"] = w["monday"] == this_monday
-        w["future"] = w["monday"] > today
-        w["compliance"] = bucket  # rå bucket ("green"/"yellow"/"red"/None) för temat
-        w["monday_iso"] = w["monday"].isoformat()
-        if bucket:
-            w["cell_bg"] = _COMPLIANCE_CELL[bucket]
-            w["compliance_label"] = _COMPLIANCE_LABEL[bucket]
-        elif w["monday"] <= today:
-            w["cell_bg"] = "#d1d5db"  # passerad/pågående utan plan-data
-            w["compliance_label"] = "ingen plan"
-        else:
-            w["cell_bg"] = "#eef2f7"  # framtid
-            w["compliance_label"] = "planerad"
-
-
 def _add_week_hours(by_week: dict, day_iso: str, hours: float) -> None:
     try:
         d = date_type.fromisoformat(str(day_iso)[:10])
@@ -485,48 +458,32 @@ def _add_week_hours(by_week: dict, day_iso: str, hours: float) -> None:
     by_week[(iso[0], iso[1])] = by_week.get((iso[0], iso[1]), 0.0) + hours
 
 
-def _weekly_hours_series(
-    client, garmin_id, strava_user_id, today, weeks: int = 6
-) -> list[float]:
-    """Veckovolym (h) för de senaste `weeks` AVSLUTADE veckorna, äldst→nyast.
+def _actual_hours_by_week(client, user_id, start, today) -> dict:
+    """Faktisk veckovolym (h) ur MASTER training_log. {(iso_year, iso_week): h}.
 
-    Källagnostisk (Garmin/Strava), exkluderar innevarande (delvisa) vecka.
-    Underlag för readiness-projektion (snitt) + ramp-vakt (trend).
+    Samma källa som Nyckeltal-sidan, så säsongsvyn och nyckeltalen är överens.
     """
-    this_mon = today - timedelta(days=today.weekday())
-    start = (this_mon - timedelta(weeks=weeks)).isoformat()
-    by_week: dict[tuple[int, int], float] = {}
+    out: dict[tuple[int, int], float] = {}
+    if not user_id:
+        return out
     try:
-        if garmin_id:
-            res = (
-                client.schema("garmin_coach").table("activities")
-                .select("start_time, start_time_local, duration_sec")
-                .eq("athlete_id", garmin_id).gte("start_time", start).execute()
-            )
-            for a in res.data or []:
-                _add_week_hours(by_week, a.get("start_time_local") or a.get("start_time") or "",
-                                (a.get("duration_sec") or 0) / 3600.0)
-        elif strava_user_id:
-            res = (
-                client.table("strava_activities")
-                .select("date, duration_min")
-                .eq("user_id", strava_user_id).gte("date", start).execute()
-            )
-            for a in res.data or []:
-                _add_week_hours(by_week, a.get("date") or "", (a.get("duration_min") or 0) / 60.0)
-        else:
-            return []
+        res = (
+            client.table("training_log")
+            .select("date, duration_min")
+            .eq("user_id", user_id)
+            .gte("date", start.isoformat())
+            .lte("date", today.isoformat())
+            .execute()
+        )
     except Exception:  # noqa: BLE001
-        return []
-    series: list[float] = []
-    for i in range(weeks, 0, -1):
-        iso = (this_mon - timedelta(weeks=i)).isocalendar()
-        series.append(round(by_week.get((iso[0], iso[1]), 0.0), 1))
-    return series
+        return out
+    for r in res.data or []:
+        _add_week_hours(out, r.get("date") or "", (_fnum(r.get("duration_min")) or 0) / 60.0)
+    return out
 
 
 def _build_season_context(client, athlete, today, this_monday) -> dict | None:
-    """Bygg säsongs-tidslinjen för dashboarden, eller None om ingen tävling."""
+    """Säsongsplan: optimal fas+volym per vecka vs faktiskt utfall, eller None."""
     race_raw = athlete.get("race_date")
     if not race_raw:
         return None
@@ -534,34 +491,43 @@ def _build_season_context(client, athlete, today, this_monday) -> dict | None:
         race_d = date_type.fromisoformat(str(race_raw)[:10])
     except (ValueError, TypeError):
         return None
-    timeline = season.build_phase_timeline(today, race_d)
-    if not timeline:
-        return None
 
+    user_id = athlete.get("user_id")
     garmin_id, strava_user_id = _resolve_activity_sources(athlete)
+    peak_hours = float(athlete.get("weekly_hours") or 0) or 12.0
+
+    # Faktisk veckovolym ur training_log över hela fönstret (lookback bakåt).
+    lookback_start = this_monday - timedelta(weeks=season.SEASON_LOOKBACK_WEEKS + 1)
+    actual_by_week = _actual_hours_by_week(client, user_id, lookback_start, today)
 
     try:
         comp_map = _compliance_by_week(
-            client, athlete["id"], garmin_id, strava_user_id,
-            today, athlete.get("user_id"),
+            client, athlete["id"], garmin_id, strava_user_id, today, user_id,
         )
     except Exception:  # noqa: BLE001
         comp_map = {}
 
-    _decorate_timeline(timeline, comp_map, today, this_monday)
-    timeline["race_date"] = race_d.isoformat()
-    timeline["race_label"] = (
+    plan = season.build_season_plan(
+        today, race_d, peak_hours, actual_by_week, comp_map,
+    )
+    if not plan:
+        return None
+    plan["race_date"] = race_d.isoformat()
+    plan["race_label"] = (
         season.race_label(race_d) or (athlete.get("race_type") or "Tävling").capitalize()
     )
+    plan["races"] = season.race_milestones(plan)
 
-    # Readiness-projektion (skala upp säkert → när når man build, mot loppet?)
-    # + ramp-vakt mot för skarp faktisk upptrappning.
-    weeks_to_race = max((race_d - today).days // 7, 0)
-    series = _weekly_hours_series(client, garmin_id, strava_user_id, today, weeks=6)
-    recent = series[-4:] if series else []
+    # Readiness-projektion + ramp-vakt — nu på samma volymkälla (training_log).
+    def _wk(i: int) -> float:
+        iso = (this_monday - timedelta(weeks=i)).isocalendar()
+        return round(actual_by_week.get((iso[0], iso[1]), 0.0), 1)
+
+    series = [_wk(i) for i in range(6, 0, -1)]  # 6 avslutade veckor, äldst→nyast
+    recent = series[-4:]
     current_h = round(sum(recent) / len(recent), 1) if recent else 0.0
-    proj = readiness.build_projection(current_h, weeks_to_race)
-    timeline["readiness"] = {
+    proj = readiness.build_projection(current_h, plan["weeks_to_race"])
+    plan["readiness"] = {
         "current_hours": proj.current_hours,
         "base_eta": proj.base_eta,
         "build_eta": proj.build_eta,
@@ -570,7 +536,7 @@ def _build_season_context(client, athlete, today, this_monday) -> dict | None:
         "verdict": proj.verdict,
         "ramp_flag": readiness.ramp_flag(series),
     }
-    return timeline
+    return plan
 
 
 @router.get("/", response_class=HTMLResponse)
