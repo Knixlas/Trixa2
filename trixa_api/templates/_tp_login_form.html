@@ -1,0 +1,17 @@
+{# TP headless-login. Lösenordet skickas en gång, sparas aldrig — bara den
+   resulterande session-cookien lagras (per user_id, RLS). #}
+<form method="post" action="/ui/tp/login" autocomplete="off">
+  <div class="grid">
+    <label>TrainingPeaks-användarnamn / e-post
+      <input type="text" name="tp_username" autocomplete="username" required>
+    </label>
+    <label>Lösenord
+      <input type="password" name="tp_password" autocomplete="current-password" required>
+    </label>
+  </div>
+  <p style="font-size: 0.78125rem; color: var(--ink-3); margin: 4px 0 8px;">
+    Lösenordet lagras inte — vi loggar in åt dig och sparar bara sessionen.
+    Har TP slagit på MFA/CAPTCHA fungerar inte automatisk inloggning.
+  </p>
+  <button type="submit"><i data-lucide="log-in"></i> Logga in på TrainingPeaks</button>
+</form>
