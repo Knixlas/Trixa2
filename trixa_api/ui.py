@@ -370,6 +370,43 @@ def settings_connections(
     return RedirectResponse("/ui/settings?saved=1", status_code=303)
 
 
+@router.post("/api-tokens", response_class=HTMLResponse)
+def api_token_create(request: Request, name: str = Form("AI-token")) -> Any:
+    """Skapa en per-adept API-token för extern AI (Nils). Råvärdet visas EN
+    gång (renderas direkt, hamnar aldrig i en URL); bara hash lagras."""
+    uid = _current_user_id(request)
+    if not uid:
+        raise HTTPException(401, "Inte inloggad")
+    from trixa_api.agent_auth import generate_token
+
+    raw, token_hash, prefix = generate_token()
+    client = get_postgrest()
+    client.table("api_tokens").insert({
+        "user_id": uid,
+        "name": (name or "").strip() or "AI-token",
+        "token_hash": token_hash,
+        "token_prefix": prefix,
+        "created_by": uid,
+    }).execute()
+    # Rendera settings med råtoken en gång (ej redirect → token läcker inte i URL).
+    return settings_view(request, new_token=raw)
+
+
+@router.post("/api-tokens/{token_id}/revoke")
+def api_token_revoke(request: Request, token_id: str) -> Any:
+    """Återkalla en token (scope:at till egen rad)."""
+    uid = _current_user_id(request)
+    if not uid:
+        raise HTTPException(401, "Inte inloggad")
+    from datetime import datetime, timezone
+
+    client = get_postgrest()
+    client.table("api_tokens").update(
+        {"revoked_at": datetime.now(timezone.utc).isoformat()}
+    ).eq("id", token_id).eq("user_id", uid).execute()
+    return RedirectResponse("/ui/settings?saved=1", status_code=303)
+
+
 _EXPERIENCE_LEVELS = {"beginner", "intermediate", "advanced"}
 # Tävlingsdistanser (athlete_profiles.race_type lagras som fritext men styrs
 # av en lista så motorns label blir konsekvent). "ironman" = full 140.6.
@@ -1501,7 +1538,8 @@ _DISCIPLINES_FOR_IMPACT = [
 
 @router.get("/settings", response_class=HTMLResponse)
 def settings_view(
-    request: Request, saved: bool = False, strava: str = "", why: str = "", tp: str = ""
+    request: Request, saved: bool = False, strava: str = "", why: str = "", tp: str = "",
+    new_token: str = "",
 ) -> HTMLResponse:
     user_id = _current_user_id(request)
     client = get_postgrest()
@@ -1524,6 +1562,18 @@ def settings_view(
     athlete["sports"] = athlete.get("sports") or ["swim", "bike", "run"]
     athlete["equipment"] = athlete.get("equipment") or {}
     athlete["preferred_settings"] = athlete.get("preferred_settings") or {}
+
+    # API-tokens (per-adept, för extern AI/Nils) — lista aktiva (ej råvärde)
+    try:
+        tok_res = (
+            client.table("api_tokens")
+            .select("id, name, token_prefix, created_at, last_used_at")
+            .eq("user_id", user_id).is_("revoked_at", "null")
+            .order("created_at", desc=True).execute()
+        )
+        api_tokens = tok_res.data or []
+    except Exception:  # noqa: BLE001
+        api_tokens = []
 
     # TP-anslutningsstatus (finns en cookie sparad för användaren?)
     try:
@@ -1564,6 +1614,8 @@ def settings_view(
             ],
             "saved": saved,
             "strava": strava_status,
+            "api_tokens": api_tokens,
+            "new_token": new_token,
         },
     )
 
