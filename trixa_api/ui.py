@@ -245,6 +245,36 @@ def tp_sync_now(request: Request) -> Any:
         return RedirectResponse("/ui/settings?tp=error", status_code=303)
 
 
+@router.post("/tp/login")
+def tp_login(
+    request: Request,
+    tp_username: str = Form(...),
+    tp_password: str = Form(...),
+) -> Any:
+    """Koppla TrainingPeaks med användarnamn + lösenord (headless login).
+
+    Loggar in serverside, sparar BARA den resulterande session-cookien per
+    user_id (tp_auth). Lösenordet lagras aldrig — det lämnar aldrig den här
+    request-hanteraren.
+    """
+    uid = _current_user_id(request)
+    if not uid:
+        raise HTTPException(401, "Inte inloggad")
+    client = get_postgrest()
+    try:
+        from coach.integrations.trainingpeaks.client import TPAuthError
+        from coach.integrations.trainingpeaks.login import login_and_store
+
+        login_and_store(tp_username, tp_password, uid, pg=client)
+    except TPAuthError:
+        # Fel uppgifter eller CAPTCHA/MFA — vägled (utan att läcka detalj).
+        return RedirectResponse("/ui/settings?tp=loginfail", status_code=303)
+    except Exception:  # noqa: BLE001
+        logger.exception("TP-login via knapp kraschade för %s", uid)
+        return RedirectResponse("/ui/settings?tp=loginerror", status_code=303)
+    return RedirectResponse("/ui/settings?tp=connected", status_code=303)
+
+
 @router.post("/strava/disconnect")
 def strava_disconnect(request: Request) -> Any:
     uid = _current_user_id(request)
@@ -1495,6 +1525,13 @@ def settings_view(
     athlete["equipment"] = athlete.get("equipment") or {}
     athlete["preferred_settings"] = athlete.get("preferred_settings") or {}
 
+    # TP-anslutningsstatus (finns en cookie sparad för användaren?)
+    try:
+        tp_row = client.table("tp_auth").select("user_id").eq("user_id", user_id).limit(1).execute()
+        tp_connected = bool(tp_row.data)
+    except Exception:  # noqa: BLE001
+        tp_connected = False
+
     # Strava-anslutningsstatus
     tok = client.table("strava_tokens").select("athlete_id").eq("user_id", user_id).limit(1).execute()
     last = (
@@ -1511,6 +1548,7 @@ def settings_view(
         "flash": strava,
         "why": why,
         "tp_flash": tp,
+        "tp_connected": tp_connected,
     }
     return _render(
         "settings.html",

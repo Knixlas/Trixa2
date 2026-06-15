@@ -112,18 +112,31 @@ sön för löpning, mån som vila).</p>
   <h2>Aktivitetskälla</h2>
 
   {% if strava.tp_flash == "synced" %}<p style="color: var(--palm-deep); font-weight: 600;">✓ Hämtat från TrainingPeaks — nya pass och återhämtningsdata är inne.</p>
+  {% elif strava.tp_flash == "connected" %}<p style="color: var(--palm-deep); font-weight: 600;">✓ TrainingPeaks kopplat — inloggningen sparad.</p>
+  {% elif strava.tp_flash == "loginfail" %}<p style="color: var(--coral); font-weight: 600;">Inloggningen nekades — kontrollera användarnamn/lösenord. Har TP slagit på CAPTCHA/MFA kan automatisk login inte användas.</p>
+  {% elif strava.tp_flash == "loginerror" %}<p style="color: var(--coral); font-weight: 600;">Något gick fel vid TP-inloggningen (detaljer i serverloggen) — försök igen.</p>
   {% elif strava.tp_flash == "error" %}<p style="color: var(--coral); font-weight: 600;">TrainingPeaks-hämtningen misslyckades — försök igen om en stund (detaljer i serverloggen).</p>
-  {% elif strava.tp_flash == "nocookie" %}<p style="color: var(--coral); font-weight: 600;">Ingen TrainingPeaks-inloggning sparad — TP-cookien behöver läggas in på nytt.</p>
+  {% elif strava.tp_flash == "nocookie" %}<p style="color: var(--coral); font-weight: 600;">Ingen TrainingPeaks-inloggning sparad — logga in nedan.</p>
   {% elif strava.tp_flash == "noprofile" %}<p style="color: var(--coral); font-weight: 600;">Profilen saknar recovery-nyckel (garmin_athlete_id) — kan inte synka TP.</p>
   {% endif %}
   {% if athlete.conn_tp %}
   <article>
     <p style="margin-top: 0;"><strong>TrainingPeaks</strong> (klockan via TP) — primär källa för utförda pass och återhämtning.</p>
-    <p style="font-size: 0.875rem; color: var(--ink-3);">Workern hämtar automatiskt enligt schema. Vill du analysera ett pass direkt
+    {% if strava.tp_connected %}
+    <p style="font-size: 0.875rem; color: var(--ink-3);">Inloggning sparad. Workern hämtar automatiskt enligt schema. Vill du analysera ett pass direkt
     efter att du klivit av — tryck här så hämtas det nu (klockan måste ha hunnit synka till TP, vanligen inom någon minut).</p>
-    <form method="post" action="/ui/tp/sync">
-      <button type="submit">Hämta från TrainingPeaks nu</button>
-    </form>
+    <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+      <form method="post" action="/ui/tp/sync"><button type="submit">Hämta från TrainingPeaks nu</button></form>
+    </div>
+    <details style="margin-top: 8px;">
+      <summary>Logga in på nytt (rotera)</summary>
+      {% include "_tp_login_form.html" %}
+    </details>
+    {% else %}
+    <p style="font-size: 0.875rem; color: var(--ink-3);">Logga in med ditt TrainingPeaks-konto för att koppla. Vi sparar bara
+    sessionen (inte lösenordet) och läser dina pass + återhämtning.</p>
+    {% include "_tp_login_form.html" %}
+    {% endif %}
   </article>
   {% endif %}
 
