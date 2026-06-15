@@ -114,7 +114,37 @@ Planeraren kvitterar respekterad override med `honored_by_planner=true` + `honor
 
 ## Via Trixa-API (alternativ till MCP)
 
-- `GET /api/week/current?athlete_user_id=09db449d-...` — veckans plan ur mastern
-- `GET /api/athlete/09db449d-...` — athlete-state (hälsa, testvärden, mål)
-- `POST /api/override` — skapa override
-- Auth: Bearer-token (`TRIXA_API_TOKEN`)
+Två ytor:
+
+### `/agent/*` — per-adept-token (REKOMMENDERAS för extern AI)
+
+Token = identitet. Adepten skapar en token i Trixa (Inställningar → "AI-åtkomst")
+och lägger in den i AI-projektet. **Alla anrop låses till den adepten** — ingen
+`athlete_user_id`-param, ingen risk att nå andras data. Provider-agnostiskt
+(vilken AI som helst som kan HTTP + Bearer).
+
+Auth: `Authorization: Bearer <token>`. Bara token-hashen lagras; råvärdet visas
+en gång vid skapande. Återkalla när som helst i Inställningar.
+
+| Metod | Endpoint | Gör |
+|---|---|---|
+| GET | `/agent/whoami` | Vilken adept är token:en scope:ad till? |
+| GET | `/agent/athlete` | Mål, testvärden, hälsa |
+| GET | `/agent/week/current` | Veckans plan (denna vecka) |
+| GET | `/agent/week?monday=YYYY-MM-DD` | Godtycklig vecka |
+| GET | `/agent/log?since=YYYY-MM-DD&limit=` | Utfört (training_log) |
+| GET | `/agent/recovery?days=` | HRV/sömn/RHR/load |
+| POST | `/agent/plan/session` | Skriv pass (origin='nils', upsert på dag+gren) |
+| DELETE | `/agent/plan/session/{id}` | Ta bort eget pass |
+| POST | `/agent/override` | Skapa manual_override |
+
+`POST /agent/plan/session`-body: `{date, sport (bike/run/swim/strength/rest),
+title, duration_min, intensity, details, workout_code}`. Läs-svar normaliserar
+sport till engelska; lagring sker svenska.
+
+### `/api/*` — delad token (intern/admin/dev)
+
+Äldre ytan med `athlete_user_id`-param + delad `TRIXA_API_TOKEN`. Bredare
+åtkomst — använd inte för extern AI per adept; håll till `/agent/*` ovan.
+- `GET /api/week/current?athlete_user_id=09db449d-...`, `GET /api/athlete/<id>`,
+  `POST /api/override` m.fl.

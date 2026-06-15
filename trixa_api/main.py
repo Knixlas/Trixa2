@@ -64,6 +64,11 @@ app.add_middleware(
 # Mounta UI-routes (publikt — egen auth kommer i framtid)
 app.include_router(ui_router)
 
+# Mounta agent-API:t (/agent/*) — per-adept Bearer-token (extern AI: Nils m.fl.)
+from trixa_api.agent_api import router as agent_router  # noqa: E402
+
+app.include_router(agent_router)
+
 # Servera temat (trixa.css m.m.) — tropical-temats stylesheet ligger i trixa_api/static
 app.mount(
     "/static",
