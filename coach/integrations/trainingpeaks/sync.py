@@ -392,14 +392,29 @@ def sync_activities(
     end: date,
     pg: Any = None,
 ) -> SyncResult:
-    """Hämta genomförda pass och skriv activities."""
+    """Hämta genomförda pass och skriv activities-cache.
+
+    `garmin_coach.activities` är numera en kompatibilitetscache. MASTER för
+    utfört är `public.training_log`, så ett schemafel i cachen ska inte fälla
+    hela TP-synken eller `/health/integrations`.
+    """
     try:
         workouts = client.get_workouts(start, end)
         rows = workouts_to_activity_rows(workouts, athlete_id)
         if pg is not None and rows:
-            _schema_table(pg, "activities").upsert(
-                rows, on_conflict="athlete_id,garmin_activity_id"
-            ).execute()
+            try:
+                _schema_table(pg, "activities").upsert(
+                    rows, on_conflict="athlete_id,garmin_activity_id"
+                ).execute()
+            except Exception as e:  # noqa: BLE001
+                return SyncResult(
+                    "activities",
+                    records=0,
+                    warnings=[
+                        "activities-cache hoppades: "
+                        f"{e}. MASTER training_log påverkas inte."
+                    ],
+                )
         return SyncResult("activities", records=len(rows))
     except Exception as e:  # noqa: BLE001
         return SyncResult("activities", status="failed", error=str(e))
