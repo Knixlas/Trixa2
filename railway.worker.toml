@@ -1,0 +1,13 @@
+# Railway-config for the background worker service.
+#
+# The web service uses railway.toml. The worker service in Railway is configured
+# to read /railway.worker.toml, so keep this file in the repo root.
+
+[build]
+builder = "NIXPACKS"
+nixpacksConfigPath = "nixpacks.toml"
+
+[deploy]
+startCommand = ". /opt/venv/bin/activate && python -m coach.trixa.cron"
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 3
