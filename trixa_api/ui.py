@@ -463,6 +463,9 @@ def _build_season_context(client, athlete, today, this_monday) -> dict | None:
     timeline["race_label"] = (
         season.race_label(race_d) or (athlete.get("race_type") or "Tävling").capitalize()
     )
+    timeline["compressed"] = (
+        _safe_float(timeline.get("ideal_weeks")) > _safe_float(timeline.get("total_weeks"))
+    )
 
     # Readiness-projektion (skala upp säkert → när når man build, mot loppet?)
     # + ramp-vakt mot för skarp faktisk upptrappning.
@@ -475,6 +478,8 @@ def _build_season_context(client, athlete, today, this_monday) -> dict | None:
         "current_hours": proj.current_hours,
         "base_eta": proj.base_eta,
         "build_eta": proj.build_eta,
+        "base_eta_positive": proj.base_eta is not None and proj.base_eta > 0,
+        "build_eta_positive": proj.build_eta is not None and proj.build_eta > 0,
         "ramp_pct": proj.ramp_pct,
         "on_track": proj.on_track,
         "verdict": proj.verdict,
