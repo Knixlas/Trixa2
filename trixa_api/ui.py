@@ -504,40 +504,64 @@ def dashboard(request: Request) -> HTMLResponse:
         client, athlete["id"], next_iso[0], next_iso[1], today, uid
     )
 
-    # Hämta alerts
-    alerts_res = (
-        client.table("coach_alerts")
-        .select("*")
-        .eq("athlete_id", user_id)
-        .eq("is_dismissed", False)
-        .order("created_at", desc=True)
-        .limit(5)
-        .execute()
-    )
+    # Hämta alerts. Dashboarden får inte fälla hela UI:t om en äldre
+    # livedatabas saknar något alert-fält.
+    try:
+        alerts = (
+            client.table("coach_alerts")
+            .select("*")
+            .eq("athlete_id", user_id)
+            .eq("is_dismissed", False)
+            .order("created_at", desc=True)
+            .limit(5)
+            .execute()
+        ).data or []
+    except Exception:  # noqa: BLE001
+        alerts = []
 
     # Lägg på namn för välkomst
-    name_res = client.table("profiles").select("name").eq("id", user_id).execute()
-    if name_res.data:
-        athlete["name"] = name_res.data[0].get("name")
+    try:
+        profile_res = client.table("profiles").select("*").eq("id", user_id).limit(1).execute()
+        if profile_res.data:
+            profile = profile_res.data[0]
+            athlete["name"] = (
+                profile.get("name")
+                or profile.get("full_name")
+                or profile.get("display_name")
+                or profile.get("email")
+            )
+    except Exception:  # noqa: BLE001
+        athlete.setdefault("name", None)
 
     # Hämta engine-fas för alternative-uppslag
-    from coach.trixa.planner import _build_athlete_state, _build_ot_signals, _run_engine
-    state = _build_athlete_state(athlete, None, today)
-    decisions = _run_engine(state, _build_ot_signals(athlete, None), 1, 6)
-    phase = decisions["phase_recommendation"]["phase"]
-    period = decisions["phase_recommendation"]["period"]
-    optimal_phase = decisions["phase_recommendation"].get("optimal_phase")
-    behind = decisions["phase_recommendation"].get("behind", False)
+    phase = None
+    period = None
+    optimal_phase = None
+    behind = False
+    try:
+        from coach.trixa.planner import _build_athlete_state, _build_ot_signals, _run_engine
+        state = _build_athlete_state(athlete, None, today)
+        decisions = _run_engine(state, _build_ot_signals(athlete, None), 1, 6)
+        phase_rec = decisions.get("phase_recommendation") or {}
+        phase = phase_rec.get("phase")
+        period = phase_rec.get("period")
+        optimal_phase = phase_rec.get("optimal_phase")
+        behind = phase_rec.get("behind", False)
+    except Exception:  # noqa: BLE001
+        pass
 
     # Säsongs-tidslinje: fas-staplar bakåt från race + följsamhet per vecka
-    timeline = _build_season_context(client, athlete, today, this_monday)
+    try:
+        timeline = _build_season_context(client, athlete, today, this_monday)
+    except Exception:  # noqa: BLE001
+        timeline = None
 
     return _render("dashboard.html", {
         "request": request,
         "athlete": athlete,
         "this_week": this_week,
         "next_week": next_week,
-        "alerts": alerts_res.data or [],
+        "alerts": alerts,
         "phase": phase,
         "optimal_phase": optimal_phase,
         "behind": behind,
