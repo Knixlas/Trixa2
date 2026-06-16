@@ -210,6 +210,33 @@ def persist_alerts(
         # Ingen coach kopplad — hoppa över alerts (de hör hemma i coach-inkorgen)
         return []
 
-    rows = [a.to_db_row(athlete_id, athlete_user_id, coach_user_id) for a in alerts]
+    existing = (
+        client.table("coach_alerts")
+        .select("alert_type,data")
+        .eq("athlete_id", athlete_user_id)
+        .eq("is_dismissed", False)
+        .execute()
+    ).data or []
+
+    def _key(alert_type: str, data: dict | None) -> tuple:
+        data = data or {}
+        return (
+            alert_type,
+            data.get("week_start"),
+            data.get("concern_name"),
+        )
+
+    existing_keys = {
+        _key(row.get("alert_type") or "", row.get("data"))
+        for row in existing
+    }
+    rows = [
+        row
+        for alert in alerts
+        if _key(alert.alert_type, alert.data) not in existing_keys
+        for row in [alert.to_db_row(athlete_id, athlete_user_id, coach_user_id)]
+    ]
+    if not rows:
+        return []
     res = client.table("coach_alerts").insert(rows).execute()
     return res.data or []

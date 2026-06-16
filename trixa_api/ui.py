@@ -21,8 +21,9 @@ from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 from coach.trixa.db import get_postgrest
 from coach.trixa.planner import (
-    _resolve_activity_sources,
     generate_week,
+    swap_workout_discipline_and_replan,
+    swap_workout_to_next_alternative,
 )
 from trixa_api import season, supabase_auth, readiness, strava_client
 
@@ -47,6 +48,24 @@ def _render(template_name: str, context: dict) -> HTMLResponse:
     template = _jinja_env.get_template(template_name)
     html = template.render(**context)
     return HTMLResponse(content=html)
+
+
+def _safe_float(value, default: float = 0.0) -> float:
+    try:
+        if value in (None, ""):
+            return default
+        return float(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def _safe_int(value, default: int = 0) -> int:
+    try:
+        if value in (None, ""):
+            return default
+        return int(float(value))
+    except (TypeError, ValueError):
+        return default
 
 
 # Default-adept-id för MVP — Niklas. När vi har auth byts detta till cookien.
@@ -150,7 +169,7 @@ def signup_submit(
     return resp
 
 
-# ---------- Strava-koppling (utförda pass — robustare än Garmin) ----------
+# ---------- Strava-koppling (nödreserv för utförd veckovolym) ----------
 
 
 def _strava_redirect_uri(request: Request) -> str:
@@ -186,9 +205,8 @@ def strava_callback(
             client, uid, tok["access_token"], tok["refresh_token"],
             tok["expires_at"], (tok.get("athlete") or {}).get("id"), tok.get("scope"),
         )
-        # Koppling gör INTE Strava till aktiv källa: Garmin förblir primär och
-        # Strava blir reserv (glappfyllare). Vill adepten tvinga Strava finns
-        # nödutgången /strava/use. Garmin-lösa adepter läser Strava ändå.
+        # Koppling gör INTE Strava till primärkälla: TP/master förblir primär.
+        # Strava är bara en grov reserv om training_log saknar utförd volym.
         strava_client.sync_recent(client, uid, days=45)
     except Exception:  # noqa: BLE001
         return RedirectResponse("/ui/settings?strava=error", status_code=303)
@@ -286,9 +304,10 @@ def strava_disconnect(request: Request) -> Any:
 
 @router.post("/strava/use")
 def strava_use(request: Request) -> Any:
-    """Manuell nödutgång: tvinga Strava som källa (Garmin ignoreras).
+    """Manuell nödutgång: använd Strava som reserv för veckovolym.
 
-    För perioder då Garmin-synken ligger nere. Återställs med /strava/auto.
+    TP-matad recovery används fortfarande när den finns. Återställs med
+    /strava/auto.
     """
     uid = _current_user_id(request)
     client = get_postgrest()
@@ -298,7 +317,7 @@ def strava_use(request: Request) -> Any:
 
 @router.post("/strava/auto")
 def strava_auto(request: Request) -> Any:
-    """Återgå till Garmin-primär (Strava som reserv/glappfyllare)."""
+    """Återgå till TP/master utan Strava-reserv."""
     uid = _current_user_id(request)
     client = get_postgrest()
     client.table("athlete_profiles").update({"use_strava": False}).eq("user_id", uid).execute()
@@ -586,7 +605,7 @@ def _fetch_activities_range(
     return by_date
 
 
-def _compliance_by_week(client, athlete_id, garmin_id, strava_user_id, today, user_id) -> dict:
+def _compliance_by_week(client, athlete_id, today, user_id) -> dict:
     """Följsamhets-bucket per planerad, passerad vecka. Nyckel: (iso_year, iso_week).
 
     Bulk-läsning: EN query för planerade pass + EN-TVÅ för aktiviteter över hela
@@ -661,6 +680,16 @@ def _compliance_by_week(client, athlete_id, garmin_id, strava_user_id, today, us
     return out
 
 
+def _decorate_timeline(timeline: dict, comp_map: dict, today, this_monday) -> None:
+    """Lägg på vecko-cellernas färg/etikett (compliance bakåt, faint framåt)."""
+    for w in timeline["weeks"]:
+        bucket = comp_map.get((w["iso_year"], w["iso_week"]))
+        w["is_current"] = w["monday"] == this_monday
+        w["future"] = w["monday"] > today
+        w["compliance"] = bucket  # rå bucket ("green"/"yellow"/"red"/None) för temat
+        w["monday_iso"] = w["monday"].isoformat()
+
+
 def _add_week_hours(by_week: dict, day_iso: str, hours: float) -> None:
     try:
         d = date_type.fromisoformat(str(day_iso)[:10])
@@ -705,20 +734,16 @@ def _build_season_context(client, athlete, today, this_monday) -> dict | None:
         return None
 
     user_id = athlete.get("user_id")
-    garmin_id, strava_user_id = _resolve_activity_sources(athlete)
-    if not athlete.get("conn_tp"):
-        garmin_id = None
-    if not athlete.get("conn_strava"):
-        strava_user_id = None
     peak_hours = float(athlete.get("weekly_hours") or 0) or 12.0
 
     # Faktisk veckovolym ur training_log över hela fönstret (lookback bakåt).
+    # Allt utfört läses ur MASTER training_log → ingen garmin/strava-gating behövs.
     lookback_start = this_monday - timedelta(weeks=season.SEASON_LOOKBACK_WEEKS + 1)
     actual_by_week = _actual_hours_by_week(client, user_id, lookback_start, today)
 
     try:
         comp_map = _compliance_by_week(
-            client, athlete["id"], garmin_id, strava_user_id, today, user_id,
+            client, athlete["id"], today, user_id,
         )
     except Exception:  # noqa: BLE001
         comp_map = {}
@@ -747,6 +772,8 @@ def _build_season_context(client, athlete, today, this_monday) -> dict | None:
         "current_hours": proj.current_hours,
         "base_eta": proj.base_eta,
         "build_eta": proj.build_eta,
+        "base_eta_positive": proj.base_eta is not None and proj.base_eta > 0,
+        "build_eta_positive": proj.build_eta is not None and proj.build_eta > 0,
         "ramp_pct": proj.ramp_pct,
         "on_track": proj.on_track,
         "verdict": proj.verdict,
@@ -777,55 +804,81 @@ def dashboard(request: Request) -> HTMLResponse:
     this_iso = this_monday.isocalendar()
     next_iso = next_monday.isocalendar()
 
-    # Garmin primär, Strava reserv/nödutgång (se _resolve_activity_sources).
-    # Kapabilitets-flaggor gömmer/avaktiverar källor adepten inte kopplat.
+    # Allt utfört läses ur MASTER training_log (i _fetch_current_week_data) →
+    # ingen garmin/strava-källgating behövs. Hårdat: en trasig vecka fäller
+    # inte hela dashboarden.
     uid = athlete.get("user_id")
-    garmin_id, strava_user_id = _resolve_activity_sources(athlete)
-    if not athlete.get("conn_tp"):
-        garmin_id = None
-    if not athlete.get("conn_strava"):
-        strava_user_id = None
-    this_week = _fetch_current_week_data(
-        client, athlete["id"], this_iso[0], this_iso[1], garmin_id, strava_user_id, today, uid
-    )
-    next_week = _fetch_current_week_data(
-        client, athlete["id"], next_iso[0], next_iso[1], garmin_id, strava_user_id, today, uid
-    )
+    try:
+        this_week = _fetch_current_week_data(
+            client, athlete["id"], this_iso[0], this_iso[1], today, uid
+        )
+    except Exception:  # noqa: BLE001
+        this_week = None
+    try:
+        next_week = _fetch_current_week_data(
+            client, athlete["id"], next_iso[0], next_iso[1], today, uid
+        )
+    except Exception:  # noqa: BLE001
+        next_week = None
 
-    # Hämta alerts
-    alerts_res = (
-        client.table("coach_alerts")
-        .select("*")
-        .eq("athlete_id", user_id)
-        .eq("is_dismissed", False)
-        .order("created_at", desc=True)
-        .limit(5)
-        .execute()
-    )
+    # Hämta alerts. Dashboarden får inte fälla hela UI:t om en äldre
+    # livedatabas saknar något alert-fält.
+    try:
+        alerts = (
+            client.table("coach_alerts")
+            .select("*")
+            .eq("athlete_id", user_id)
+            .eq("is_dismissed", False)
+            .order("created_at", desc=True)
+            .limit(5)
+            .execute()
+        ).data or []
+    except Exception:  # noqa: BLE001
+        alerts = []
 
     # Lägg på namn för välkomst
-    name_res = client.table("profiles").select("name").eq("id", user_id).execute()
-    if name_res.data:
-        athlete["name"] = name_res.data[0].get("name")
+    try:
+        profile_res = client.table("profiles").select("*").eq("id", user_id).limit(1).execute()
+        if profile_res.data:
+            profile = profile_res.data[0]
+            athlete["name"] = (
+                profile.get("name")
+                or profile.get("full_name")
+                or profile.get("display_name")
+                or profile.get("email")
+            )
+    except Exception:  # noqa: BLE001
+        athlete.setdefault("name", None)
 
     # Hämta engine-fas för alternative-uppslag
-    from coach.trixa.planner import _build_athlete_state, _build_ot_signals, _run_engine
-    state = _build_athlete_state(athlete, None, today)
-    decisions = _run_engine(state, _build_ot_signals(athlete, None), 1, 6)
-    phase = decisions["phase_recommendation"]["phase"]
-    period = decisions["phase_recommendation"]["period"]
-    optimal_phase = decisions["phase_recommendation"].get("optimal_phase")
-    behind = decisions["phase_recommendation"].get("behind", False)
+    phase = None
+    period = None
+    optimal_phase = None
+    behind = False
+    try:
+        from coach.trixa.planner import _build_athlete_state, _build_ot_signals, _run_engine
+        state = _build_athlete_state(athlete, None, today)
+        decisions = _run_engine(state, _build_ot_signals(athlete, None), 1, 6)
+        phase_rec = decisions.get("phase_recommendation") or {}
+        phase = phase_rec.get("phase")
+        period = phase_rec.get("period")
+        optimal_phase = phase_rec.get("optimal_phase")
+        behind = phase_rec.get("behind", False)
+    except Exception:  # noqa: BLE001
+        pass
 
     # Säsongs-tidslinje: fas-staplar bakåt från race + följsamhet per vecka
-    timeline = _build_season_context(client, athlete, today, this_monday)
+    try:
+        timeline = _build_season_context(client, athlete, today, this_monday)
+    except Exception:  # noqa: BLE001
+        timeline = None
 
-    return _render("dashboard.html", {
+    context = {
         "request": request,
         "athlete": athlete,
         "this_week": this_week,
         "next_week": next_week,
-        "alerts": alerts_res.data or [],
+        "alerts": alerts,
         "phase": phase,
         "optimal_phase": optimal_phase,
         "behind": behind,
@@ -833,45 +886,30 @@ def dashboard(request: Request) -> HTMLResponse:
         "next_monday": next_monday.isoformat(),
         "timeline": timeline,
         "conn_ai": bool(athlete.get("conn_ai")),
-    })
+    }
+    try:
+        return _render("dashboard.html", context)
+    except Exception as exc:  # noqa: BLE001
+        return HTMLResponse(
+            content=(
+                "<!doctype html><html lang='sv'><meta charset='utf-8'>"
+                "<title>Trixa</title><body>"
+                "<h1>Trixa</h1>"
+                "<p>Dashboarden kunde inte renderas just nu, men API och sync är igång.</p>"
+                f"<pre>{str(exc)}</pre>"
+                "<p><a href='/ui/settings'>Inställningar</a> · "
+                "<a href='/ui/report'>Veckorapport</a> · "
+                "<a href='/health/integrations'>Integrationshälsa</a></p>"
+                "</body></html>"
+            ),
+            status_code=200,
+        )
 
 
-# ---------- Plan vs actual: matchning mot Garmin-aktiviteter ----------
+# ---------- Plan vs actual: matchning mot MASTER training_log ----------
 #
 # Ren, deterministisk matchning. Inga LLM-anrop. Statusen per pass räknas ut
-# från passets datum vs idag + matchande aktivitet i garmin_coach.activities.
-
-# Garmins activity_type → Trixas disciplin. Okända typer (other, multi_sport)
-# mappas till None och matchar därför ingen planerad disciplin.
-_ACTIVITY_SPORT_MAP = {
-    "running": "run",
-    "trail_running": "run",
-    "treadmill_running": "run",
-    "indoor_running": "run",
-    "track_running": "run",
-    "cycling": "bike",
-    "road_biking": "bike",
-    "mountain_biking": "bike",
-    "gravel_cycling": "bike",
-    "indoor_cycling": "bike",
-    "virtual_ride": "bike",
-    "swimming": "swim",
-    "lap_swimming": "swim",
-    "open_water_swimming": "swim",
-    "strength": "strength",
-    "strength_training": "strength",
-}
-
-# Strava activity_type → Trixas disciplin. Strava-tabellen lagrar mest svenska
-# namn (gamla Trixas SPORT_MAP) men även råa engelska för otäckta typer.
-# Allt som inte är swim/bike/run/strength → None (matchar ingen planerad disciplin).
-_STRAVA_TYPE_TO_SPORT = {
-    "Lopning": "run", "Löpning": "run", "Run": "run", "TrailRun": "run", "VirtualRun": "run",
-    "Cykel": "bike", "Ride": "bike", "VirtualRide": "bike", "EBikeRide": "bike",
-    "MountainBikeRide": "bike", "GravelRide": "bike",
-    "Sim": "swim", "Swim": "swim", "OpenWaterSwim": "swim",
-    "Styrka": "strength", "WeightTraining": "strength", "Workout": "strength",
-}
+# från passets datum vs idag + matchande aktivitet i public.training_log.
 
 # Statusdefinitioner: emoji + label + badge-färger. Färgerna ligger inline här
 # (inte i base.html) för att hålla hela ändringen i UI-skiktets två filer.
@@ -886,14 +924,6 @@ _STATUS = {
 }
 
 _DURATION_TOLERANCE = 0.30  # ±30 % räknas som "genomförd som planerat"
-
-
-def _activity_local_date(act: dict) -> str | None:
-    """ISO-datumsträng (YYYY-MM-DD) för aktivitetens lokala starttid."""
-    raw = act.get("start_time_local") or act.get("start_time")
-    if not raw:
-        return None
-    return str(raw)[:10]
 
 
 def _is_brick(code: str, sport: str) -> bool:
@@ -933,7 +963,7 @@ def _build_actual(act: dict, sport: str) -> dict:
     dist_m = act.get("distance_m")
     np_watt = act.get("normalized_power")
     avg_power = act.get("avg_power")
-    dist_km = round(float(dist_m) / 1000, 1) if dist_m else None
+    dist_km = round(_safe_float(dist_m) / 1000, 1) if dist_m else None
     watts = np_watt or avg_power
 
     parts = [f"{dur_min} min"]
@@ -944,7 +974,7 @@ def _build_actual(act: dict, sport: str) -> dict:
     if dist_km:
         parts.append(f"{dist_km} km")
     if load:
-        parts.append(f"TSS {round(float(load))}")
+        parts.append(f"TSS {round(_safe_float(load))}")
 
     return {
         "summary": "Genomfört: " + " · ".join(parts),
@@ -953,7 +983,7 @@ def _build_actual(act: dict, sport: str) -> dict:
         "duration_min": dur_min,
         "avg_hr": avg_hr,
         "max_hr": act.get("max_hr"),
-        "training_load": round(float(load)) if load else None,
+        "training_load": round(_safe_float(load)) if load else None,
         "distance_km": dist_km,
         "normalized_power": np_watt,
         "avg_power": avg_power,
@@ -967,6 +997,7 @@ def _compute_status(
     plan_min: float,
     day_activities: list[dict],
     today: date_type,
+    planned_session_id: str | None = None,
 ) -> dict:
     """Plan-vs-actual-status för ett pass. Ren funktion, inga sidoeffekter.
 
@@ -984,8 +1015,13 @@ def _compute_status(
         # Visa även dagens utförda pass (om något loggats) — behåll "Idag"-badgen.
         actual = None
         if sport != "rest" and day_activities:
+            linked = [
+                a for a in day_activities
+                if planned_session_id
+                and str(a.get("planned_session_id")) == str(planned_session_id)
+            ]
             sport_hits = [a for a in day_activities if _sport_matches(sport, code, a.get("_sport"))]
-            pool = sport_hits or day_activities
+            pool = linked or sport_hits or day_activities
             best = min(pool, key=lambda a: abs(a["_dur_min"] - (plan_min or 0)))
             actual = _build_actual(best, best.get("_sport") or sport)
         return {**_STATUS["today"], "key": "today", "actual": actual}
@@ -1005,11 +1041,16 @@ def _compute_status(
         return {**_STATUS["missed"], "key": "missed", "actual": None}
 
     # Välj bästa matchande aktivitet: föredra rätt disciplin, sedan närmast tid.
+    linked = [
+        a for a in day_activities
+        if planned_session_id
+        and str(a.get("planned_session_id")) == str(planned_session_id)
+    ]
     sport_hits = [a for a in day_activities if _sport_matches(sport, code, a.get("_sport"))]
-    pool = sport_hits or day_activities
+    pool = linked or sport_hits or day_activities
     best = min(pool, key=lambda a: abs(a["_dur_min"] - (plan_min or 0)))
 
-    sport_ok = _sport_matches(sport, code, best.get("_sport"))
+    sport_ok = bool(linked) or _sport_matches(sport, code, best.get("_sport"))
     dur_ok = _within_duration_tolerance(plan_min, best["_dur_min"])
     actual = _build_actual(best, best.get("_sport") or sport)
 
@@ -1018,109 +1059,46 @@ def _compute_status(
     return {**_STATUS["deviated"], "key": "deviated", "actual": actual}
 
 
-def _fetch_week_activities(
-    client,
-    garmin_athlete_id: str | None,
-    strava_user_id: str | None,
-    week_monday: date_type,
-) -> dict[str, list[dict]]:
-    """Källprioriterad aktivitetsläsning för veckan, grupperad på lokalt datum.
-
-    Garmin är primär: finns ett garmin_athlete_id läses garmin_coach.activities
-    och DEN datan litar vi på. Bara om veckan saknar Garmin-pass (sync-glapp)
-    faller vi tillbaka på Strava för just den veckan. Garmin-lösa adepter läser
-    Strava direkt. Båda normaliseras till samma dict-form som
-    `_compute_status`/`_build_actual` konsumerar.
-    """
-    if garmin_athlete_id:
-        by_date = _fetch_garmin_week_activities(client, garmin_athlete_id, week_monday)
-        if by_date or not strava_user_id:
-            return by_date
-        # Garmin-glapp denna vecka → reserv från Strava (rör Strava bara här).
-        return _fetch_strava_week_activities(client, strava_user_id, week_monday)
-    if strava_user_id:
-        return _fetch_strava_week_activities(client, strava_user_id, week_monday)
-    return {}
-
-
-def _fetch_garmin_week_activities(
-    client, garmin_athlete_id: str, week_monday: date_type
-) -> dict[str, list[dict]]:
-    """Hämta Garmin-aktiviteter för veckan, grupperade på lokalt datum.
-
-    Hämtar ett dygn extra i varje ände (UTC-fönster) och bucketar på lokal
-    starttid, så aktiviteter nära midnatt hamnar på rätt kalenderdag.
-    """
-    win_start = (week_monday - timedelta(days=1)).isoformat()
-    win_end = (week_monday + timedelta(days=8)).isoformat()
-    try:
-        res = (
-            client.schema("garmin_coach")
-            .table("activities")
-            .select(
-                "start_time, start_time_local, activity_type, activity_name,"
-                " duration_sec, avg_hr, max_hr, training_load, distance_m,"
-                " normalized_power, avg_power"
-            )
-            .eq("athlete_id", garmin_athlete_id)
-            .gte("start_time", win_start)
-            .lt("start_time", win_end)
-            .order("start_time")
-            .execute()
-        )
-    except Exception:  # noqa: BLE001
-        return {}
-
-    by_date: dict[str, list[dict]] = {}
-    for act in res.data or []:
-        day = _activity_local_date(act)
-        if not day:
-            continue
-        act["_sport"] = _ACTIVITY_SPORT_MAP.get(act.get("activity_type"))
-        act["_dur_min"] = (act.get("duration_sec") or 0) / 60.0
-        by_date.setdefault(day, []).append(act)
-    return by_date
-
-
-def _normalize_strava_activity(row: dict) -> dict:
-    """En strava_activities-rad → samma form som garmin-grenen producerar.
-
-    Strava saknar max_hr, training_load (TSS) och normalized_power — de blir
-    None och utelämnas då snyggt i actual-raden.
-    """
-    dur_min = float(row.get("duration_min") or 0)
+def _normalize_training_log_activity(row: dict) -> dict:
+    """En training_log-rad → formen som status/rendering konsumerar."""
+    dur_min = _safe_float(row.get("duration_min"))
     dist_km = row.get("distance_km")
     return {
-        "_sport": _STRAVA_TYPE_TO_SPORT.get(row.get("type")),
+        "_sport": _PLANNED_SV_SPORT.get(
+            row.get("sport"), (row.get("sport") or "").strip().lower()
+        ),
         "_dur_min": dur_min,
-        "activity_name": row.get("name"),
-        "activity_type": row.get("type"),
+        "activity_name": row.get("title"),
+        "activity_type": row.get("sport"),
         "duration_sec": int(round(dur_min * 60)),
         "avg_hr": row.get("avg_hr"),
-        "max_hr": None,
-        "training_load": None,
-        "distance_m": round(float(dist_km) * 1000) if dist_km else None,
-        "normalized_power": None,
+        "max_hr": row.get("max_hr"),
+        "training_load": row.get("tss"),
+        "distance_m": round(_safe_float(dist_km) * 1000) if dist_km else None,
+        "normalized_power": row.get("normalized_power"),
         "avg_power": row.get("avg_power"),
-        "start_time_local": row.get("date"),  # date-granularitet (lokalt datum)
+        "start_time_local": row.get("date"),
+        "planned_session_id": row.get("planned_session_id"),
+        "source": row.get("source"),
     }
 
 
-def _fetch_strava_week_activities(
-    client, strava_user_id: str, week_monday: date_type
+def _fetch_week_activities(
+    client, user_id: str | None, week_monday: date_type
 ) -> dict[str, list[dict]]:
-    """Hämta Strava-aktiviteter (public.strava_activities) för veckan.
-
-    Strava-raden har bara `date` (lokalt datum, ingen tid), så vi filtrerar
-    direkt på kalenderveckan utan UTC-marginal.
-    """
+    """Hämta utförda pass från MASTER training_log, grupperade per datum."""
+    if not user_id:
+        return {}
     week_start = week_monday.isoformat()
     week_end = (week_monday + timedelta(days=7)).isoformat()
     try:
         res = (
-            client.table("strava_activities")
-            .select("date, type, name, duration_min, distance_km, avg_hr, avg_power")
-            .eq("user_id", strava_user_id)
+            client.table("training_log")
+            .select(
+                "date,sport,title,duration_min,distance_km,avg_hr,max_hr,"
+                "avg_power,normalized_power,tss,source,planned_session_id"
+            )
+            .eq("user_id", user_id)
             .gte("date", week_start)
             .lt("date", week_end)
             .order("date")
@@ -1134,7 +1112,7 @@ def _fetch_strava_week_activities(
         day = str(row.get("date"))[:10] if row.get("date") else None
         if not day:
             continue
-        by_date.setdefault(day, []).append(_normalize_strava_activity(row))
+        by_date.setdefault(day, []).append(_normalize_training_log_activity(row))
     return by_date
 
 
@@ -1209,7 +1187,7 @@ def _fetch_planned_sessions_week(client, user_id, week_monday):
             client.table("planned_sessions")
             .select(
                 "id, date, sport, title, details, purpose, duration_min,"
-                " steps, exercises, origin, workout_code, intensity"
+                " steps, exercises, origin, workout_code, intensity, status"
             )
             .eq("user_id", user_id)
             .gte("date", start)
@@ -1219,7 +1197,8 @@ def _fetch_planned_sessions_week(client, user_id, week_monday):
         )
     except Exception:  # noqa: BLE001
         return None
-    return res.data or None
+    active = [row for row in (res.data or []) if row.get("status") != "cancelled"]
+    return active or None
 
 
 def _attach_strength_logs(client, week: dict, user_id: str) -> None:
@@ -1277,6 +1256,9 @@ def _display_steps(steps) -> list[dict]:
         for k in ("sets", "distance_m", "duration_min", "rest_sec", "zone"):
             if k in c:
                 c[k] = _scalar(c[k])
+        # Förberäknad bool så templaten slipper jämföra `sets > 1` (dict → krasch).
+        sets_val = c.get("sets")
+        c["sets_gt_one"] = isinstance(sets_val, (int, float)) and sets_val > 1
         out.append(c)
     return out
 
@@ -1286,15 +1268,12 @@ def _fetch_current_week_data(
     athlete_id: str,
     year: int,
     week_num: int,
-    garmin_athlete_id: str | None = None,
-    strava_user_id: str | None = None,
     today: date_type | None = None,
     user_id: str | None = None,
 ) -> dict | None:
     """Veckans plan + plan-vs-actual.
 
-    Planerad källa: COACHENS plan (planned_sessions) när den finns, annars
-    Trixa2:s engine-plan (training_weeks/workouts). Utfört: Garmin/Strava.
+    Planerad källa: MASTER planned_sessions. Utfört: MASTER training_log.
     """
     if today is None:
         today = date_type.today()
@@ -1303,7 +1282,7 @@ def _fetch_current_week_data(
     # Utfört (plan-vs-actual) läses ur MASTER training_log — alla källor
     # (tp/strava/manuellt), rika fält. Hoppas över för rena framtidsveckor.
     activities_by_date: dict[str, list[dict]] = {}
-    if week_monday <= today:
+    if user_id and week_monday <= today:
         activities_by_date = _fetch_completed_week(client, user_id, week_monday)
 
     # MASTER: planen läses från planned_sessions (docs/08). Raderna kan komma
@@ -1312,22 +1291,33 @@ def _fetch_current_week_data(
     if not sessions:
         return None
 
-    # Veckans källmärkning: finns en enda Nils-rad är veckan coach-styrd —
-    # då gäller hens plan och regenerering ska inte erbjudas.
     has_coach_rows = any((ps.get("origin") or "") == "nils" for ps in sessions)
+    has_engine_rows = any((ps.get("origin") or "") == "trixa2" for ps in sessions)
+    if has_coach_rows and has_engine_rows:
+        plan_source = "mixed"
+    elif has_coach_rows:
+        plan_source = "coach"
+    else:
+        plan_source = "engine"
 
     week = {
         "id": None,
         "week_start": week_monday.isoformat(),
         "week_end": (week_monday + timedelta(days=6)).isoformat(),
         "phase": None,
-        "plan_source": "coach" if has_coach_rows else "engine",
+        "plan_source": plan_source,
         "workouts": [],
     }
 
-    def _status(d, sport, code, dur):
+    def _status(d, sport, code, dur, session_id):
         return _compute_status(
-            d, sport, code, dur, activities_by_date.get(str(d)[:10], []), today
+            d,
+            sport,
+            code,
+            dur,
+            activities_by_date.get(str(d)[:10], []),
+            today,
+            session_id,
         )
 
     for ps in sessions:
@@ -1347,7 +1337,7 @@ def _fetch_current_week_data(
             "is_manual": (ps.get("origin") or "") == "manual",
             "origin": ps.get("origin") or "",
             "planned_exercises": ps.get("exercises") or [],
-            "status": _status(ps["date"], sport, code or title, dur),
+            "status": _status(ps["date"], sport, code or title, dur, ps.get("id")),
         })
 
     _attach_strength_logs(client, week, user_id)
@@ -2085,7 +2075,7 @@ def health_remove(
 
 @router.post("/plan/regenerate", response_class=HTMLResponse)
 def plan_regenerate(request: Request, week_start: str = Form(...)) -> Any:
-    """Regenerera hela veckan från engine + passbank. Skriver över befintlig plan."""
+    """Regenerera motorns del av veckan. Nils/manuella rader bevaras."""
     user_id = _current_user_id(request)
     try:
         ws = date_type.fromisoformat(week_start)
@@ -2099,9 +2089,36 @@ def plan_regenerate(request: Request, week_start: str = Form(...)) -> Any:
     return RedirectResponse(url="/ui/", status_code=303)
 
 
-# "Byt pass"/"byt gren"-endpoints togs bort 2026-06-10: de skrev mot den
-# pensionerade workouts-tabellen och kraschade. Byggs om mot planned_sessions
-# när byt-pass-funktionen behövs igen.
+@router.post("/workouts/{workout_id}/swap", response_class=HTMLResponse)
+def workout_swap(request: Request, workout_id: str) -> Any:
+    """Byt motorpass till ett annat pass i samma gren/kategori."""
+    user_id = _current_user_id(request)
+    if not user_id:
+        raise HTTPException(401, "Inte inloggad")
+    try:
+        swap_workout_to_next_alternative(workout_id, user_id)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc))
+    return RedirectResponse(url="/ui/", status_code=303)
+
+
+@router.post("/workouts/{workout_id}/change-discipline", response_class=HTMLResponse)
+def workout_change_discipline(
+    request: Request,
+    workout_id: str,
+    discipline: str = Form(...),
+) -> Any:
+    """Byt gren för passet och planera om återstående motorpass i veckan."""
+    user_id = _current_user_id(request)
+    if not user_id:
+        raise HTTPException(401, "Inte inloggad")
+    try:
+        swap_workout_discipline_and_replan(
+            workout_id, discipline, user_id
+        )
+    except ValueError as exc:
+        raise HTTPException(400, str(exc))
+    return RedirectResponse(url="/ui/", status_code=303)
 
 
 @router.post("/workouts/custom", response_class=HTMLResponse)
@@ -2139,8 +2156,18 @@ def workout_add_custom(
 @router.post("/workouts/{workout_id}/delete-custom", response_class=HTMLResponse)
 def workout_delete_custom(request: Request, workout_id: str) -> Any:
     """Ta bort ett eget pass i MASTER planned_sessions. Endast origin='manual'."""
+    user_id = _current_user_id(request)
+    if not user_id:
+        raise HTTPException(401, "Inte inloggad")
     client = get_postgrest()
-    client.table("planned_sessions").delete().eq("id", workout_id).eq("origin", "manual").execute()
+    (
+        client.table("planned_sessions")
+        .delete()
+        .eq("id", workout_id)
+        .eq("user_id", user_id)
+        .eq("origin", "manual")
+        .execute()
+    )
     return RedirectResponse(url="/ui/", status_code=303)
 
 
@@ -2153,10 +2180,15 @@ def admin_generate(
     weeks_in_period: int = Form(6),
     apply: str | None = Form(None),
 ) -> HTMLResponse:
+    current_user_id = _current_user_id(request)
+    if not current_user_id:
+        raise HTTPException(401, "Inte inloggad")
+    if athlete_user_id != current_user_id:
+        raise HTTPException(403, "Du kan bara generera din egen plan")
     try:
         ws = date_type.fromisoformat(week_start)
         plan = generate_week(
-            athlete_user_id=athlete_user_id,
+            athlete_user_id=current_user_id,
             week_start=ws,
             dry_run=(apply != "1"),
             week_in_period=week_in_period,
@@ -2168,7 +2200,7 @@ def admin_generate(
     result_dict = plan.to_dict()
     return _render("admin.html", {
             "request": request,
-            "default_user_id": athlete_user_id,
+            "default_user_id": current_user_id,
             "default_week_start": week_start,
             "result": plan,
             "result_json": json.dumps(result_dict, indent=2, ensure_ascii=False, default=str),

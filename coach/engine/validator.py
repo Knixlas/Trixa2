@@ -43,7 +43,7 @@ _REQUIRED_DRILL_FIELDS = [
 ]
 
 _VALID_DISCIPLINES = {"swim", "bike", "run", "brick", "strength"}
-_VALID_CATEGORIES = {"AE", "TE", "MF", "SS", "ME", "AC", "T", "SP", "BW"}
+_VALID_CATEGORIES = {"AE", "TE", "MF", "SS", "ME", "AC", "T", "SP", "BW", "ST"}
 _VALID_PHASES = {
     "prep", "base_1", "base_2", "base_3",
     "build_1", "build_2", "peak", "race", "recovery",

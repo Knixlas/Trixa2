@@ -139,6 +139,7 @@ def _render_segment(
     seg: dict,
     zoneset: ZoneSet,
     drill_map: dict | None = None,
+    exercise_map: dict[str, dict] | None = None,
 ) -> str:
     """Rendera ett segment till en markdown-bullet."""
     seg_type = seg.get("segment", "?")
@@ -146,6 +147,36 @@ def _render_segment(
     rest = seg.get("rest_sec")
     desc = seg.get("description", "")
     equip = seg.get("equipment", [])
+
+    if seg_type == "strength_block":
+        exercise_code = seg.get("exercise") or "övning"
+        exercise = (exercise_map or {}).get(exercise_code, {})
+        name = exercise.get("name") or str(exercise_code).replace("_", " ").capitalize()
+        prescription = seg.get("prescription") or {}
+        sets = prescription.get("sets")
+        reps = prescription.get("reps")
+        rir = prescription.get("rir")
+        rest_sec = prescription.get("rest_sec")
+        parts = []
+        if sets and reps:
+            parts.append(f"{sets}×{reps}")
+        elif sets:
+            parts.append(f"{sets} set")
+        if rir is not None:
+            parts.append(f"RIR {rir}")
+        if rest_sec:
+            parts.append(f"{rest_sec}s vila")
+        if seg.get("load_pct"):
+            parts.append(str(seg["load_pct"]))
+        line = f"- **{name}:** " + ", ".join(parts)
+        if seg.get("alt"):
+            alt = (exercise_map or {}).get(seg["alt"], {}).get(
+                "name", str(seg["alt"]).replace("_", " ")
+            )
+            line += f"\n   - Alternativ: {alt}"
+        if seg.get("note"):
+            line += f"\n   - _{seg['note']}_"
+        return line
 
     label = _segment_label(seg_type, sets)
     quantity = _segment_quantity(seg, zoneset.discipline)
@@ -282,6 +313,7 @@ def render_workout(
     workout: dict[str, Any],
     profile: AthleteProfile | None = None,
     drill_map: dict[str, dict] | None = None,
+    exercise_map: dict[str, dict] | None = None,
 ) -> str:
     """Rendera ett pass till markdown.
 
@@ -320,7 +352,7 @@ def render_workout(
     out.append("")
     out.append("**Upplägg:**")
     for seg in workout["main_set"]:
-        out.append(_render_segment(seg, zoneset, drill_map))
+        out.append(_render_segment(seg, zoneset, drill_map, exercise_map))
     out.append("")
 
     if workout.get("equipment"):

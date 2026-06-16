@@ -98,4 +98,19 @@
 </script>
 {% endif %}
 
+{% if alerts %}
+<section>
+  <h2>Aktuella varningar</h2>
+  {% for alert in alerts %}
+  <div class="alert {{ alert.severity }}">
+    <div class="ic"><i data-lucide="{{ alerticon.get(alert.severity, 'info') }}"></i></div>
+    <div class="alert-body">
+      <strong>{{ alert.title }}</strong>
+      <p>{{ alert.body | trim }}</p>
+    </div>
+  </div>
+  {% endfor %}
+</section>
+{% endif %}
+
 {% endblock %}

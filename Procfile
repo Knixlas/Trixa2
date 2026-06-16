@@ -1,2 +1,2 @@
-web: uvicorn trixa_api.main:app --host 0.0.0.0 --port $PORT
-worker: python -m coach.trixa.cron
+web: /opt/venv/bin/uvicorn trixa_api.main:app --host 0.0.0.0 --port $PORT
+worker: /opt/venv/bin/python -m coach.trixa.cron

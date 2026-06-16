@@ -13,7 +13,7 @@ för lokal dev utan auth (osäkert för produktion).
 from __future__ import annotations
 
 import os
-from datetime import date as date_type
+from datetime import date as date_type, datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -52,11 +52,17 @@ app = FastAPI(
     version="0.1.0",
 )
 
-# CORS — för adept-UI och Nils mobil-tråd
+# Samma-origin-webben behöver ingen CORS. Lägg bara till uttryckligen tillåtna
+# browser-klienter, kommaseparerade, via TRIXA_CORS_ORIGINS.
+_cors_origins = [
+    origin.strip()
+    for origin in os.environ.get("TRIXA_CORS_ORIGINS", "").split(",")
+    if origin.strip()
+]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # TODO: snäva åt vid go-live
-    allow_credentials=True,
+    allow_origins=_cors_origins,
+    allow_credentials=bool(_cors_origins),
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
     allow_headers=["*"],
 )
@@ -146,6 +152,62 @@ def health_db() -> dict:
         )
 
 
+@app.get("/health/integrations")
+def health_integrations(max_age_hours: int = Query(30, ge=1, le=168)) -> dict:
+    """Senaste beständiga TP-synk. Returnerar 503 om den saknas/fallit efter."""
+    try:
+        client = get_postgrest()
+        res = (
+            client.table("integration_runs")
+            .select(
+                "user_id,status,started_at,finished_at,records_processed,"
+                "error_message,metadata"
+            )
+            .eq("integration", "trainingpeaks")
+            .eq("operation", "read_sync")
+            .order("finished_at", desc=True)
+            .limit(100)
+            .execute()
+        )
+        if not res.data:
+            raise HTTPException(503, "Ingen TrainingPeaks-synk har loggats")
+        latest_by_user: dict[str, dict] = {}
+        for row in res.data:
+            key = str(row.get("user_id") or "unknown")
+            latest_by_user.setdefault(key, row)
+
+        users = []
+        healthy = True
+        for user_id, latest in latest_by_user.items():
+            raw_finished = str(latest.get("finished_at") or "")
+            finished = datetime.fromisoformat(raw_finished.replace("Z", "+00:00"))
+            age_hours = (
+                datetime.now(timezone.utc) - finished.astimezone(timezone.utc)
+            ).total_seconds() / 3600
+            user_ok = latest.get("status") == "success" and age_hours <= max_age_hours
+            healthy = healthy and user_ok
+            users.append({
+                "user_id": user_id,
+                "status": "ok" if user_ok else "stale",
+                "age_hours": round(age_hours, 1),
+                "latest": latest,
+            })
+
+        payload = {
+            "status": "ok" if healthy else "stale",
+            "integration": "trainingpeaks",
+            "max_age_hours": max_age_hours,
+            "users": users,
+        }
+        if not healthy:
+            raise HTTPException(status_code=503, detail=payload)
+        return payload
+    except HTTPException:
+        raise
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(503, f"Kunde inte läsa integrationsstatus: {exc}")
+
+
 # ---------- Athlete ----------
 
 
@@ -203,8 +265,7 @@ def get_current_week(
 ) -> WeekPlanResponse | None:
     """Hämta veckan som innehåller dagens datum för en adept.
 
-    MASTER: läser planen från public.planned_sessions (docs/08). Faller tillbaka
-    på engine-tabellen workouts om ingen planned_sessions-rad finns för veckan.
+    MASTER: läser planen från public.planned_sessions (docs/08).
     """
     client = get_postgrest()
     athlete_res = (
@@ -223,14 +284,20 @@ def get_current_week(
     # 1) MASTER: planned_sessions (Nils/Trixa2). Nyckel = user_id.
     ps_res = (
         client.table("planned_sessions")
-        .select("date, sport, title, workout_code, intensity, duration_min, details, purpose")
+        .select(
+            "date, sport, title, workout_code, intensity, duration_min,"
+            " details, purpose, status"
+        )
         .eq("user_id", athlete_user_id)
         .gte("date", week_start.isoformat())
         .lte("date", week_end.isoformat())
         .order("date")
         .execute()
     )
-    if ps_res.data:
+    active_rows = [
+        row for row in (ps_res.data or []) if row.get("status") != "cancelled"
+    ]
+    if active_rows:
         workouts = [
             WorkoutSummary(
                 date=w["date"],
@@ -242,7 +309,7 @@ def get_current_week(
                 intensity=w.get("intensity") or "",
                 notes=w.get("details") or "",
             )
-            for w in ps_res.data
+            for w in active_rows
         ]
         return WeekPlanResponse(
             athlete_id=athlete_id,

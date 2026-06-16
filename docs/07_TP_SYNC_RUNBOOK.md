@@ -25,17 +25,18 @@ cache som **fylls från TP**, inte från Garmin. Engine/adapter läser dem oför
 4. **Capture cookien** och lagra den:
    - Logga in på app.trainingpeaks.com → DevTools (F12) → Application → Cookies
      → kopiera värdet på `Production_tpAuth`.
-   - Antingen: sätt Railway-secret `TP_AUTH_COOKIE=<värde>` (vinner alltid), eller
-   - Kör en gång lokalt:
-     ```python
-     from coach.integrations.trainingpeaks.auth_store import store_cookie
-     store_cookie("<cookie-värde>")
+   - Lagra cookien per användare via CLI (stdin gör att den inte hamnar i
+     shell-historiken):
+     ```bash
+     python -m coach.integrations.trainingpeaks.auth_store --user <profiles.id>
      ```
+     Klistra därefter in cookie-värdet och avsluta stdin.
 5. **Verifiera**:
    ```bash
    python -m coach.integrations.trainingpeaks.run_sync --days 3 --dry-run
    ```
-   ska visa `[daily] success` + `[activities] success` utan auth-fel.
+   ska visa `[daily] success`, `[activities] success` och
+   `[training_log] success` utan auth-fel.
 
 ## Schemalagd sync — befintlig worker, två env-flaggor
 
@@ -53,9 +54,9 @@ Manuell körning (verifiering / engångs):
 python -m coach.integrations.trainingpeaks.run_sync --days 2           # läs-sync
 python -m coach.integrations.trainingpeaks.run_sync --days 3 --dry-run # utan DB-skrivning
 ```
-Läs-synken skriver `daily_metrics` (HRV/RHR/sömn-proxy + PMC→load) och
-`activities` (genomförda pass). Skriv-vägen (pass→klocka) går via
-`workout_writer` → TP → Garmin AutoSync.
+Läs-synken skriver `daily_metrics` (HRV/RHR/sömn-proxy + PMC→load),
+råcachen `garmin_coach.activities` och utfört-mastern `public.training_log`.
+Skriv-vägen (pass→klocka) går via `workout_writer` → TP → Garmin AutoSync.
 
 **Go-live-flippen:** när cookien + AutoSync är på plats — sätt båda flaggorna i
 Railway-workerns Variables, starta om servicen, verifiera mot livedata, kör
@@ -66,16 +67,16 @@ sedan parallellt med Garmin-workern 2–3 dagar innan du stänger av den.
 Symptom: `run_sync` rapporterar `error=... Cookie utgången/ogiltig` eller
 `TPAuthError`. Åtgärd (~1 min):
 1. Capture ny `Production_tpAuth` (steg 4 ovan).
-2. Uppdatera Railway-secret `TP_AUTH_COOKIE` **eller** kör `store_cookie(...)`.
+2. Kör auth_store-kommandot ovan igen för rätt `profiles.id`.
 
 Detta är den lätta efterföljaren till Garmins MFA-token-dans: veckor i stället
 för dagar, ingen MFA, ingen TTY-begränsning.
 
 ## Hälsoövervakning
 
-`TPClient(...).verify()` → `{"ok": True, "athlete_id": ...}` eller
-`{"ok": False, "reason": "auth"}`. Lägg i en daglig health-check (motsvarar
-`token-health.yml`) som varnar om sync varit stale > N timmar.
+`GET /health/integrations` visar senaste beständiga TP-synk per användare och
+svarar 503 om någon senaste körning misslyckats eller är äldre än 30 timmar.
+Körningen loggas i `public.integration_runs`.
 
 ## Kända begränsningar (verifiera mot livedata)
 

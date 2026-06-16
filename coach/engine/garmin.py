@@ -101,7 +101,8 @@ def build_athlete_state(
     )
 
     # TODO: current_phase + weeks_in_current_phase ska läsas från
-    # public.training_weeks när den tabellen börjar fyllas av Trixa2.
+    # athlete_profiles.phase_state eller annan aktiv master, inte från de
+    # pensionerade plan-tabellerna.
     # TODO: last_race_completed_within_days kräver en races-tabell eller
     # härledas från strava_activities.type='Race' i framtiden.
 
