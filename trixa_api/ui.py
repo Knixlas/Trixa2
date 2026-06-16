@@ -605,6 +605,71 @@ def _fetch_activities_range(
     return by_date
 
 
+# ---------- Källdedup: ett fysiskt pass kan ligga som flera training_log-rader ----------
+#
+# Samma pass kan komma från TP-sync (source='tp'), Strava-backfill ('strava')
+# och adeptens egen loggning ('manual') — utan att något fält länkar ihop dem
+# (tp_workout_id ≠ strava_id ≠ NULL). Summeras alla rader blåses volym/load upp.
+# Identitet = (datum, kanonisk gren, ~duration ±10%). Vid träff behålls EN rad
+# enligt källprioritet: TP kanonisk (struktur/TSS), Strava backfill, manuellt sist.
+
+_LOG_SOURCE_RANK = {"tp": 0, "strava": 1, "manual": 2}
+
+
+def _canon_log_sport(sport: str | None) -> str:
+    """training_log.sport är blandad vokabulär (Sim/swim/Simning). Normalisera
+    så dedup matchar tvärs källor."""
+    raw = (sport or "").strip()
+    low = raw.lower()
+    if raw in ("Löpning", "Lopning") or "run" in low or "löp" in low:
+        return "run"
+    if raw in ("Cykel", "Cykling") or "cycl" in low or "bike" in low or "ride" in low:
+        return "bike"
+    if raw in ("Sim", "Simning") or "swim" in low:
+        return "swim"
+    if raw == "Styrka" or "strength" in low or "weight" in low:
+        return "strength"
+    return low
+
+
+def _dedup_log_rows(rows: list[dict]) -> list[dict]:
+    """Behåll en rad per fysiskt pass (datum, gren, ~duration) — tp > strava > manual.
+
+    Source-rank styr ordningen: TP-rader processas först → behålls; senare
+    strava/manuella rader som matchar samma pass hoppas. Okänd källa sist.
+    """
+    kept: list[dict] = []
+    for r in sorted(
+        rows, key=lambda x: _LOG_SOURCE_RANK.get((x.get("source") or "").lower(), 3)
+    ):
+        day = str(r.get("date"))[:10]
+        sport = _canon_log_sport(r.get("sport"))
+        dur = float(_fnum(r.get("duration_min")) or 0)
+        tol = max(2.0, dur * 0.10)
+        if any(
+            str(k.get("date"))[:10] == day
+            and _canon_log_sport(k.get("sport")) == sport
+            and abs(float(_fnum(k.get("duration_min")) or 0) - dur) <= tol
+            for k in kept
+        ):
+            continue
+        kept.append(r)
+    return kept
+
+
+# Trixa räknar styrke-, konditions- och yogapass. Allt annat (alpint, vandring,
+# promenad, paddel …) ignoreras i volym/load/compliance. ("Yoga" → canon "yoga"
+# via lowercase, så det räcker att ha med "yoga" här.)
+_RELEVANT_SPORTS = {"run", "bike", "swim", "strength", "yoga"}
+
+
+def _clean_log_rows(rows: list[dict]) -> list[dict]:
+    """Förbered training_log-rader för aggregering: filtrera bort irrelevanta
+    grenar (ej styrka/kondition) och deduppa källdubbletter (tp>strava>manual)."""
+    relevant = [r for r in rows if _canon_log_sport(r.get("sport")) in _RELEVANT_SPORTS]
+    return _dedup_log_rows(relevant)
+
+
 def _compliance_by_week(client, athlete_id, today, user_id) -> dict:
     """Följsamhets-bucket per planerad, passerad vecka. Nyckel: (iso_year, iso_week).
 
@@ -645,7 +710,7 @@ def _compliance_by_week(client, athlete_id, today, user_id) -> dict:
             .gte("date", window_start.isoformat()).lte("date", today.isoformat())
             .execute()
         )
-        for r in log_res.data or []:
+        for r in _clean_log_rows(log_res.data or []):
             day = str(r.get("date"))[:10] if r.get("date") else None
             if day:
                 activities_by_date.setdefault(day, []).append(_normalize_log_activity(r))
@@ -710,7 +775,7 @@ def _actual_hours_by_week(client, user_id, start, today) -> dict:
     try:
         res = (
             client.table("training_log")
-            .select("date, duration_min")
+            .select("date, sport, duration_min, source")
             .eq("user_id", user_id)
             .gte("date", start.isoformat())
             .lte("date", today.isoformat())
@@ -718,7 +783,7 @@ def _actual_hours_by_week(client, user_id, start, today) -> dict:
         )
     except Exception:  # noqa: BLE001
         return out
-    for r in res.data or []:
+    for r in _clean_log_rows(res.data or []):
         _add_week_hours(out, r.get("date") or "", (_fnum(r.get("duration_min")) or 0) / 60.0)
     return out
 
@@ -1169,7 +1234,7 @@ def _fetch_completed_week(client, user_id, week_monday) -> dict[str, list[dict]]
     except Exception:  # noqa: BLE001
         return {}
     by_date: dict[str, list[dict]] = {}
-    for r in res.data or []:
+    for r in _clean_log_rows(res.data or []):
         day = str(r.get("date"))[:10] if r.get("date") else None
         if day:
             by_date.setdefault(day, []).append(_normalize_log_activity(r))
@@ -1677,9 +1742,10 @@ _TL_SPORT = {
     "cykel": "bike", "bike": "bike", "ride": "bike", "cykling": "bike",
     "sim": "swim", "swim": "swim", "simning": "swim",
     "styrka": "strength", "strength": "strength", "weighttraining": "strength",
+    "yoga": "yoga",
 }
 _SPORT_LABEL = {
-    "swim": "Simning", "bike": "Cykel", "run": "Löpning",
+    "swim": "Simning", "bike": "Cykel", "run": "Löpning", "yoga": "Yoga",
     "strength": "Styrka", "other": "Övrigt",
 }
 
@@ -1792,14 +1858,15 @@ def _build_data_context(client, athlete: dict, today: date_type) -> dict:
     try:
         res = (
             client.table("training_log")
-            .select("date, sport, duration_min, distance_km, tss")
+            .select("date, sport, duration_min, distance_km, tss, source")
             .eq("user_id", user_id)
             .gte("date", window_start.isoformat())
             .lte("date", today.isoformat())
             .order("date")
             .execute()
         )
-        rows = res.data or []
+        # Filtrera irrelevanta grenar + deduppa källdubbletter (tp>strava>manual).
+        rows = _clean_log_rows(res.data or [])
     except Exception:  # noqa: BLE001
         rows = []
 
