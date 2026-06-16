@@ -45,6 +45,15 @@ def _render(template_name: str, context: dict) -> HTMLResponse:
     return HTMLResponse(content=html)
 
 
+def _safe_float(value, default: float = 0.0) -> float:
+    try:
+        if value in (None, ""):
+            return default
+        return float(value)
+    except (TypeError, ValueError):
+        return default
+
+
 # Default-adept-id för MVP — Niklas. När vi har auth byts detta till cookien.
 _DEFAULT_USER_ID = os.environ.get(
     "TRIXA_DEFAULT_USER_ID", "09db449d-b8fd-409a-b475-3401b0de9858"
@@ -497,12 +506,18 @@ def dashboard(request: Request) -> HTMLResponse:
     next_iso = next_monday.isocalendar()
 
     uid = athlete.get("user_id")
-    this_week = _fetch_current_week_data(
-        client, athlete["id"], this_iso[0], this_iso[1], today, uid
-    )
-    next_week = _fetch_current_week_data(
-        client, athlete["id"], next_iso[0], next_iso[1], today, uid
-    )
+    try:
+        this_week = _fetch_current_week_data(
+            client, athlete["id"], this_iso[0], this_iso[1], today, uid
+        )
+    except Exception:  # noqa: BLE001
+        this_week = None
+    try:
+        next_week = _fetch_current_week_data(
+            client, athlete["id"], next_iso[0], next_iso[1], today, uid
+        )
+    except Exception:  # noqa: BLE001
+        next_week = None
 
     # Hämta alerts. Dashboarden får inte fälla hela UI:t om en äldre
     # livedatabas saknar något alert-fält.
@@ -556,7 +571,7 @@ def dashboard(request: Request) -> HTMLResponse:
     except Exception:  # noqa: BLE001
         timeline = None
 
-    return _render("dashboard.html", {
+    context = {
         "request": request,
         "athlete": athlete,
         "this_week": this_week,
@@ -568,7 +583,24 @@ def dashboard(request: Request) -> HTMLResponse:
         "this_monday": this_monday.isoformat(),
         "next_monday": next_monday.isoformat(),
         "timeline": timeline,
-    })
+    }
+    try:
+        return _render("dashboard.html", context)
+    except Exception as exc:  # noqa: BLE001
+        return HTMLResponse(
+            content=(
+                "<!doctype html><html lang='sv'><meta charset='utf-8'>"
+                "<title>Trixa</title><body>"
+                "<h1>Trixa</h1>"
+                "<p>Dashboarden kunde inte renderas just nu, men API och sync är igång.</p>"
+                f"<pre>{str(exc)}</pre>"
+                "<p><a href='/ui/settings'>Inställningar</a> · "
+                "<a href='/ui/report'>Veckorapport</a> · "
+                "<a href='/health/integrations'>Integrationshälsa</a></p>"
+                "</body></html>"
+            ),
+            status_code=200,
+        )
 
 
 # ---------- Plan vs actual: matchning mot MASTER training_log ----------
@@ -628,7 +660,7 @@ def _build_actual(act: dict, sport: str) -> dict:
     dist_m = act.get("distance_m")
     np_watt = act.get("normalized_power")
     avg_power = act.get("avg_power")
-    dist_km = round(float(dist_m) / 1000, 1) if dist_m else None
+    dist_km = round(_safe_float(dist_m) / 1000, 1) if dist_m else None
     watts = np_watt or avg_power
 
     parts = [f"{dur_min} min"]
@@ -639,7 +671,7 @@ def _build_actual(act: dict, sport: str) -> dict:
     if dist_km:
         parts.append(f"{dist_km} km")
     if load:
-        parts.append(f"TSS {round(float(load))}")
+        parts.append(f"TSS {round(_safe_float(load))}")
 
     return {
         "summary": "Genomfört: " + " · ".join(parts),
@@ -648,7 +680,7 @@ def _build_actual(act: dict, sport: str) -> dict:
         "duration_min": dur_min,
         "avg_hr": avg_hr,
         "max_hr": act.get("max_hr"),
-        "training_load": round(float(load)) if load else None,
+        "training_load": round(_safe_float(load)) if load else None,
         "distance_km": dist_km,
         "normalized_power": np_watt,
         "avg_power": avg_power,
@@ -726,7 +758,7 @@ def _compute_status(
 
 def _normalize_training_log_activity(row: dict) -> dict:
     """En training_log-rad → formen som status/rendering konsumerar."""
-    dur_min = float(row.get("duration_min") or 0)
+    dur_min = _safe_float(row.get("duration_min"))
     dist_km = row.get("distance_km")
     return {
         "_sport": _PLANNED_SV_SPORT.get(
@@ -739,7 +771,7 @@ def _normalize_training_log_activity(row: dict) -> dict:
         "avg_hr": row.get("avg_hr"),
         "max_hr": row.get("max_hr"),
         "training_load": row.get("tss"),
-        "distance_m": round(float(dist_km) * 1000) if dist_km else None,
+        "distance_m": round(_safe_float(dist_km) * 1000) if dist_km else None,
         "normalized_power": row.get("normalized_power"),
         "avg_power": row.get("avg_power"),
         "start_time_local": row.get("date"),
