@@ -116,7 +116,7 @@ def push_week_from_planned_sessions(
     week_end = (week_start + timedelta(days=6)).isoformat()
     rows = (
         pg.table("planned_sessions")
-        .select("date, sport, title, workout_code, duration_min, steps")
+        .select("date, sport, title, workout_code, duration_min, steps, status")
         .eq("user_id", user_id)
         .gte("date", week_start.isoformat())
         .lte("date", week_end)
@@ -126,6 +126,8 @@ def push_week_from_planned_sessions(
 
     results: list[WriteResult] = []
     for r in rows:
+        if r.get("status") == "cancelled":
+            continue
         discipline = _PS_SPORT_TO_DISCIPLINE.get(r.get("sport"), (r.get("sport") or "").lower())
         steps = r.get("steps") or []
         if discipline == "rest" or not steps:
@@ -182,7 +184,7 @@ class SyncResult:
     title: str
     day: str
     sport: str
-    action: str  # created | replaced | unchanged | would_create | would_replace
+    action: str  # created | replaced | unchanged | deleted | would_*
     workout_id: int | None = None
     reaches_watch: bool = True
     warnings: list[str] = field(default_factory=list)
@@ -234,7 +236,10 @@ def sync_planned_week_to_tp(
     week_end = (week_start + timedelta(days=6)).isoformat()
     rows = (
         pg.table("planned_sessions")
-        .select("id,date,sport,title,workout_code,duration_min,steps,tp_workout_id,tp_synced_hash")
+        .select(
+            "id,date,sport,title,workout_code,duration_min,steps,status,"
+            "tp_workout_id,tp_synced_hash"
+        )
         .eq("user_id", user_id)
         .gte("date", week_start.isoformat())
         .lte("date", week_end)
@@ -253,10 +258,53 @@ def sync_planned_week_to_tp(
     results: list[SyncResult] = []
     for r in rows:
         discipline = _PS_SPORT_TO_DISCIPLINE.get(r.get("sport"), (r.get("sport") or "").lower())
-        steps = r.get("steps") or []
-        if discipline == "rest" or not steps:
-            continue
         day = date_type.fromisoformat(str(r["date"])[:10])
+        existing_id = r.get("tp_workout_id")
+        if not existing_id and discipline in SPORT_TYPE_MAP:
+            existing_id = _find_existing_tp_id(
+                existing_tp, day.isoformat(), SPORT_TYPE_MAP[discipline][1]
+            )
+
+        if r.get("status") == "cancelled":
+            if not existing_id:
+                continue
+            if dry_run or client is None:
+                results.append(SyncResult(
+                    r.get("workout_code") or "?",
+                    r.get("title") or "Pass",
+                    day.isoformat(),
+                    discipline,
+                    "would_delete",
+                    existing_id,
+                ))
+                continue
+            try:
+                client.delete_workout(existing_id)
+            except TPNotFoundError:
+                pass
+            (
+                pg.table("planned_sessions")
+                .update({
+                    "tp_workout_id": None,
+                    "tp_synced_hash": None,
+                    "tp_synced_at": now_iso,
+                })
+                .eq("id", r["id"])
+                .execute()
+            )
+            results.append(SyncResult(
+                r.get("workout_code") or "?",
+                r.get("title") or "Pass",
+                day.isoformat(),
+                discipline,
+                "deleted",
+                existing_id,
+            ))
+            continue
+
+        steps = r.get("steps") or []
+        if r.get("status") not in (None, "planned") or discipline == "rest" or not steps:
+            continue
         total = r.get("duration_min") or 60
         workout = {"discipline": discipline, "main_set": steps,
                    "code": r.get("workout_code"), "name": r.get("title"), "intent": ""}
@@ -266,7 +314,6 @@ def sync_planned_week_to_tp(
         payload = build_create_payload(res, day, title)
         new_hash = _payload_hash(payload)
 
-        existing_id = r.get("tp_workout_id")
         if not existing_id and res.sport in SPORT_TYPE_MAP:
             existing_id = _find_existing_tp_id(
                 existing_tp, day.isoformat(), SPORT_TYPE_MAP[res.sport][1])

@@ -42,13 +42,13 @@ values
 ```
 
 - Motorns **grind** skyddar dina dagar: den genererar aldrig pass för datum som
-  redan har en rad med `origin != 'trixa2'`. Du behöver inte radera motorns
-  rader själv — men om en `trixa2`-rad redan ligger på dagen du planerar,
-  ta bort den så vyn inte visar dubbelt.
-- Alternativ skrivväg: `garmin_coach.planned_workouts` (engelska discipliner
-  bike/swim/run/rest) — planeraren speglar den till `planned_sessions` vid
-  nästa körning. Direktskrivning i `planned_sessions` är att föredra (syns i
-  appen direkt, TP-pushen plockar den).
+  redan har en rad med `origin != 'trixa2'`.
+- Använd **bara** `public.planned_sessions` som skrivväg. Den äldre
+  `garmin_coach.planned_workouts`-vägen är pensionerad och speglas inte längre.
+- Om en `trixa2`-rad redan ligger på dagen du planerar: ändra den inte till
+  `nils`. Skapa/behåll din `origin='nils'`-rad; Trixas nästa regenerering
+  markerar sin egen överflödiga rad som `cancelled`, och TP-workern tar bort
+  motsvarande pass från TrainingPeaks.
 
 ## Läsa utfört
 

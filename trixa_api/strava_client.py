@@ -1,8 +1,8 @@
 """Strava OAuth + aktivitetssynk för Trixa2.
 
 Bantad port av original-Trixas integrations/strava.py. Stateless HTTP +
-token-lagring i public.strava_tokens, aktiviteter i public.strava_activities
-(samma tabeller som dashboarden redan läser källagnostiskt). Ingen LLM.
+token-lagring i public.strava_tokens, aktiviteter i public.strava_activities.
+Detta är en nödreserv; normal utförd-master är public.training_log. Ingen LLM.
 
 Creds: STRAVA_CLIENT_ID/SECRET (env). HMAC-state-nyckel: STRAVA_STATE_SECRET
 eller (fallback) service-role-nyckeln.
@@ -25,7 +25,7 @@ STRAVA_TOKEN_URL = "https://www.strava.com/oauth/token"
 STRAVA_API_BASE = "https://www.strava.com/api/v3"
 _TIMEOUT = 30
 
-# Strava activity_type → svenska namn (som dashboardens _STRAVA_TYPE_TO_SPORT förstår)
+# Strava activity_type → svenska namn som äldre strava_activities-reserven använder.
 SPORT_MAP = {
     "Run": "Lopning", "TrailRun": "Lopning", "VirtualRun": "Lopning",
     "Ride": "Cykel", "VirtualRide": "Cykel", "EBikeRide": "Cykel",

@@ -1,0 +1,108 @@
+# Styrkepass — Anatomical Adaptation (AA)
+#
+# Protokoll AA enligt strength.yaml. Passar prep-fasen. Syfte: bygga
+# grundläggande styrka, senstyrka och rörelsekvalitet INNAN tung last
+# introduceras. Hög rep, låg last, fokus på teknik och stabilitet.
+#
+# Last: kroppsvikt och lätt yttre last. RIR hålls högt (3–4) — det här
+# är inte ett tröttande pass, det är förberedelse. Volym, inte intensitet.
+#
+# Samma readiness-gate och alt-swap-logik som övriga banken.
+
+workouts:
+
+  - code: AA_strength_01
+    discipline: strength
+    category: ST
+    type_code: AA
+    name: "Anatomical Adaptation — Helkropp"
+    parametrized: true
+    parameters:
+      sets:
+        default: 2
+        range: [2, 3]
+        description: "Lågt antal — adaptation, inte utmattning"
+      reps:
+        default: 13
+        range: [12, 15]
+        description: "Högt rep-spann för senadaptation och teknik"
+      rir:
+        default: 4
+        range: [3, 5]
+        description: "Håll högt — passet ska inte tömma dig"
+    phase_appropriate: [prep]
+    intent: |
+      Grundläggande helkroppsadaptation. Kroppsvikt och lätt last, fullt
+      rörelseomfång, perfekt teknik. Förbered senor, leder och mönster för
+      kommande tunga faser. Inga maxuttag, inget nära failure.
+    main_set:
+      - segment: warmup
+        type: general
+        duration_min: 8
+        description: "Lätt cykel + dynamisk höftböjarstretch + thoracic rotation"
+
+      - segment: strength_block
+        order: 1
+        exercise: bodyweight_squat
+        prescription: {sets: 2, reps: 15, rir: 4, rest_sec: 60}
+        load_pct: "kroppsvikt"
+        alt: goblet_squat
+        note: "Teknikfokus, fullt djup."
+
+      - segment: strength_block
+        order: 2
+        exercise: pushup
+        prescription: {sets: 2, reps: 12, rir: 4, rest_sec: 60}
+        load_pct: "kroppsvikt"
+        note: "Regression: händer på bänk. Axelflagga → minska ROM eller dra blocket."
+
+      - segment: strength_block
+        order: 3
+        exercise: inverted_row
+        prescription: {sets: 2, reps: 12, rir: 4, rest_sec: 60}
+        load_pct: "kroppsvikt"
+        alt: straight_arm_pulldown
+        note: "Skala via kroppsvinkel. Bicepssena → raka-arm-latsdrag (ingen bicepslast)."
+
+      - segment: strength_block
+        order: 4
+        exercise: walking_lunge
+        prescription: {sets: 2, reps: 12, rir: 4, rest_sec: 60}
+        load_pct: "kroppsvikt"
+        alt: step_up
+        note: "12/ben. Kontroll före tempo."
+
+      - segment: strength_block
+        order: 5
+        exercise: single_leg_balance
+        prescription: {sets: 2, reps: 1, rir: 5, rest_sec: 30}
+        load_pct: "kroppsvikt, 30–45s/ben"
+        note: "Stabilitet. Progression: blunda."
+
+      - segment: strength_block
+        order: 6
+        exercise: plank
+        prescription: {sets: 2, reps: 1, rir: 4, rest_sec: 45}
+        load_pct: "isometrisk hålltid 30–45s"
+        alt: dead_bug
+        note: "Anti-extension. Bryt vid hållningstapp."
+
+      - segment: cooldown
+        type: mobility
+        duration_min: 5
+        description: "Thoracic rotation + höftböjarstretch"
+
+    total_duration_min:
+      estimated: 40
+      flexible_range: [30, 50]
+    zone_refs: []
+    load_model: rir
+    equipment: [dumbbell, bench, trx, cable]
+    abort_conditions:
+      - "Axel/biceps-känning → swap till angiven alt eller dra blocket."
+      - "Readiness < 30 → 1 varv av allt, hoppa balansblocket."
+    coach_notes: |
+      AA är medvetet snålt med intensitet. Frestelsen att lägga på vikt
+      finns alltid — låt bli. Senor och leder anpassar sig långsammare än
+      muskler. Det här passet betalar sig i att du tål MS-fasen utan att
+      gå sönder.

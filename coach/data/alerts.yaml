@@ -128,14 +128,14 @@ alerts:
   - alert_type: garmin_data_stale
     triggered_by: latest_daily_metrics_date>3d
     severity: info
-    title: Garmin-sync har inte uppdaterats
+    title: Träningsdatan har inte uppdaterats
     body: |
       Senaste daily_metrics-rad är mer än 3 dagar gammal. Trixa kan
       fortfarande generera en plan, men OT-bedömningen baseras inte på
       aktuell data.
     follow_up: |
-      Kör iOS-shortcut "Synka Trixa" eller manuell trigger via GitHub
-      Actions. Om problemet kvarstår → token-rotation kan behövas.
+      Kontrollera /health/integrations och Railway-workerns logg. Uppdatera
+      TrainingPeaks-cookien om senaste synken visar autentiseringsfel.
 
   # ─────────────────────────────────────────────────────────────
   # Plan-status (informativt, körs alltid)
@@ -146,6 +146,6 @@ alerts:
     severity: info
     title: Veckoplan klar
     body: |
-      Trixa har genererat veckans plan. Engine-beslut är spårbara i
-      training_weeks och workouts. Override kan göras av coach via API.
+      Trixa har genererat veckans plan. Pass och ursprung är spårbara i
+      planned_sessions. Override kan göras av coach via API.
     follow_up: null

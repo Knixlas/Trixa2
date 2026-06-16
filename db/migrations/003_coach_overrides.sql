@@ -18,8 +18,8 @@ CREATE TABLE IF NOT EXISTS public.coach_overrides (
   coach_user_id uuid NOT NULL REFERENCES auth.users(id),
 
   scope text NOT NULL CHECK (scope IN ('week', 'workout', 'phase', 'volume', 'overtraining')),
-  week_id uuid REFERENCES public.training_weeks(id) ON DELETE CASCADE,
-  workout_id uuid REFERENCES public.workouts(id) ON DELETE CASCADE,
+  week_start date,
+  planned_session_id uuid REFERENCES public.planned_sessions(id) ON DELETE SET NULL,
 
   engine_recommendation jsonb NOT NULL,
   override_decision jsonb NOT NULL,
@@ -36,8 +36,8 @@ CREATE TABLE IF NOT EXISTS public.coach_overrides (
   honored_at timestamptz,
 
   CONSTRAINT scope_matches_target CHECK (
-    (scope = 'workout' AND workout_id IS NOT NULL)
-    OR (scope = 'week' AND week_id IS NOT NULL)
+    (scope = 'workout' AND planned_session_id IS NOT NULL)
+    OR (scope = 'week' AND week_start IS NOT NULL)
     OR scope IN ('phase', 'volume', 'overtraining')
   )
 );
@@ -47,12 +47,12 @@ CREATE INDEX IF NOT EXISTS coach_overrides_athlete_active_idx
   WHERE is_active = true;
 
 CREATE INDEX IF NOT EXISTS coach_overrides_week_idx
-  ON public.coach_overrides(week_id)
-  WHERE week_id IS NOT NULL;
+  ON public.coach_overrides(athlete_id, week_start)
+  WHERE week_start IS NOT NULL;
 
 CREATE INDEX IF NOT EXISTS coach_overrides_workout_idx
-  ON public.coach_overrides(workout_id)
-  WHERE workout_id IS NOT NULL;
+  ON public.coach_overrides(planned_session_id)
+  WHERE planned_session_id IS NOT NULL;
 
 ALTER TABLE public.coach_overrides ENABLE ROW LEVEL SECURITY;
 

@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}Trixa — dashboard{% endblock %}
+{% block content %}
+
+<h1>Hej {{ athlete.name or "adept" }}</h1>
+
+{% if athlete %}
+<section>
+  <h2>Status</h2>
+  <p>
+    <strong>Mål:</strong> {{ athlete.goal }} ({{ athlete.time_goal or "ingen måltid satt" }})<br>
+    <strong>Tävling:</strong> {{ athlete.race_date or "—" }} ({{ athlete.race_type or "—" }})<br>
+    <strong>Veckotimmar (mål):</strong> {{ athlete.weekly_hours }}h<br>
+    <strong>Aktuell fas:</strong> {{ phase }}
+  </p>
+</section>
+{% endif %}
+
+{% include "_season_timeline.html" %}
+
+{% if alerts %}
+<section>
+  <h2>Aktuella varningar</h2>
+  {% for alert in alerts %}
+  <div class="alert {{ alert.severity }}">
+    <strong><span class="badge {{ alert.severity }}">{{ alert.severity }}</span> {{ alert.title }}</strong>
+    <p>{{ alert.body | trim }}</p>
+  </div>
+  {% endfor %}
+</section>
+{% endif %}
+
+{% with week=this_week, week_label="Denna vecka", fallback_week_start=this_monday, show_audit=true %}
+  {% include "_week_section.html" %}
+{% endwith %}
+
+{% with week=next_week, week_label="Nästa vecka", fallback_week_start=next_monday, show_audit=false %}
+  {% include "_week_section.html" %}
+{% endwith %}
+
+{% endblock %}

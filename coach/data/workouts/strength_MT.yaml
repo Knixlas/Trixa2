@@ -1,0 +1,101 @@
+# Styrkepass — Max Transition (MT)
+#
+# Protokoll MT enligt strength.yaml. Passar base_1 (första halvan).
+# Bryggan mellan AA:s adaptation och MS:s maxstyrka — introducerar
+# yttre last på de stora mönstren med fortfarande måttlig intensitet.
+#
+# Last: RIR-styrd, måttlig (RIR 3). Reps i mellanspannet (10–12). Här
+# vänjer kroppen sig vid att hantera vikt på compound-rörelser innan
+# MS-fasens tunga uttag.
+#
+# Samma readiness-gate och alt-swap som övriga banken.
+
+workouts:
+
+  - code: MT_strength_01
+    discipline: strength
+    category: ST
+    type_code: MT
+    name: "Max Transition — Helkropp"
+    parametrized: true
+    parameters:
+      sets:
+        default: 3
+        range: [2, 3]
+        description: "Lägg grunden för MS-fasens volym"
+      reps:
+        default: 11
+        range: [10, 12]
+        description: "Mellanspann — styrka börjar, uthållighet kvar"
+      rir:
+        default: 3
+        range: [2, 4]
+        description: "Måttligt. Tyngre än AA, lättare än MS"
+    phase_appropriate: [base_1]
+    intent: |
+      Övergångspass. Yttre last på knädominant, höftfällning, drag och
+      press — men inte till max. Lär kroppen bära vikt på de mönster som
+      MS-fasen sedan kör tungt. Maskinbias, kontrollerat utförande.
+    main_set:
+      - segment: warmup
+        type: general
+        duration_min: 8
+        description: "Lätt cykel/rodd + dynamisk höftböjarstretch + bird dog 2×8"
+
+      - segment: strength_block
+        order: 1
+        exercise: leg_press_machine
+        prescription: {sets: 3, reps: 11, rir: 3, rest_sec: 120}
+        load_pct: "måttlig"
+        alt: goblet_squat
+        note: "Bygg upp lasten gradvis vecka för vecka."
+
+      - segment: strength_block
+        order: 2
+        exercise: leg_curl_machine
+        prescription: {sets: 3, reps: 11, rir: 3, rest_sec: 90}
+        load_pct: "måttlig"
+        alt: hip_thrust
+        note: "Hamstringsbalans tidigt — sätt vanan innan RDL i MS."
+
+      - segment: strength_block
+        order: 3
+        exercise: seated_row_machine
+        prescription: {sets: 3, reps: 11, rir: 3, rest_sec: 90}
+        load_pct: "måttlig"
+        alt: chest_press_machine
+        note: "Neutralt grepp. Bicepsflagga → swap till press."
+
+      - segment: strength_block
+        order: 4
+        exercise: chest_press_machine
+        prescription: {sets: 3, reps: 11, rir: 3, rest_sec: 90}
+        load_pct: "måttlig"
+        note: "Axelflagga → sänk ROM eller dra blocket."
+
+      - segment: strength_block
+        order: 5
+        exercise: pallof_press
+        prescription: {sets: 2, reps: 12, rir: 3, rest_sec: 45}
+        load_pct: "lätt–måttlig"
+        alt: dead_bug
+        note: "Anti-rotation, 12/sida."
+
+      - segment: cooldown
+        type: mobility
+        duration_min: 5
+        description: "Thoracic rotation + höftböjarstretch"
+
+    total_duration_min:
+      estimated: 45
+      flexible_range: [35, 55]
+    zone_refs: []
+    load_model: rir
+    equipment: [leg_press, leg_curl, seated_row, chest_press, cable]
+    abort_conditions:
+      - "Axel/biceps-känning → swap eller dra blocket."
+      - "Readiness < 30 → RIR +1 eller 2 set."
+    coach_notes: |
+      MT är där du sätter arbetsvikterna du sedan progredierar genom MS.
+      Logga lasten noga här — den blir referenspunkten. Inget hjältemod,
+      poängen är att komma till MS-fasen med mönstren intrimmade.

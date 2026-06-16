@@ -91,12 +91,13 @@ def _run_once_for(athlete_user_id: str) -> None:
         logger.error("Fel vid generering för %s: %s", athlete_user_id, exc)
 
 
-def _run_tp_sync() -> None:
+def _run_tp_sync() -> bool:
     """Daglig TP→Supabase recovery-sync, **per adept**. Varje adept synkas med
     sin egen cookie till sin egen recovery-nyckel (``garmin_athlete_id`` ur
     athlete_profiles — samma nyckel planner läser recovery med, så write/read är
     överens). Adept utan cookie eller utan recovery-nyckel hoppas. Best-effort —
     fel loggas men fäller aldrig worker-loopen."""
+    all_success = True
     try:
         from coach.integrations.trainingpeaks.auth_store import supabase_cookie_provider
         from coach.integrations.trainingpeaks.run_sync import main as tp_sync_main
@@ -123,11 +124,18 @@ def _run_tp_sync() -> None:
                     ["--user", uid, "--athlete-id", str(garmin_id),
                      "--days", str(_TP_SYNC_DAYS)]
                 )
-                logger.info("TP-sync %s klar (rc=%d)", uid, rc)
+                if rc == 0:
+                    logger.info("TP-sync %s klar", uid)
+                else:
+                    all_success = False
+                    logger.error("TP-sync %s misslyckades (rc=%d)", uid, rc)
             except Exception as exc:  # noqa: BLE001
+                all_success = False
                 logger.error("TP-sync fel %s: %s", uid, exc)
     except Exception as exc:  # noqa: BLE001
+        all_success = False
         logger.error("TP-sync topp-fel: %s", exc)
+    return all_success
 
 
 def _run_structure_and_push() -> None:
@@ -210,7 +218,8 @@ def main() -> int:
             last_run = now
         # Daglig TP läs-sync (gated). En gång per dygn vid TP-sync-timmen.
         if _TP_SYNC_ENABLED and now.hour == _TP_SYNC_HOUR_UTC and last_tp_sync != now.date():
-            _run_tp_sync()
+            if not _run_tp_sync():
+                logger.error("En eller flera TP-synkar misslyckades; se integration_runs")
             last_tp_sync = now.date()
         # Daglig strukturering + idempotent push (gated). Fångar Nils ad-hoc-pass.
         if _PUSH_ENABLED and now.hour == _PUSH_HOUR_UTC and last_push != now.date():

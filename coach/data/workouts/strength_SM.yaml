@@ -1,0 +1,278 @@
+# Styrkepass — Strength Maintenance / Build (SM)
+#
+# Protokoll SM enligt strength.yaml mappar TRE olika fas-scopes som inte
+# kan delas på en slider — de skiljer sig i ÖVNINGSVAL, inte bara dosering:
+#
+#   SM_strength_01  build_1/build_2  — TUNGT styrkebygge (2.2.3: explosivt
+#                                       + tunga compound). Inte underhåll.
+#   SM_strength_02  peak / race      — LÄTT underhåll, behåll skärpa
+#   SM_strength_03  recovery         — MYCKET lätt, rörlighet/prehab
+#
+# OBS modellnot: strength.yaml kallar build-fasens protokoll "SM" med
+# noten "fokus styrkebygge enligt 2.2.3". Det är egentligen tungt arbete,
+# inte underhåll. Jag har behållit SM-etiketten för att matcha mappningen,
+# men separerat sessionerna. Vill du hellre döpa build-passet till ett eget
+# protokoll (t.ex. PS/Power) — säg till, det är en enrads-ändring.
+#
+# Last: RIR-styrd. Readiness-gate och alt-swap som övriga banken.
+
+workouts:
+
+  # ─────────────────────────────────────────────────────────────
+  # SM_strength_01 — Build: tungt styrkebygge
+  # ─────────────────────────────────────────────────────────────
+
+  - code: SM_strength_01
+    discipline: strength
+    category: ST
+    type_code: SM
+    name: "Build — Tungt styrkebygge"
+    parametrized: true
+    parameters:
+      sets:
+        default: 4
+        range: [4, 5]
+        description: "Hög volym på huvudlyften — byggfasens tyngsta styrka"
+      reps:
+        default: 7
+        range: [6, 8]
+        description: "Styrkespann, moderate-to-heavy"
+      rir:
+        default: 2
+        range: [1, 3]
+        description: "Tungt. Gate höjer RIR vid låg readiness"
+    phase_appropriate: [build_1, build_2]
+    intent: |
+      Byggfasens styrka: tunga compound + ett explosivt inslag för
+      kraftutveckling. Lägg vikt på huvudlyften, håll det triathlon-
+      relevant (ben och posterior chain). Overhead och tunga isolationer
+      med bicepslast gate:as bort för dig.
+    main_set:
+      - segment: warmup
+        type: general
+        duration_min: 10
+        description: "Lätt cykel + dynamisk höftböjarstretch + 2 lätta uppvärmningsset benpress"
+
+      - segment: strength_block
+        order: 1
+        exercise: leg_press_machine
+        prescription: {sets: 4, reps: 7, rir: 2, rest_sec: 180}
+        load_pct: "tung"
+        alt: goblet_squat
+        note: "Huvudlyft. Full vila mellan set."
+
+      - segment: strength_block
+        order: 2
+        exercise: romanian_deadlift
+        prescription: {sets: 4, reps: 7, rir: 2, rest_sec: 150}
+        load_pct: "tung"
+        alt: leg_curl_machine
+        note: "Posterior chain. Rygg-/bröstryggsflagga → leg curl."
+
+      - segment: strength_block
+        order: 3
+        exercise: chest_press_machine
+        prescription: {sets: 3, reps: 8, rir: 2, rest_sec: 120}
+        load_pct: "tung"
+        note: "Overhead-press utesluts medvetet — landmine_press valfritt om axeln tillåter."
+
+      - segment: strength_block
+        order: 4
+        exercise: lat_pulldown_machine
+        prescription: {sets: 3, reps: 8, rir: 2, rest_sec: 120}
+        load_pct: "måttlig–tung"
+        alt: straight_arm_pulldown
+        note: "Bicepssena → swap till raka-arm-latsdrag."
+
+      - segment: strength_block
+        order: 5
+        exercise: kettlebell_swing
+        prescription: {sets: 3, reps: 12, rir: 3, rest_sec: 90}
+        load_pct: "explosiv, måttlig vikt"
+        alt: hip_thrust
+        note: "Explosivt inslag. Gate:as bort vid ländrygg/hög CNS-trötthet → hip thrust."
+
+      - segment: cooldown
+        type: mobility
+        duration_min: 5
+        description: "Thoracic rotation + höftböjarstretch"
+
+    total_duration_min:
+      estimated: 55
+      flexible_range: [45, 65]
+    zone_refs: []
+    load_model: rir
+    equipment: [leg_press, barbell, dumbbell, chest_press, lat_pulldown, kettlebell, cable]
+    abort_conditions:
+      - "Ländrygg i RDL/sving → swap till leg curl/hip thrust."
+      - "Bicepssena → latsdrag till raka-arm-varianten."
+      - "Readiness < 30 → RIR +1, dra explosiva blocket först."
+    coach_notes: |
+      Detta är bankens tyngsta styrkepass. I byggfas mot Kalmar: max 1–2
+      ggr/vecka och aldrig dagen före nyckelpass i simma/cykla/löpa.
+      Styrkan ska stötta uthålligheten, inte konkurrera med den.
+
+  # ─────────────────────────────────────────────────────────────
+  # SM_strength_02 — Peak/Race: lätt underhåll
+  # ─────────────────────────────────────────────────────────────
+
+  - code: SM_strength_02
+    discipline: strength
+    category: ST
+    type_code: SM
+    name: "Underhåll — Behåll skärpa (peak/race)"
+    parametrized: true
+    parameters:
+      sets:
+        default: 2
+        range: [1, 3]
+        description: "Lågt — race-fas kör 1 set, peak 2–3"
+      reps:
+        default: 9
+        range: [8, 10]
+        description: "Behåll rörelsemönster utan att trötta"
+      rir:
+        default: 4
+        range: [3, 5]
+        description: "Högt — bevara, inte bygga eller tömma"
+    phase_appropriate: [peak, race]
+    intent: |
+      Bevara styrka och rörelsemönster med minimal trötthet. Lätt last,
+      få set, inget nära failure. I race-fasen: högst ett kort pass, lägg
+      det tidigt i veckan, långt från tävling.
+    main_set:
+      - segment: warmup
+        type: general
+        duration_min: 6
+        description: "Lätt cykel + dynamisk rörlighet"
+
+      - segment: strength_block
+        order: 1
+        exercise: goblet_squat
+        prescription: {sets: 2, reps: 10, rir: 4, rest_sec: 90}
+        load_pct: "lätt–måttlig"
+        alt: bodyweight_squat
+        note: "Behåll mönstret, lätt vikt."
+
+      - segment: strength_block
+        order: 2
+        exercise: seated_row_machine
+        prescription: {sets: 2, reps: 10, rir: 4, rest_sec: 90}
+        load_pct: "lätt–måttlig"
+        alt: straight_arm_pulldown
+        note: "Hållningsmuskler, lätt. Bicepssena → raka-arm-latsdrag."
+
+      - segment: strength_block
+        order: 3
+        exercise: hip_thrust
+        prescription: {sets: 2, reps: 10, rir: 4, rest_sec: 90}
+        load_pct: "lätt–måttlig"
+        alt: leg_curl_machine
+        note: "Sätesaktivering, ryggvänligt."
+
+      - segment: strength_block
+        order: 4
+        exercise: plank
+        prescription: {sets: 2, reps: 1, rir: 4, rest_sec: 45}
+        load_pct: "isometrisk 20–30s"
+        alt: dead_bug
+        note: "Kort bål, ingen utmattning."
+
+      - segment: cooldown
+        type: mobility
+        duration_min: 5
+        description: "Thoracic rotation + höftböjarstretch"
+
+    total_duration_min:
+      estimated: 30
+      flexible_range: [20, 40]
+    zone_refs: []
+    load_model: rir
+    equipment: [dumbbell, seated_row, bench, cable]
+    abort_conditions:
+      - "Minsta tveksamhet inför nyckelpass/tävling → hoppa passet helt."
+      - "Readiness < 30 i peak/race → skippa, vila väger tyngre."
+    coach_notes: |
+      Regel i race-veckan: om du tvekar, kör inte. Ett missat underhållspass
+      kostar ingenting; ett trött ben på startlinjen kostar allt. Race-fas:
+      1 set, tidigt i veckan.
+
+  # ─────────────────────────────────────────────────────────────
+  # SM_strength_03 — Transition/recovery: mycket lätt
+  # ─────────────────────────────────────────────────────────────
+
+  - code: SM_strength_03
+    discipline: strength
+    category: ST
+    type_code: SM
+    name: "Transition — Rörlighet och tonus"
+    parametrized: true
+    parameters:
+      sets:
+        default: 2
+        range: [1, 2]
+        description: "Minimalt"
+      reps:
+        default: 12
+        range: [10, 15]
+        description: "Lätt, högt rep, ingen ansträngning"
+      rir:
+        default: 5
+        range: [4, 5]
+        description: "Aldrig nära failure — det här är aktiv återhämtning"
+    phase_appropriate: [recovery]
+    intent: |
+      Bibehåll muskeltonus och rörelsekvalitet efter A-loppet eller i
+      återhämtningsblock. Kroppsvikt, rörlighet, prehab. Får gärna ersättas
+      av yoga/pilates helt — poängen är rörelse, inte belastning.
+    main_set:
+      - segment: warmup
+        type: general
+        duration_min: 5
+        description: "Lätt rörlighet, valfritt"
+
+      - segment: strength_block
+        order: 1
+        exercise: bodyweight_squat
+        prescription: {sets: 2, reps: 15, rir: 5, rest_sec: 45}
+        load_pct: "kroppsvikt"
+        note: "Lätt, ledsmörjande."
+
+      - segment: strength_block
+        order: 2
+        exercise: bird_dog
+        prescription: {sets: 2, reps: 10, rir: 5, rest_sec: 45}
+        load_pct: "kroppsvikt"
+        note: "Bål- och bäckenkontroll, bröstryggsvänligt."
+
+      - segment: strength_block
+        order: 3
+        exercise: single_leg_balance
+        prescription: {sets: 2, reps: 1, rir: 5, rest_sec: 30}
+        load_pct: "kroppsvikt, 30s/ben"
+        note: "Stabilitet."
+
+      - segment: strength_block
+        order: 4
+        exercise: thoracic_rotation
+        prescription: {sets: 2, reps: 8, rir: 5, rest_sec: 30}
+        load_pct: "rörlighet, 8/sida"
+        note: "Prehab för din thorakala situation."
+
+      - segment: cooldown
+        type: mobility
+        duration_min: 5
+        description: "Höftböjarstretch + valfri yoga-flow"
+
+    total_duration_min:
+      estimated: 25
+      flexible_range: [15, 35]
+    zone_refs: []
+    load_model: rir
+    equipment: [dumbbell]
+    abort_conditions:
+      - "Inga — om något känns ansträngande har du missförstått fasen."
+    coach_notes: |
+      Transition är inte träning, det är underhåll av rörelse. Byt gärna ut
+      hela passet mot yoga eller pilates om du hellre vill det. Lyssna mer
+      på lust än på schema här.

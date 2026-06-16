@@ -111,7 +111,7 @@ def structure_week(
     week_end = (week_start + timedelta(days=6)).isoformat()
     rows = (
         pg.table("planned_sessions")
-        .select("id, date, sport, title, workout_code, duration_min, steps")
+        .select("id, date, sport, title, workout_code, duration_min, steps, status")
         .eq("user_id", user_id)
         .gte("date", week_start.isoformat())
         .lte("date", week_end)
@@ -119,7 +119,11 @@ def structure_week(
         .execute()
     ).data or []
 
-    res = structure_rows(rows, pool, rules)
+    res = structure_rows(
+        [row for row in rows if row.get("status") != "cancelled"],
+        pool,
+        rules,
+    )
 
     if apply:
         for u in res.to_update:
