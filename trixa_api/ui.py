@@ -54,6 +54,15 @@ def _safe_float(value, default: float = 0.0) -> float:
         return default
 
 
+def _safe_int(value, default: int = 0) -> int:
+    try:
+        if value in (None, ""):
+            return default
+        return int(float(value))
+    except (TypeError, ValueError):
+        return default
+
+
 # Default-adept-id för MVP — Niklas. När vi har auth byts detta till cookien.
 _DEFAULT_USER_ID = os.environ.get(
     "TRIXA_DEFAULT_USER_ID", "09db449d-b8fd-409a-b475-3401b0de9858"
@@ -826,6 +835,25 @@ _PLANNED_SV_SPORT = {
 }
 
 
+def _prepare_steps_for_template(steps) -> list[dict]:
+    """Gör passupplägg säkra för Jinja-rendering.
+
+    Livedata kan innehålla både våra enkla steg och mer komplexa strukturer.
+    Template ska därför läsa färdiga booleanfält i stället för att jämföra
+    godtyckliga JSON-värden, till exempel `sets > 1`.
+    """
+    out: list[dict] = []
+    if not isinstance(steps, list):
+        return out
+    for step in steps:
+        if not isinstance(step, dict):
+            continue
+        s = dict(step)
+        s["sets_gt_one"] = _safe_int(s.get("sets")) > 1
+        out.append(s)
+    return out
+
+
 def _fetch_planned_sessions_week(client, user_id, week_monday):
     """Coachens/Nils plan (public.planned_sessions) för veckan, eller None."""
     if not user_id:
@@ -953,7 +981,8 @@ def _fetch_current_week_data(
             "title": title, "code": code, "category": "", "setting": "",
             "duration_minutes": dur, "distance": "",
             "intensity": ps.get("intensity") or ps.get("purpose") or "",
-            "notes": ps.get("details") or "", "steps": ps.get("steps") or [],
+            "notes": ps.get("details") or "",
+            "steps": _prepare_steps_for_template(ps.get("steps")),
             "coach_notes": "",
             "is_manual": (ps.get("origin") or "") == "manual",
             "origin": ps.get("origin") or "",

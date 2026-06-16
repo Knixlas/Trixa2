@@ -177,7 +177,7 @@
                 {% if s.note %}<br><em>{{ s.note }}</em>{% endif %}
               {% else %}
                 <strong>{{ s.segment or "?" }}:</strong>
-                {% if s.sets and s.sets > 1 %}{{ s.sets }}×{% endif %}{{ s.distance_m or s.duration_min or "?" }}{% if s.distance_m %}m{% elif s.duration_min %} min{% endif %}
+                {% if s.sets_gt_one %}{{ s.sets }}×{% endif %}{{ s.distance_m or s.duration_min or "?" }}{% if s.distance_m %}m{% elif s.duration_min %} min{% endif %}
                 {% if s.zone %}— Z{{ s.zone }}{% endif %}
                 {% if s.rest_sec %}, {{ s.rest_sec }}s vila{% endif %}
                 {% if s.description %}<br><em>{{ s.description }}</em>{% endif %}
