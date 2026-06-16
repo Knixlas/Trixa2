@@ -788,6 +788,79 @@ def _actual_hours_by_week(client, user_id, start, today) -> dict:
     return out
 
 
+def _season_actuals(client, user_id, start, today):
+    """Deduppade training_log-pass per ISO-vecka för säsongsvyn.
+
+    Returnerar (hours_by_week, sessions_by_week) ur EN läsning. sessions_by_week
+    matar de klickbara vecko-panelerna; hours_by_week matar volym + readiness.
+    """
+    hours: dict[tuple[int, int], float] = {}
+    sessions: dict[tuple[int, int], list[dict]] = {}
+    if not user_id:
+        return hours, sessions
+    try:
+        res = (
+            client.table("training_log")
+            .select("date, sport, title, duration_min, distance_km, avg_hr, tss, source")
+            .eq("user_id", user_id)
+            .gte("date", start.isoformat())
+            .lte("date", today.isoformat())
+            .order("date")
+            .execute()
+        )
+    except Exception:  # noqa: BLE001
+        return hours, sessions
+    for r in _clean_log_rows(res.data or []):
+        day = str(r.get("date"))[:10]
+        try:
+            d = date_type.fromisoformat(day)
+        except (ValueError, TypeError):
+            continue
+        iso = d.isocalendar()
+        key = (iso[0], iso[1])
+        dur = _fnum(r.get("duration_min")) or 0.0
+        hours[key] = hours.get(key, 0.0) + dur / 60.0
+        sessions.setdefault(key, []).append({
+            "date": day,
+            "sport": _SPORT_LABEL.get(_canon_log_sport(r.get("sport")), r.get("sport") or "—"),
+            "title": r.get("title") or "",
+            "duration_min": int(round(dur)),
+            "distance_km": _fnum(r.get("distance_km")),
+            "avg_hr": r.get("avg_hr"),
+            "tss": _fnum(r.get("tss")),
+            "source": r.get("source"),
+        })
+    return hours, sessions
+
+
+def _week_analysis(w: dict) -> str:
+    """Deterministisk en-menings-analys per vecka (ingen LLM)."""
+    opt = w.get("optimal_hours") or 0
+    act = w.get("actual_hours")
+    n = len(w.get("sessions") or [])
+    phase = (w.get("phase_label") or "").lower()
+    if w.get("future"):
+        return f"Planerad vecka ({phase}) — optimal riktvolym {opt} h."
+    if not act:
+        return (f"Ingen träning loggad. Optimalt {opt} h ({phase})."
+                if opt else "Ingen träning loggad den veckan.")
+    txt = f"{act} h utfört mot {opt} h optimalt"
+    if opt:
+        pct = round((act / opt - 1) * 100)
+        txt += f" ({'+' if pct > 0 else ''}{pct}%)"
+    txt += f" · {n} pass."
+    comp = w.get("compliance")
+    if comp is None:
+        txt += " Ingen plan den veckan att mäta mot."
+    elif comp == "green":
+        txt += " Följde planen väl."
+    elif comp == "yellow":
+        txt += " Delvis enligt plan."
+    elif comp == "red":
+        txt += " Avvek tydligt från plan."
+    return txt
+
+
 def _build_season_context(client, athlete, today, this_monday) -> dict | None:
     """Säsongsplan: optimal fas+volym per vecka vs faktiskt utfall, eller None."""
     race_raw = athlete.get("race_date")
@@ -801,10 +874,10 @@ def _build_season_context(client, athlete, today, this_monday) -> dict | None:
     user_id = athlete.get("user_id")
     peak_hours = float(athlete.get("weekly_hours") or 0) or 12.0
 
-    # Faktisk veckovolym ur training_log över hela fönstret (lookback bakåt).
-    # Allt utfört läses ur MASTER training_log → ingen garmin/strava-gating behövs.
-    lookback_start = this_monday - timedelta(weeks=season.SEASON_LOOKBACK_WEEKS + 1)
-    actual_by_week = _actual_hours_by_week(client, user_id, lookback_start, today)
+    # Faktiskt utfört per vecka ur MASTER training_log (deduppat). Brett fönster
+    # (28 v) så HELA den optimala periodiseringen täcks, inte bara lookbacken.
+    window_start = this_monday - timedelta(weeks=28)
+    actual_by_week, sessions_by_week = _season_actuals(client, user_id, window_start, today)
 
     try:
         comp_map = _compliance_by_week(
@@ -823,6 +896,11 @@ def _build_season_context(client, athlete, today, this_monday) -> dict | None:
         season.race_label(race_d) or (athlete.get("race_type") or "Tävling").capitalize()
     )
     plan["races"] = season.race_milestones(plan)
+
+    # Klickbara veckor: bädda in utförda pass + deterministisk analys per vecka.
+    for w in plan["weeks"]:
+        w["sessions"] = sessions_by_week.get((w["iso_year"], w["iso_week"]), [])
+        w["analysis"] = _week_analysis(w)
 
     # Readiness-projektion + ramp-vakt — nu på samma volymkälla (training_log).
     def _wk(i: int) -> float:

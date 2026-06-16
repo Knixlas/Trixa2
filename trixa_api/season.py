@@ -110,11 +110,11 @@ def build_season_plan(
 
     ideal_weeks = sum(phases[p]["duration_weeks"][0] for p in _FORWARD_ORDER)
 
-    # Starta historik vid lookback, men inte före den ideala periodens start.
-    season_start = this_monday - timedelta(weeks=lookback_weeks)
+    # Visa HELA den optimala periodiseringen (ideal_weeks v) — börja vid ideal-
+    # start om den ligger före lookback-fönstret. "Se hela vägen du borde haft."
     ideal_start = race_monday - timedelta(weeks=ideal_weeks - 1)
-    if season_start < ideal_start:
-        season_start = ideal_start
+    lookback_start = this_monday - timedelta(weeks=lookback_weeks)
+    season_start = min(lookback_start, ideal_start)
 
     total_weeks = (race_monday - season_start).days // 7 + 1
     race_idx = total_weeks - 1
@@ -147,15 +147,29 @@ def build_season_plan(
             "is_past": is_past, "is_current": is_current, "future": wm > this_monday,
         })
 
+    # Fasinfo (vad fasen innebär) för klickbara fas-bubblor.
+    try:
+        details = load_yaml("phase_details.yaml")["phase_details"]
+    except Exception:  # noqa: BLE001
+        details = {}
+
     # Slå ihop sammanhängande faser → staplar (för fas-bandet ovanför)
     bars: list[dict] = []
     for w in weeks:
         if bars and bars[-1]["phase"] == w["phase"]:
             bars[-1]["weeks"] += 1
         else:
-            c = _PHASE_COLORS.get(w["phase"], {"bg": "#e5e7eb", "fg": "#374151"})
-            bars.append({"phase": w["phase"], "label": w["phase_label"],
-                         "weeks": 1, "bg": c["bg"], "fg": c["fg"]})
+            ph = w["phase"]
+            c = _PHASE_COLORS.get(ph, {"bg": "#e5e7eb", "fg": "#374151"})
+            bars.append({
+                "phase": ph, "label": w["phase_label"],
+                "weeks": 1, "bg": c["bg"], "fg": c["fg"],
+                # Fas-innebörd: mål + innehåll (phases.yaml) + fokuspunkter (phase_details).
+                "goal": phases.get(ph, {}).get("goal", ""),
+                "content": phases.get(ph, {}).get("content", ""),
+                "focus": (details.get(ph, {}) or {}).get("training_focus", []) or [],
+                "duration_weeks": phases.get(ph, {}).get("duration_weeks"),
+            })
 
     # Avstämning för innevarande vecka
     cur = next((w for w in weeks if w["is_current"]), None)
