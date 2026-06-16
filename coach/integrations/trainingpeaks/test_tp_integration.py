@@ -460,6 +460,32 @@ def test_dedup_training_log_skips_strava_match():
     assert [r["tp_workout_id"] for r in skipped] == [1]    # dubbletten mot strava
 
 
+def test_pair_training_log_rows_prefers_tp_workout_id():
+    rows = [
+        {"date": "2026-06-03", "sport": "Cykel", "duration_min": 60.0, "tp_workout_id": 91}
+    ]
+    planned = [
+        {"id": "ps-a", "date": "2026-06-03", "sport": "Cykel", "duration_min": 90,
+         "tp_workout_id": 12},
+        {"id": "ps-b", "date": "2026-06-03", "sport": "Cykel", "duration_min": 45,
+         "tp_workout_id": 91},
+    ]
+    paired = sync.pair_training_log_rows(rows, planned)
+    assert paired[0]["planned_session_id"] == "ps-b"
+
+
+def test_pair_training_log_rows_falls_back_to_nearest_date_sport_duration():
+    rows = [
+        {"date": "2026-06-04", "sport": "Lopning", "duration_min": 52.0, "tp_workout_id": 92}
+    ]
+    planned = [
+        {"id": "short", "date": "2026-06-04", "sport": "Löpning", "duration_min": 30},
+        {"id": "close", "date": "2026-06-04", "sport": "Löpning", "duration_min": 50},
+    ]
+    paired = sync.pair_training_log_rows(rows, planned)
+    assert paired[0]["planned_session_id"] == "close"
+
+
 # ---------- idempotent vecko-sync (replace-by-id, skip-if-unchanged) ----------
 
 _SYNC_STEPS = [
@@ -582,6 +608,16 @@ def test_sync_dry_run_writes_nothing():
     assert r[0].action == "would_create"
     assert c.created == [] and c.deleted == []
     assert rows[0]["tp_workout_id"] is None
+
+
+def test_sync_deletes_cancelled_remote_workout():
+    rows = [_planned_row(status="cancelled", tp_workout_id=777, tp_synced_hash="old")]
+    pg, c = _SyncPG(rows), _SyncTP()
+    r = sync_planned_week_to_tp(c, pg, "u", date(2026, 7, 6), dry_run=False)
+    assert r[0].action == "deleted" and r[0].workout_id == 777
+    assert c.deleted == [777]
+    assert rows[0]["tp_workout_id"] is None
+    assert rows[0]["tp_synced_hash"] is None
 
 
 # ---------- multi-tenant cookie (en cookie per användare) ----------

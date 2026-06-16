@@ -114,8 +114,8 @@
       <p style="margin: 0; font-size: 13.5px;">
         <strong><i data-lucide="trending-up" style="width:15px;height:15px;vertical-align:-2px;"></i>
         Readiness:</strong> {{ r.current_hours }} h/v nu
-        {% if r.base_eta is not none and r.base_eta > 0 %}· base om ~{{ r.base_eta }} v{% endif %}
-        {% if r.build_eta is not none and r.build_eta > 0 %}· build om ~{{ r.build_eta }} v{% endif %}
+        {% if r.base_eta_positive %}· base om ~{{ r.base_eta }} v{% endif %}
+        {% if r.build_eta_positive %}· build om ~{{ r.build_eta }} v{% endif %}
         (vid säker ~{{ r.ramp_pct }}%/v + avlastning)
       </p>
       <p style="margin: 4px 0 0; font-size: 13px; color: {{ 'var(--palm-deep)' if r.on_track else 'var(--coral)' }};">

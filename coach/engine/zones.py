@@ -18,7 +18,7 @@ from typing import Literal
 from .loader import AthleteProfile
 
 
-Discipline = Literal["swim", "bike", "run"]
+Discipline = Literal["swim", "bike", "run", "strength", "brick"]
 
 
 @dataclass
@@ -161,4 +161,6 @@ def compute_zones(discipline: Discipline, profile: AthleteProfile) -> ZoneSet:
         return _bike_zones(profile)
     if discipline == "run":
         return _run_zones(profile)
+    if discipline in ("strength", "brick"):
+        return ZoneSet(discipline=discipline)
     raise ValueError(f"Okänd disciplin: {discipline}")

@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import argparse
 import sys
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 
 from .auth_store import supabase_cookie_provider
 from .client import TPClient
@@ -33,6 +33,7 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--dry-run", action="store_true",
                     help="hämta + transformera men skriv inte till Supabase")
     args = ap.parse_args(argv)
+    started_at = datetime.now(timezone.utc)
 
     pg = None
     if not args.dry_run:
@@ -61,8 +62,39 @@ def main(argv: list[str] | None = None) -> int:
         for w in r.warnings:
             print(f"  warn: {w}")
 
-    ok = all(r.status == "success" for r in (daily, acts, tlog))
-    return 0 if ok else 1
+    # Observability: logga körningen i public.integration_runs (migration 009).
+    results = (daily, acts, tlog)
+    success = all(r.status == "success" for r in results)
+    if pg is not None:
+        try:
+            pg.table("integration_runs").insert({
+                "user_id": args.user,
+                "integration": "trainingpeaks",
+                "operation": "read_sync",
+                "status": "success" if success else "failed",
+                "started_at": started_at.isoformat(),
+                "finished_at": datetime.now(timezone.utc).isoformat(),
+                "records_processed": sum(r.records for r in results),
+                "error_message": "; ".join(
+                    f"{r.sync_type}: {r.error}" for r in results if r.error
+                ) or None,
+                "metadata": {
+                    "start": start.isoformat(),
+                    "end": end.isoformat(),
+                    "results": {
+                        r.sync_type: {
+                            "status": r.status,
+                            "records": r.records,
+                            "warnings": r.warnings,
+                        }
+                        for r in results
+                    },
+                },
+            }).execute()
+        except Exception as exc:  # noqa: BLE001
+            print(f"[integration_runs] warn: kunde inte logga synkstatus: {exc}")
+    client.close()
+    return 0 if success else 1
 
 
 if __name__ == "__main__":

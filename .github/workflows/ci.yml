@@ -1,0 +1,28 @@
+name: Trixa2 CI
+
+on:
+  push:
+    branches: ["main", "codex/**"]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: python -m pip install --upgrade pip
+      - run: pip install -r requirements-dev.txt
+      - name: Run deterministic engine and integration tests
+        run: >-
+          pytest -q
+          coach/tests/test_smoke.py
+          coach/tests/test_passbank_strength.py
+          coach/tests/test_planner_rules.py
+          coach/integrations/trainingpeaks/test_tp_integration.py
+          coach/trixa/test_session_mapping.py
+          coach/tests/test_agent_api.py
+          coach/tests/test_tp_login.py

@@ -1,14 +1,12 @@
 """Headless cookie-lagring för TP — en cookie **per användare** (multi-tenant).
 
-Tabell `public.tp_auth` (se migration ``tp_auth_multi_tenant``):
+Tabell `public.tp_auth` (se ``db/migrations/009_integration_runs.sql``):
 
-    id        bigint  (sekvens-backad)
-    user_id   uuid    unique not null   -- ägaren (public.profiles.id)
-    cookie    text    not null
+    user_id   uuid primary key  -- ägaren (public.profiles.id)
+    cookie    text not null
     updated_at timestamptz
 
-RLS: inloggade hanterar sin egen rad (``user_id = auth.uid()``); service-role
-(backend/worker) kringgår RLS.
+RLS är på utan klientpolicies; backend/worker använder service-role.
 
 `client.TPClient` har en ``cookie_provider``-söm. ``supabase_cookie_provider(user_id)``
 ger en provider som läser **just den användarens** cookie — så varje adept kan
