@@ -24,8 +24,8 @@ alerts:
     title: Tidiga tecken på trötthet
     body: |
       Engine ser 1-2 svaga varningssignaler den här veckan. Inget akut, men
-      hold an eye. Planen är skalad med -10% volym och -10% intensitet som
-      försiktighetsåtgärd.
+      håll ett öga på det. Planen är skalad med -10% volym och -10% intensitet
+      som försiktighetsåtgärd.
     follow_up: |
       Om du själv märker fortsatt trötthet trots reduktionen — rapportera
       det i nästa veckorapport. Annars: kör reducerad vecka och se hur
@@ -146,6 +146,7 @@ alerts:
     severity: info
     title: Veckoplan klar
     body: |
-      Trixa har genererat veckans plan. Pass och ursprung är spårbara i
-      planned_sessions. Override kan göras av coach via API.
+      Trixa har genererat veckans plan. Passen ligger i planned_sessions
+      (origin='trixa2') och engine-besluten i planens engine_decisions.
+      Override kan göras av coach via API.
     follow_up: null

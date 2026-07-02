@@ -17,7 +17,7 @@ workouts:
     discipline: bike
     category: AE
     type_code: AE1
-    name: "Recovery — flex duration"
+    name: "Lätt rull — bara snurra på benen"
     phase_appropriate: [prep, base_1, base_2, base_3, build_1, build_2, peak, race, recovery]
     parameterized: true
     parameters:
@@ -60,7 +60,7 @@ workouts:
     discipline: bike
     category: AE
     type_code: AE2
-    name: "Aerobic Endurance — flex duration"
+    name: "Lugn distans i samtalsfart"
     phase_appropriate: [prep, base_1, base_2, base_3, build_1, build_2]
     parameterized: true
     parameters:
@@ -115,7 +115,7 @@ workouts:
     discipline: bike
     category: AE
     type_code: AE2
-    name: "Rolling Endurance — kuperat Z2"
+    name: "Böljande långtur — låt backarna styra"
     phase_appropriate: [base_1, base_2, base_3, build_1]
     parameterized: true
     parameters:
@@ -157,15 +157,15 @@ workouts:
       - "Backar tvingar upp till Z4 upprepade gånger → välj plattare rutt"
     coach_notes: |
       Bättre än ren platt Z2 för adepter som kommer att tävla på kuperade
-      banor (Kalmar är platt — men det skadar inte att vara redo för
-      vinden, som beter sig som backar). Bra alternativ när vädret stör
-      lång jämn-watt-träning.
+      banor. Även inför platta tävlingsbanor är det värdefullt — vind
+      beter sig som backar. Bra alternativ när vädret stör lång
+      jämn-watt-träning.
 
   - code: AE2_bike_02
     discipline: bike
     category: AE
     type_code: AE2
-    name: "Trainer Z2 — strict watt"
+    name: "Jämn spinn på rullen"
     phase_appropriate: [prep, base_1, base_2, base_3, build_1, build_2]
     parameterized: true
     parameters:
@@ -212,7 +212,7 @@ workouts:
     discipline: bike
     category: AE
     type_code: AE2
-    name: "Z2 + spin-ups"
+    name: "Lugn tur med sex kadensryck"
     phase_appropriate: [base_1, base_2, base_3, build_1]
     parameterized: true
     parameters:
@@ -263,3 +263,57 @@ workouts:
       triggar inte träningsstress värd att räkna i veckoplaneringen. Kan
       köras både ute och inne — på trainer hjälper kadens-sensorn att
       verkligen nå 110+.
+
+  - code: AE2_bike_04
+    discipline: bike
+    category: AE
+    type_code: AE2
+    name: "Långpass i tävlingsfart — mage och ben"
+    phase_appropriate: [build_1, build_2, peak]
+    parameterized: false
+    intent: |
+      Långpasset som tränar exakt det tävlingen kräver: långa block på
+      dina race-watt (68-73 % av FTP) i tävlingsposition, med fullt
+      race-intag. Det här är intensiteten mellan Z2 och tempo där en
+      Ironman faktiskt cyklas — varken lugn distans eller tröskeljobb.
+      Watten ska kännas hanterbara i timmar; blir de tunga efter en
+      timme är antingen dagsformen eller race-planen fel.
+    setting: outdoor
+    terrain: flat
+    erg_mode: false
+    main_set:
+      - segment: warmup
+        duration_min: 20
+        zone: 1
+        description: "Rulla upp, sista 5 min i nedre Z2"
+      - segment: main
+        sets: 3
+        duration_min: 50
+        rest_sec: 600
+        effort_descriptor: "IM-race-watt: 68-73 % av FTP, aeroposition"
+        cadence_rpm: [85, 95]
+        description: |
+          3×50 min på race-watt med 10 min avspänd Z2 mellan blocken.
+          Race-intag från minut 20: kolhydrat var 15-20:e minut enligt
+          DIN plan (se nutrition-noteringar i profilen) — passet tränar
+          magen lika mycket som benen. Håll aeropositionen genom blocken;
+          res dig bara för att äta/sträcka enligt samma rytm som på race.
+      - segment: cooldown
+        duration_min: 10
+        zone: 1
+    total_duration_min:
+      estimated: 200
+      flexible_range: [150, 270]
+    zone_refs: [Z1, Z2, Z3]
+    equipment: [power_meter, hr_strap]
+    abort_conditions:
+      - "Yrsel, illamående eller energikrasch → sitt upp, sänk till Z1, avbryt om det inte släpper"
+      - "pw:HR-decoupling > 10 % i block 2 → sänk 5 % watt, kontrollera intag"
+      - "Race-watt kräver Z4-puls → dagsform eller fel FTP-värde; avbryt blocket, rapportera"
+      - "Ryggen låser sig i aeroposition → växla position oftare; kvarstår det, avbryt och flagga"
+    coach_notes: |
+      Bankens viktigaste cykelpass i build/peak för långdistans. Skala
+      via blocken: 2×45 (tidig build) → 3×50 → 3×60 (sen build). I peak:
+      2×40 räcker — intensiteten kvar, volymen ner. Utfallet (watt, puls,
+      intag, position) är direkt input till race-planen. Fyll INTE
+      passet med extra Z2 efteråt — race-watt-blocken ÄR passet.

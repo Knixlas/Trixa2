@@ -57,19 +57,23 @@ def select_workout_types(
         constraint = wt.get("constraint", "always")
 
         if constraint == "always":
-            result.append(wt["code"])
+            allowed = True
         elif constraint == "not_last_week":
-            if not is_last_week:
-                result.append(wt["code"])
+            allowed = not is_last_week
         elif constraint == "last_week_only":
-            if is_last_week:
-                result.append(wt["code"])
+            allowed = is_last_week
         elif constraint == "period_only":
-            allowed_periods = wt.get("periods", [])
-            if period in allowed_periods:
-                result.append(wt["code"])
+            allowed = period in wt.get("periods", [])
         else:
             raise ValueError(f"Okänd constraint: {constraint}")
+
+        # Extra flagga: uteslut sista veckan (återhämtningsveckan) även för
+        # period_only-kategorier — kombinerar period-villkor med vilovecka.
+        if allowed and wt.get("exclude_last_week") and is_last_week:
+            allowed = False
+
+        if allowed:
+            result.append(wt["code"])
 
     return result
 
@@ -103,8 +107,16 @@ def distribute_weekly_hours(
 # ---------- Passlängd ----------
 
 
-def max_session_minutes(phase: PhaseCode, discipline: Discipline) -> int | None:
+def max_session_minutes(
+    phase: PhaseCode,
+    discipline: Discipline,
+    period: str | None = None,
+) -> int | None:
     """Returnera max passlängd i minuter för en disciplin i en fas.
+
+    Värdet i phase_details får vara ett heltal ELLER en dict per period
+    (base: långpasset växer base_1 → base_3). Vid dict utan angiven period
+    returneras periodernas max (konservativt tak).
 
     Returnerar None om fasen inte specificerar (t.ex. race, transition).
     Endast run och bike har max-värden definierade i källdokumenten.
@@ -113,7 +125,12 @@ def max_session_minutes(phase: PhaseCode, discipline: Discipline) -> int | None:
     max_session = details[phase].get("max_session_minutes")
     if max_session is None:
         return None
-    return max_session.get(discipline)
+    value = max_session.get(discipline)
+    if isinstance(value, dict):
+        if period is not None and period in value:
+            return value[period]
+        return max(value.values())
+    return value
 
 
 # ---------- Hård träning ----------

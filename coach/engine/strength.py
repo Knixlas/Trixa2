@@ -29,6 +29,7 @@ class StrengthProtocol:
     focus: str
     exercise_groups: dict[str, list[str]]
     note: str | None = None
+    sessions_per_week: tuple[int, int] | None = None
 
 
 def current_strength_protocol(
@@ -59,16 +60,22 @@ def current_strength_protocol(
         phase, phase_data, period, week_in_period, weeks_in_period
     )
 
+    # Parametrar bor på protokollnivå (base_1 växlar MT→MS mitt i perioden,
+    # så fasnivån kan inte bära dem). Fas-blocket är fallback för äldre data.
+    params = strength.get("protocol_parameters", {}).get(protocol_code, {})
+    sessions = params.get("sessions_per_week")
+
     return StrengthProtocol(
         protocol_code=protocol_code,
         protocol_name=strength["protocol_types"].get(protocol_code, protocol_code),
         goal=phase_data.get("goal", ""),
-        intensity=phase_data.get("intensity", ""),
-        reps=tuple(phase_data.get("reps", [0, 0])),
-        sets=tuple(phase_data.get("sets", [0, 0])),
+        intensity=params.get("intensity") or phase_data.get("intensity", ""),
+        reps=tuple(params.get("reps") or phase_data.get("reps", [0, 0])),
+        sets=tuple(params.get("sets") or phase_data.get("sets", [0, 0])),
         focus=phase_data.get("focus", ""),
         exercise_groups=phase_data.get("exercises", {}),
         note=phase_data.get("note"),
+        sessions_per_week=tuple(sessions) if sessions else None,
     )
 
 

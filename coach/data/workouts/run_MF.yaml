@@ -14,7 +14,7 @@ workouts:
     discipline: run
     category: MF
     type_code: MF1
-    name: "8×30 sek backsprint"
+    name: "Backsprinter — 8×30 sek full kraft"
     phase_appropriate: [base_2, base_3, build_1]
     parameterized: true
     parameters:
@@ -65,7 +65,7 @@ workouts:
     discipline: run
     category: MF
     type_code: MF1
-    name: "12×15 sek korta steg"
+    name: "Snabba fötter i backen — 12×15 sek"
     phase_appropriate: [build_1, build_2]
     parameterized: true
     parameters:
@@ -112,7 +112,7 @@ workouts:
     discipline: run
     category: MF
     type_code: MF2
-    name: "Kupperat fartlek"
+    name: "Fartlek där backarna bestämmer"
     phase_appropriate: [base_2, base_3, build_1]
     parameterized: true
     parameters:
@@ -159,7 +159,7 @@ workouts:
     discipline: run
     category: MF
     type_code: MF3
-    name: "6×90 sek backintervall"
+    name: "Backrepor — kraft i stegen, 6×90 sek"
     phase_appropriate: [base_3, build_1, build_2]
     parameterized: true
     parameters:
@@ -206,7 +206,7 @@ workouts:
     discipline: run
     category: MF
     type_code: MF3
-    name: "5×3 min backintervall"
+    name: "Långa backrepor — 5×3 min"
     phase_appropriate: [build_1, build_2]
     parameterized: true
     parameters:

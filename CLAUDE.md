@@ -153,29 +153,43 @@ Sync-pipelinen lever i ett separat GitHub-repo: **`Knixlas/Trixa2`** (publikt).
 Trixa2/
 ├── CLAUDE.md
 ├── coach/
-│   ├── data/
-│   │   ├── athlete_config.yaml
-│   │   ├── races.yaml
+│   ├── data/                   ← GENERELL träningsfilosofi (inga adept-värden!)
+│   │   ├── athlete_config.example.yaml  ← dev-fixture, generiska värden
 │   │   ├── phases.yaml
-│   │   ├── phase_details.yaml
+│   │   ├── phase_details.yaml  ← inkl. recovery_week + per-period max-pass
 │   │   ├── workouts.yaml       ← passtyp-koder (AE/ME/AC/...)
-│   │   ├── strength.yaml
+│   │   ├── strength.yaml       ← protocol_parameters per protokoll
+│   │   ├── nutrition.yaml      ← generella defaults (per-adept i DB)
 │   │   ├── overtraining.yaml
-│   │   └── workouts/           ← passbank, EJ BYGGD ÄN
+│   │   ├── alerts.yaml
+│   │   ├── session_mapping.yaml
+│   │   └── workouts/           ← passbank (124 pass + 27 drills, inkl. brick)
 │   ├── engine/
 │   │   ├── zones.py
 │   │   ├── phases.py
 │   │   ├── workouts.py
 │   │   ├── strength.py
-│   │   └── overtraining.py
+│   │   ├── overtraining.py
+│   │   └── profile.py          ← profile_from_athlete_row = enda parsningsvägen
 │   ├── adapters/
 │   │   └── garmin.py
+│   ├── integrations/trainingpeaks/
 │   ├── personas/
-│   │   └── nils.yaml              ← Nils-persona (uppladdad i projektkunskap)
-│   └── trixa/                  ← EJ BYGGT ÄN (formulär, protokoll, generator)
-└── tests/
-    └── test_smoke.py
+│   │   └── nils.yml               ← Nils-persona (uppladdad i projektkunskap)
+│   └── trixa/                  ← planner, cron, races, alerts, db
+├── trixa_api/                  ← FastAPI + /ui (login, signup, onboarding, settings)
+├── db/migrations/              ← 001-009 (008 user-fält, 009 races)
+└── coach/tests/
 ```
+
+**Adept-data bor i Supabase, INTE i coach/data.** `public.athlete_profiles`
+(en rad per användare) bär trösklar (ftp/lthr/lthr_bike/max_hr/resting_hr/
+swim_css/run_threshold_pace), threshold_meta (källa+testdatum), veckoschema,
+recovery_week_ratio ('3:1'|'2:1'), nutrition-överridor, hälso-jsonb och
+onboarded_at. `public.races` (athlete_id → athlete_profiles.id) är
+tävlingskalendern — planner läser nästa A-race via `coach/trixa/races.py`
+med fallback till athlete_profiles.race_date. `races.yaml` och
+`athlete_config.yaml` är BORTTAGNA (2026-07-02).
 
 ## Passbank — design (ej byggd än)
 
@@ -273,7 +287,7 @@ Projektet (CLAUDE.md + md-källdokument + kod) bär delad kunskap. Tråden är a
 **Komplett:**
 - ✓ Engine: phases, workouts, strength, overtraining
 - ✓ YAML-konfig (phases, phase_details, workouts-koder, strength, overtraining, races, athlete_config — saknar bara mental + näring)
-- ✓ Passbank: **116 pass + 25 drills** fördelat på 21 YAML-filer i `coach/data/workouts/` (3 discipliner × 7 kategorier). Parametriserade mallar OCH konkreta varianter. Validerar mot SCHEMA.md.
+- ✓ Passbank: **124 pass + 27 drills** i `coach/data/workouts/` (swim/bike/run × 7 kategorier + brick_BW.yaml). Parametriserade mallar OCH konkreta varianter. Validerar mot SCHEMA.md.
 - ✓ Renderer (markdown), validator, template-resolver, profile-loader (yaml → AthleteProfile)
 - ✓ Adapter byggd och testad mot live-data
 - ✓ Medicinsk kontext delad, manual_override-mönster etablerat
@@ -318,6 +332,53 @@ Projektet (CLAUDE.md + md-källdokument + kod) bär delad kunskap. Tråden är a
 - Passbanken är inte längre "ej byggd" — den är välspecificerad och valideringsbar. CLAUDE.md var stale; framtida trådar ska läsa `coach/data/workouts/` innan de tror på status-listan.
 - Två path-buggar i `coach/engine/`: `loader.py` och `profile.py` hade `parent.parent.parent` istället för `parent.parent`. Båda fixade. `verify_and_render` + smoke-test kör grönt.
 - Nils-via-Supabase-arkitekturen är fastslagen: BÅDA skriver veckoplan till MASTER `public.planned_sessions` (Trixa med `origin='trixa2'`, Nils med `origin='nils'`), Nils läser samma tabell via MCP eller Trixa-API (`/api/week/current`). Utfört läses från `public.training_log`. Override skrivs till `coach_overrides` (athlete_id = athlete_profiles.id!) med engine_recommendation + override_decision + motivation. Trixa-planner respekterar override när nästa vecka genereras och kvitterar med `honored_by_planner`.
+
+## Lärdomar 2026-07-02 — generell filosofi + multi-user
+
+Expertgranskning av styrdokument + passbank följdes av refaktorering
+(branch `general-philosophy-multiuser`). Läget efter den:
+
+- **Styrkeprotokollet var inverterat** (MS 10-12 reps light, SM 4-5 set heavy).
+  Nu: `strength.yaml::protocol_parameters` per protokoll — MS = 3-6 reps heavy
+  2-3 set 2 ggr/v, SM = 1-2 set × 6-10 1 gång/v. Planner schemalägger
+  `sessions_per_week[0]` styrkepass.
+- **TE var oåtkomlig** — ingen fas listade den. Nu i base_2/base_3
+  (period_only + exclude_last_week) och build; `kind_of()` räknar TE som quality.
+- **Vilovecko-cykeln lever**: `_resolve_period_position()` räknar veckoposition
+  från `phase_state.weeks_in_phase` (skrivs tillbaka vid apply) och adeptens
+  `recovery_week_ratio`. Sista cykel-veckan: hårda kategorier bort + volym × 0.6.
+  CLI/API-argumenten week_in_period/weeks_in_period är numera manuell override
+  (default None = auto). OBS: förut defaultade allt till "vecka 1 av 6" i drift.
+- **Peak-taper**: factor 0.75/vecka (var 0.5 = detraining) + AE/SS tillbaka i peak.
+- **Overtraining**: severe-flaggor väger dubbelt (`weighted_count`), severe ≥5.
+- **Nutrition** flyttad från phase_details → `nutrition.yaml` (defaults) +
+  athlete_profiles-överridor; planner bygger `decisions["nutrition"]` i race/
+  sista peak-veckan. Niklas har Ozempic-notering i nutrition_notes.
+- **Profilkedjan konsoliderad**: `coach/engine/profile.py::profile_from_athlete_row`
+  är enda parsningsvägen ("2:15"-format). `planner._build_athlete_profile_for_zones`
+  är ett alias (cron importerar det). lthr_bike + max_hr är inte längre hårdkodade None.
+- **Buggfix som väckte sim-banken**: alla swim-YAML hade `parametrized:` (stavfel)
+  → mallarna resolvades aldrig. Fixat + inline-specs (`sets: {default: N}`)
+  plattas i resolve_template. Alla 116 pass renderar nu.
+- **Onboarding**: signup skapar athlete_profiles-rad (`_ensure_athlete_profile`,
+  idempotent), dashboard redirectar till `/ui/onboarding` tills `onboarded_at`
+  är satt. Formuläret samlar trösklar (+källa), tävling → races, vecka,
+  hälsa, nutrition.
+- **Niklas = användare 1**: backfillad via migration 008 (max_hr 185, resting 48,
+  lthr_bike 162, recovery_week_ratio **2:1** (masters), Ozempic-notering) +
+  races-seed (Kalmar 2026-08-15, mål **sub-13** — races.yaml:s 11:30 var stale).
+  Test-användaren fdcce15c-… verifierar väg 2 (egen plan, egna zoner, 3:1).
+- **Passbank-luckan stängd senare samma dag**: brick_BW.yaml (BAE1 lång brick,
+  BME1 race-pace-brick, BSS2 T2-övning; discipline=brick med `sport`-fält per
+  segment, per-sport-zonrendering), AE2_bike_04 (IM-race-watt-block 68-73 %
+  FTP + nutrition), AE2_run_04 (IM-pace-block) + AE2_run_05 (walk/run 9/1),
+  AE2_swim_05 (OW-skills; kräver pool_type=open_water) + AE2_swim_06 (broken
+  3×1000 @ CSS+4-6) + drills `sighting`/`deep_water_start`. Loader upptäcker
+  brick_*.yaml; BW→brick i pass-valet; brick VINNER long_bike_day;
+  session_mapping har brick-regler (resolve_session kortslöt tidigare brick).
+- **Kvar från granskningen (separata trådar)**: sim-TE/ME-pacekollaps +
+  zonluckor i zones.py; felräknade pass-tider i äldre pass;
+  deltoid-`contraindications`-fält; test_zones-omskrivning.
 
 ## Nästa checkpoints
 

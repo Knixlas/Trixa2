@@ -12,8 +12,8 @@ workouts:
     discipline: swim
     category: TE
     type_code: TE1
-    name: "4×300 Z3"
-    parametrized: true
+    name: "Tempo-300:or — bekvämt obekvämt"
+    parameterized: true
     parameters:
       duration_min:
         default: 45
@@ -65,8 +65,8 @@ workouts:
     discipline: swim
     category: TE
     type_code: TE1
-    name: "6×200 Z3 kort vila"
-    parametrized: true
+    name: "6×200 i tempo — vilan är snål"
+    parameterized: true
     parameters:
       duration_min:
         default: 40
@@ -110,8 +110,8 @@ workouts:
     discipline: swim
     category: TE
     type_code: TE1
-    name: "Tempo-pyramid 100-200-300-400-300-200-100"
-    parametrized: true
+    name: "Tempopyramiden — upp till 400 och ner"
+    parameterized: true
     parameters:
       duration_min:
         default: 50
@@ -183,8 +183,8 @@ workouts:
     discipline: swim
     category: TE
     type_code: TE1
-    name: "2×800 Z3"
-    parametrized: true
+    name: "2×800 — långt och tålmodigt tempo"
+    parameterized: true
     parameters:
       duration_min:
         default: 50

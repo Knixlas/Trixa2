@@ -60,8 +60,12 @@ thresholds:
     drop_pct_vs_expected: 5
   consecutive_high_load_weeks: 3  # >3 tunga veckor i rad utan vilovecka
 
-# Bedömningsnivåer baserat på antal flaggor.
-# Räknas över alla kategorier sammanlagt.
+# Bedömningsnivåer baserat på VIKTAT antal flaggor.
+# Severe-signaler (kraftigt förhöjd RHR, kraftigt sänkt HRV, skada,
+# depression/ångest) väger severe_flag_weight — annars nås severe i
+# praktiken aldrig eftersom bara en handfull indikatorer är datamätbara.
+severe_flag_weight: 2
+
 assessment_levels:
   none:
     min_flags: 0
@@ -72,10 +76,10 @@ assessment_levels:
     label: Tidiga tecken — observera och justera lätt
   moderate:
     min_flags: 3
-    max_flags: 5
+    max_flags: 4
     label: Tydliga tecken — minska belastning och öka återhämtning
   severe:
-    min_flags: 6
+    min_flags: 5
     max_flags: 99
     label: Allvarliga tecken — aktiv återhämtning och eventuellt läkarkontakt
 

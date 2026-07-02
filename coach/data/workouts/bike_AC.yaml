@@ -19,7 +19,7 @@ workouts:
     discipline: bike
     category: AC
     type_code: AC1
-    name: "VO2Max — 5×3 min Z5"
+    name: "5×3 min där luften tar slut"
     phase_appropriate: [build_1, build_2]
     parameterized: true
     parameters:
@@ -73,7 +73,7 @@ workouts:
     discipline: bike
     category: AC
     type_code: AC1
-    name: "VO2Max — 30/30 × 20"
+    name: "30 sek på, 30 sek av — 20 varv"
     phase_appropriate: [build_1, build_2, peak]
     parameterized: true
     parameters:
@@ -125,7 +125,7 @@ workouts:
     discipline: bike
     category: AC
     type_code: AC1
-    name: "VO2Max — 4×4 min Z5"
+    name: "4×4 — hårda minuter med kort vila"
     phase_appropriate: [build_1, build_2]
     parameterized: true
     parameters:
@@ -178,7 +178,7 @@ workouts:
     discipline: bike
     category: AC
     type_code: AC2
-    name: "Pyramid — 1/2/3/2/1 min Z5"
+    name: "Hård pyramid — 1/2/3/2/1 min"
     phase_appropriate: [build_1, build_2]
     parameterized: true
     parameters:
@@ -242,7 +242,7 @@ workouts:
     discipline: bike
     category: AC
     type_code: AC2
-    name: "Pyramid — Tabata-pyramid 30-60-90-60-30 sek"
+    name: "Sekundpyramid — 30/60/90 och ner igen"
     phase_appropriate: [build_1, build_2, peak]
     parameterized: true
     parameters:
@@ -345,7 +345,7 @@ workouts:
     discipline: bike
     category: AC
     type_code: AC3
-    name: "Hill Intervals — 6×2 min Z5 i backe"
+    name: "Hårda backryck 6×2 min"
     phase_appropriate: [build_1, build_2]
     parameterized: true
     parameters:
@@ -389,15 +389,14 @@ workouts:
       - "Kadens under 80 trots växel-val → backen för brant, sänk watt-target"
     coach_notes: |
       Mer specifik för IM-cykling med vind/backar än indoor VO2. Kräver
-      rätt backe — för Niklas: typ Värmdö (Boo/Stavsnäs-vägen-höjder)
-      eller Lidingö (norra delarna). I peak-fas kan reps reduceras till
-      4 men intensiteten ökas.
+      rätt backe — 2-4 min lång med jämn lutning (4-7 %). I peak-fas kan
+      reps reduceras till 4 men intensiteten ökas.
 
   - code: AC3_bike_02
     discipline: bike
     category: AC
     type_code: AC3
-    name: "Hill Intervals — 8×90 sek Z5 i backe"
+    name: "Korta backraketer — 8×90 sek"
     phase_appropriate: [build_2, peak]
     parameterized: true
     parameters:

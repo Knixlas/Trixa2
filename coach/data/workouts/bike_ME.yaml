@@ -22,7 +22,7 @@ workouts:
     discipline: bike
     category: ME
     type_code: ME1
-    name: "Cruise — 4×8 min Z4"
+    name: "Tröskelblock 4×8 min"
     phase_appropriate: [base_3, build_1, build_2]
     parameterized: true
     parameters:
@@ -73,7 +73,7 @@ workouts:
     discipline: bike
     category: ME
     type_code: ME1
-    name: "Cruise — 3×12 min Z4"
+    name: "Tröskelblock 3×12 min"
     phase_appropriate: [build_1, build_2]
     parameterized: true
     parameters:
@@ -119,7 +119,7 @@ workouts:
     discipline: bike
     category: ME
     type_code: ME1
-    name: "Cruise — 5×6 min over-under"
+    name: "Tröskel 5×6 min — hård start, håll emot"
     phase_appropriate: [build_1, build_2]
     parameterized: true
     parameters:
@@ -173,7 +173,7 @@ workouts:
     discipline: bike
     category: ME
     type_code: ME2
-    name: "Hill Cruise — 4×6 min i backe"
+    name: "Tröskel i backe — 4×6 min"
     phase_appropriate: [base_3, build_1, build_2]
     parameterized: true
     parameters:
@@ -217,14 +217,14 @@ workouts:
       - "Kadens går under 65 trots växel-val → välj annan backe"
     coach_notes: |
       Mer styrke-tung än ME1_bike_01 — backens lutning ger kraft-belastning
-      utöver tröskel-belastningen. Bra build-pass. Kräver tillgänglig backe;
-      i Stockholm: Skogås, Hellasgården, Brevik (Värmdö).
+      utöver tröskel-belastningen. Bra build-pass. Kräver tillgänglig backe
+      på 6-10 min i jämn lutning.
 
   - code: ME2_bike_02
     discipline: bike
     category: ME
     type_code: ME2
-    name: "Hill Cruise — 6×4 min korta klättringar"
+    name: "Tröskelbackar 6×4 min"
     phase_appropriate: [base_3, build_1, build_2]
     parameterized: true
     parameters:
@@ -275,7 +275,7 @@ workouts:
     discipline: bike
     category: ME
     type_code: ME3
-    name: "Crisscross — 3×10 min Z3/Z4"
+    name: "Vågspel kring tröskeln — 3×10 min"
     phase_appropriate: [build_1, build_2]
     parameterized: true
     parameters:
@@ -329,7 +329,7 @@ workouts:
     discipline: bike
     category: ME
     type_code: ME3
-    name: "Crisscross — 2×15 min 2/2"
+    name: "Långa vågor kring tröskeln — 2×15 min"
     phase_appropriate: [build_2]
     parameterized: true
     parameters:
@@ -384,7 +384,7 @@ workouts:
     discipline: bike
     category: ME
     type_code: ME4
-    name: "Threshold Ride — 2×20 min Z4"
+    name: "Klassikern: 2×20 min på tröskeln"
     phase_appropriate: [build_1, build_2]
     parameterized: true
     parameters:
@@ -434,7 +434,7 @@ workouts:
     discipline: bike
     category: ME
     type_code: ME4
-    name: "Threshold Ride — 1×40 min Z4"
+    name: "40 min tröskel i ett stycke"
     phase_appropriate: [build_2]
     parameterized: true
     parameters:
@@ -483,7 +483,7 @@ workouts:
     discipline: bike
     category: ME
     type_code: ME4
-    name: "Threshold Ride — 3×15 min Z4 utomhus"
+    name: "Tröskel ute på vägen — 3×15 min"
     phase_appropriate: [build_1, build_2]
     parameterized: true
     parameters:

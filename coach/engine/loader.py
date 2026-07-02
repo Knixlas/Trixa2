@@ -62,6 +62,7 @@ def discover_workout_files(workout_dir: Path | None = None) -> dict[str, list[Pa
         "bike": [],
         "run": [],
         "strength": [],
+        "brick": [],
     }
     for path in sorted(workout_dir.glob("*.yaml")):
         name = path.name

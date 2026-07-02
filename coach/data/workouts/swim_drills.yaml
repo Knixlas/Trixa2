@@ -636,3 +636,62 @@ drills:
     equipment: [tempo_trainer]
     typical_distance_m: 100
     related_drills: [stroke_count, fast_swim_focus]
+
+  # ─────────────────────────────────────────────────────────────
+  # open_water (nytt 2026-07-02 — race-färdigheter för OW-simning)
+  # ─────────────────────────────────────────────────────────────
+
+  - code: sighting
+    name: "Sighting (krokodilögon)"
+    category: open_water
+    difficulty: 2
+    intent: |
+      Lyfta blicken för att sikta utan att tappa rytm, vattenläge
+      eller fart. Grunden i all öppet vatten-simning — dålig sighting
+      kostar hundratals extrameter på en IM. Kan och bör förövas i
+      pool långt innan OW-säsongen.
+    execution: |
+      1. I slutet av ett drag: pressa lätt på framsträckt hand
+      2. Lyft BARA ögonen över ytan ("krokodilögon") — inte hakan
+      3. Snapshot av landmärket, ansiktet ner igen
+      4. Andas åt sidan på NÄSTA tag som vanligt — sikta och andas
+         är två separata moment
+      5. I pool: sikta på klockan/flaggorna var 6-9:e tag, 25-50m åt gången
+    common_mistakes:
+      - "Lyfter hela huvudet — höften sjunker, farten dör"
+      - "Siktar och andas framåt samtidigt — dubbelt så störande för rytmen"
+      - "Stirrar för länge — en snapshot räcker, hjärnan fyller i"
+      - "Siktar för sällan i vågor — höj frekvensen när sikten är dålig"
+    cues:
+      - "Bara ögonbrynen över ytan"
+      - "Sikta-tag, sedan andas-tag"
+      - "Snapshot, inte fotografering"
+    equipment: []
+    typical_distance_m: 50
+    related_drills: [trickle_breath, side_kick]
+
+  - code: deep_water_start
+    name: "Deep Water Start + settle"
+    category: open_water
+    difficulty: 2
+    intent: |
+      Träna racets första minuter: start från trampvatten, 20-30 hårda
+      tag för att hitta position, sedan MEDVETEN nedväxling till
+      race-pace. Den klassiska IM-fällan är att aldrig växla ner —
+      pulsen från starten följer med i 20 minuter och kostar dyrt senare.
+    execution: |
+      1. Trampa vatten (eller stå i djupt) — ingen väggfrånskjut
+      2. På "start": 20-30 tag hårt, hög bentakt, huvudet oftare uppe
+      3. Sedan tre långa markerade andetag och växla ner till race-pace
+      4. Håll race-pace 100-200m, känn att pulsen faktiskt sjunker
+      5. I pool: starta mitt i bassängen från trampvatten
+    common_mistakes:
+      - "Växlar aldrig ner — hela repet blir en förlängd sprint"
+      - "Sparar sig i starten — då tränas inte övergången som är poängen"
+      - "Glömmer sighting under de hårda tagen"
+    cues:
+      - "30 tag hårt — sedan tre lugna andetag"
+      - "Racet vinns inte på 200m, men det kan förloras där"
+    equipment: []
+    typical_distance_m: 200
+    related_drills: [sighting, fast_swim_focus]

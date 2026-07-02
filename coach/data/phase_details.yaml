@@ -10,6 +10,14 @@ default_discipline_split:
 # Hård träning definieras som aktiv tid i Zon 3 eller högre.
 hard_training_zone_threshold: 3
 
+# Återhämtningsvecka: sista veckan i varje period (cykellängd styrs av
+# adeptens recovery_week_ratio, default 3:1 → 4-veckorscykel) skalas
+# veckovolymen med denna faktor. Gäller prep/base/build; peak har egen
+# taper-regel, race/transition är redan låga.
+recovery_week:
+  volume_factor: 0.6
+  applies_to_phases: [prep, base, build]
+
 phase_details:
 
   prep:
@@ -39,9 +47,11 @@ phase_details:
       - Aerob utveckling genom längre pass med lägre intensitet
       - Fortsatt teknikförbättring
       - Gradvis ökning av volym och intensitet
+    # Per period: långpasset ska växa genom base så att build inte behöver
+    # hoppa 2h → 5h (IM-långpass byggs gradvis).
     max_session_minutes:
-      run: 90
-      bike: 120
+      run: { base_1: 90, base_2: 90, base_3: 120 }
+      bike: { base_1: 150, base_2: 210, base_3: 270 }
     long_session_share_of_discipline: [0.40, 0.50]
     discipline_split:
       run: 0.35
@@ -53,7 +63,8 @@ phase_details:
     workout_types:
       - { code: AE, constraint: always }
       - { code: SS, constraint: always }
-      - { code: MF, constraint: period_only, periods: [base_2, base_3] }
+      - { code: MF, constraint: period_only, periods: [base_2, base_3], exclude_last_week: true }
+      - { code: TE, constraint: period_only, periods: [base_2, base_3], exclude_last_week: true }
       - { code: ME, constraint: not_last_week }
       - { code: BW, constraint: not_last_week }
       - { code: T,  constraint: last_week_only }
@@ -82,6 +93,7 @@ phase_details:
       max_increase_vs_prev_week: 0.10
     workout_types:
       - { code: AE, constraint: always }
+      - { code: TE, constraint: not_last_week }
       - { code: MF, constraint: not_last_week }
       - { code: SS, constraint: always }
       - { code: ME, constraint: not_last_week }
@@ -107,10 +119,17 @@ phase_details:
       mode: reduce
       note: Minska hård träning för att undvika överbelastning
     volume_reduction_rule:
-      mode: halve_each_week_vs_7week_avg
+      # Taper: volymen minskar ~25% per vecka mot 7-veckorssnittet.
+      # (Var 0.5 = halvering/vecka → detraining; korrigerad 2026-07-02.)
+      mode: taper_factor_per_week
       reference_weeks: 7
-      factor_per_week: 0.5
+      factor_per_week: 0.75
     workout_types:
+      # Taper = kraftigt reducerad volym men bibehållen skärpa: mestadels
+      # lätt aerobt (AE) + korta snabbhetsmoment (SS), med ME/BW som
+      # kvalitetsankare fram till sista veckan.
+      - { code: AE, constraint: always }
+      - { code: SS, constraint: always }
       - { code: ME, constraint: not_last_week }
       - { code: BW, constraint: not_last_week }
     strength_protocol: SM
@@ -130,14 +149,9 @@ phase_details:
     workout_types:
       - { code: SS, constraint: always, note: korta intensiva pass för skärpa }
       - { code: AE, constraint: always, note: lätta pass för rörlighet och teknik }
-    nutrition:
-      carb_loading:
-        days_before: [2, 3]
-        grams_per_kg_per_day: 10
-      race_day:
-        pre_start_minutes: 15
-        pre_start_intake: gel eller lite sportdryck
-        during_race_carbs_per_hour_g: 90
+    # Nutrition flyttad till data/nutrition.yaml (generella defaults) +
+    # athlete_profiles (per-adept-överridor) 2026-07-02. Intag är individuellt
+    # — hårdkodade gram hör inte hemma i fas-filosofin.
 
   transition:
     training_focus:

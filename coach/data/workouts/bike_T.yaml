@@ -26,7 +26,7 @@ workouts:
     discipline: bike
     category: T
     type_code: FTP_20min
-    name: "FTP-test — 20 min all-out"
+    name: "Formtest: 20 minuter allt du har"
     phase_appropriate: [prep, base_1, base_2, base_3, build_1, build_2]
     parameterized: true
     parameters:
@@ -97,7 +97,7 @@ workouts:
     discipline: bike
     category: T
     type_code: FTP_2x8
-    name: "FTP-test — 2×8 min"
+    name: "Formtest: 2×8 min — två chanser"
     phase_appropriate: [prep, base_1, base_2, base_3]
     parameterized: true
     parameters:
@@ -164,7 +164,7 @@ workouts:
     discipline: bike
     category: T
     type_code: FTP_Ramp
-    name: "FTP-test — Ramp till utmattning"
+    name: "Formtest: trappan upp tills det tar stopp"
     phase_appropriate: [prep, base_1, base_2, base_3, build_1, recovery]
     parameterized: true
     parameters:

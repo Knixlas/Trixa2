@@ -16,7 +16,7 @@ workouts:
     discipline: run
     category: SS
     type_code: SS1
-    name: "Strides — flex antal/längd"
+    name: "Stegringar — korta, snabba, snygga"
     phase_appropriate: [prep, base_1, base_2, base_3, build_1, build_2, peak, race]
     parameterized: true
     parameters:
@@ -78,7 +78,7 @@ workouts:
     discipline: run
     category: SS
     type_code: SS2
-    name: "Pickups — flex duration"
+    name: "Fartväxlingar mitt i rundan"
     phase_appropriate: [prep, base_1, base_2, base_3, build_1, build_2]
     parameterized: true
     parameters:

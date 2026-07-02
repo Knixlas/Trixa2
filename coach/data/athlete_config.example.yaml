@@ -1,0 +1,82 @@
+# Atletkonfiguration — EXEMPEL/DEV-FIXTURE
+# =========================================
+# Riktiga adept-profiler bor i public.athlete_profiles (en rad per användare)
+# och läses av coach/engine/profile.py::load_profile_from_athlete_profiles.
+#
+# Den här filen är en generisk fixture för dev-verktyg (verify_and_render)
+# och tester. Värdena är påhittade mittfälts-värden — INTE någon riktig adept.
+
+# -------------------------------------------------------------
+# Identitet
+# -------------------------------------------------------------
+identity:
+  display_name: Exempeladept
+  birth_year: 1985
+  sex: male
+  height_cm: 180
+  weight_kg: 78
+
+# -------------------------------------------------------------
+# Troskel- och testvarden
+# -------------------------------------------------------------
+thresholds:
+  # === Cykling ===
+  ftp_watts: 220
+  ftp_test_date: 2026-01-01
+  ftp_source: estimate                 # estimate | test | race
+  lthr_bike: 158
+  lthr_bike_test_date:
+  lthr_bike_source: estimate
+
+  # === Lopning ===
+  threshold_pace_run_sec_per_km: 300   # 5:00/km
+  threshold_hr_run: 165
+  lactate_threshold_pace_run_sec_per_km: 390   # 6:30/km
+  lactate_threshold_hr_run:
+  pace_run_test_date: 2026-01-01
+  pace_run_source: estimate
+
+  # === Simning ===
+  css_sec_per_100m: 120                # 2:00/100m
+  css_test_date: 2026-01-01
+  css_source: estimate
+
+  # === Generellt ===
+  max_hr: 180
+  resting_hr: 50
+
+# -------------------------------------------------------------
+# Tillganglighet
+# -------------------------------------------------------------
+schedule:
+  routine_days: 7
+  weekly_hours_target: 10
+  preferred_rest_days: [monday]
+  available_days:
+    monday: true
+    tuesday: true
+    wednesday: true
+    thursday: true
+    friday: true
+    saturday: true
+    sunday: true
+  long_workout_day: saturday
+  brick_day: sunday
+
+# -------------------------------------------------------------
+# Forutsattningar och begransningar
+# -------------------------------------------------------------
+constraints:
+  group_workouts: []
+  injuries: []
+  unavailable_sports: []
+
+# -------------------------------------------------------------
+# Utrustning
+# -------------------------------------------------------------
+equipment:
+  power_meter_bike: true
+  power_meter_run: false
+  trainer: true
+  treadmill: false
+  hr_strap: true

@@ -65,6 +65,7 @@ class OvertrainingAssessment:
     flag_count: int
     flags: list[str] = field(default_factory=list)
     severe_flags: list[str] = field(default_factory=list)  # extra-allvarliga indikatorer
+    weighted_count: int = 0  # flaggor där severe väger dubbelt — styr nivån
 
 
 @dataclass
@@ -170,9 +171,13 @@ def assess_overtraining(
         flags.append("skada närvarande")
         severe_flags.append("skada närvarande")
 
-    # Mappa flaggor till nivå
+    # Mappa flaggor till nivå. Severe-flaggor (kraftigt förhöjd RHR, kraftigt
+    # sänkt HRV, skada, m.fl.) väger dubbelt — en handfull mätbara signaler
+    # ska kunna nå severe utan att alla 11 indikatorer är aktiva.
     flag_count = len(flags)
-    level = _flag_count_to_level(flag_count, config["assessment_levels"])
+    severe_weight = config.get("severe_flag_weight", 2)
+    weighted_count = flag_count + (severe_weight - 1) * len(severe_flags)
+    level = _flag_count_to_level(weighted_count, config["assessment_levels"])
 
     # Eskalera om en extra-allvarlig flagga finns och nivån är "early"
     if severe_flags and level == "early":
@@ -186,6 +191,7 @@ def assess_overtraining(
         flag_count=flag_count,
         flags=flags,
         severe_flags=severe_flags,
+        weighted_count=weighted_count,
     )
 
 

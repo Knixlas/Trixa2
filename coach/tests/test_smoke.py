@@ -57,9 +57,23 @@ assert rec.phase == "peak", "3v bort borde ge peak"
 # ---- Test 2: passtyper ----
 
 divider("5. Passtyper i base_2")
-print(f"  Sista veckan:    {select_workout_types('base', 'base_2', 6, 6)}")
-print(f"  Mitt i perioden: {select_workout_types('base', 'base_2', 3, 6)}")
-print(f"  base_1 mitt i:   {select_workout_types('base', 'base_1', 3, 6)}")
+last_week = select_workout_types('base', 'base_2', 6, 6)
+mid_week = select_workout_types('base', 'base_2', 3, 6)
+base1_mid = select_workout_types('base', 'base_1', 3, 6)
+print(f"  Sista veckan:    {last_week}")
+print(f"  Mitt i perioden: {mid_week}")
+print(f"  base_1 mitt i:   {base1_mid}")
+assert "TE" in mid_week, "TE ska vara valbar mitt i base_2 (tillagd 2026-07-02)"
+assert "TE" not in last_week and "MF" not in last_week, (
+    "Sista veckan är återhämtningsvecka — TE/MF ska exkluderas (exclude_last_week)"
+)
+assert "TE" not in base1_mid, "TE hör inte hemma i base_1"
+build_mid = select_workout_types('build', 'build_1', 2, 4)
+assert "TE" in build_mid, "TE ska vara valbar i build (ej sista veckan)"
+peak_types = select_workout_types('peak', None, 1, 3)
+assert "AE" in peak_types and "SS" in peak_types, (
+    "Peak ska innehålla AE + SS (taper = reducerad volym, bibehållen skärpa)"
+)
 
 # ---- Test 3: volymfördelning ----
 
@@ -83,10 +97,22 @@ print(f"    {hard_training_cap_minutes('base', 600.0, previous_week_hard_minutes
 # ---- Test 6: styrkeprotokoll ----
 
 divider("9. Styrkeprotokoll")
-print(f"  prep:           {current_strength_protocol('prep').protocol_code}")
-print(f"  base_1 v2 (MT): {current_strength_protocol('base', 'base_1', 2, 6).protocol_code}")
-print(f"  base_1 v5 (MS): {current_strength_protocol('base', 'base_1', 5, 6).protocol_code}")
-print(f"  build:          {current_strength_protocol('build').protocol_code}")
+prep_p = current_strength_protocol('prep')
+mt_p = current_strength_protocol('base', 'base_1', 2, 6)
+ms_p = current_strength_protocol('base', 'base_1', 5, 6)
+sm_p = current_strength_protocol('build')
+print(f"  prep:           {prep_p.protocol_code} ({prep_p.sets} set × {prep_p.reps} reps, {prep_p.sessions_per_week}/v)")
+print(f"  base_1 v2 (MT): {mt_p.protocol_code}")
+print(f"  base_1 v5 (MS): {ms_p.protocol_code} ({ms_p.sets} set × {ms_p.reps} reps, {ms_p.intensity})")
+print(f"  build:          {sm_p.protocol_code} ({sm_p.sets} set × {sm_p.reps} reps, {sm_p.sessions_per_week}/v)")
+assert (prep_p.protocol_code, mt_p.protocol_code, ms_p.protocol_code, sm_p.protocol_code) == (
+    "AA", "MT", "MS", "SM"
+)
+# MS = maxstyrka: få reps, tungt. SM = underhåll: 1-2 set, 1 pass/vecka.
+# (Var inverterat före 2026-07-02 — MS hade 10-12 reps light, SM 4-5 set heavy.)
+assert ms_p.reps == (3, 6) and ms_p.intensity == "heavy", "MS ska vara maxstyrka"
+assert sm_p.sets == (1, 2) and sm_p.sessions_per_week == (1, 1), "SM ska vara underhåll"
+assert prep_p.sessions_per_week == (2, 3), "AA ska ha 2-3 pass/vecka"
 
 # ---- Test 7: överträning ----
 
@@ -95,7 +121,8 @@ a = assess_overtraining(OvertrainingSignals(
     rhr_bpm_over_baseline=6,
     motivation_low=True,
 ))
-print(f"  {a.level}: {a.label} (flags: {a.flag_count})")
+print(f"  {a.level}: {a.label} (flags: {a.flag_count}, viktade: {a.weighted_count})")
+assert a.level == "early", "2 svaga flaggor utan severe ska ge early"
 adj = recommend_adjustment(a)
 print(f"  → volym -{adj.volume_reduction_pct}%, intensitet -{adj.intensity_reduction_pct}%")
 
@@ -109,9 +136,29 @@ a = assess_overtraining(OvertrainingSignals(
     muscle_fatigue_persistent=True,
     poor_recovery=True,
 ))
-print(f"  {a.level}: {a.label} (flags: {a.flag_count})")
+print(f"  {a.level}: {a.label} (flags: {a.flag_count}, viktade: {a.weighted_count})")
+assert a.level == "severe", "7 flaggor varav 2 severe ska ge severe"
 adj = recommend_adjustment(a)
 print(f"  → volym -{adj.volume_reduction_pct}%, +{adj.extra_rest_days} vilodagar")
 print(f"  → läkarkontakt: {adj.consider_medical_consultation}")
+
+divider("12. Överträning — severe-viktning (severe väger dubbelt)")
+a = assess_overtraining(OvertrainingSignals(
+    rhr_bpm_over_baseline=12,      # severe (vikt 2)
+    hrv_pct_below_baseline=25,     # severe (vikt 2)
+    motivation_low=True,           # vanlig (vikt 1)
+))
+print(f"  {a.level}: 3 flaggor varav 2 severe → viktade {a.weighted_count}")
+assert a.weighted_count == 5 and a.level == "severe", (
+    "3 flaggor varav 2 severe = viktat 5 → severe"
+)
+a = assess_overtraining(OvertrainingSignals(
+    rhr_bpm_over_baseline=6,
+    hrv_pct_below_baseline=12,
+    sleep_score_avg_7d=55,
+    motivation_low=True,
+))
+print(f"  {a.level}: 4 vanliga flaggor → viktade {a.weighted_count}")
+assert a.weighted_count == 4 and a.level == "moderate", "4 vanliga flaggor → moderate"
 
 print("\n✓ ALLT GRÖNT")

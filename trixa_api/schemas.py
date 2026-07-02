@@ -14,8 +14,9 @@ from pydantic import BaseModel, Field
 class GeneratePlanRequest(BaseModel):
     athlete_user_id: str = Field(..., description="auth.users.id för adepten")
     week_start: date_type = Field(..., description="Måndag-datum för veckan")
-    week_in_period: int = Field(1, ge=1, le=12)
-    weeks_in_period: int = Field(6, ge=1, le=12)
+    # None = auto: position räknas från phase_state + adeptens recovery_week_ratio.
+    week_in_period: int | None = Field(None, ge=1, le=12)
+    weeks_in_period: int | None = Field(None, ge=1, le=12)
     apply: bool = Field(False, description="Skriv till DB. Default är dry-run.")
 
 

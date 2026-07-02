@@ -19,8 +19,8 @@ workouts:
     discipline: swim
     category: SS
     type_code: SS1
-    name: "16×25 all-out"
-    parametrized: true
+    name: "Sprintstegen — 16 snabba 25:or"
+    parameterized: true
     parameters:
       duration_min:
         default: 45
@@ -72,8 +72,8 @@ workouts:
     discipline: swim
     category: SS
     type_code: SS1
-    name: "Underwater dolphin starts"
-    parametrized: true
+    name: "Under ytan — delfinkick från väggen"
+    parameterized: true
     parameters:
       duration_min:
         default: 30
@@ -121,8 +121,8 @@ workouts:
     discipline: swim
     category: SS
     type_code: SS1
-    name: "Sprintstege 12×25 build"
-    parametrized: true
+    name: "Växla upp — 12×25 i tre steg"
+    parameterized: true
     parameters:
       duration_min:
         default: 35
@@ -181,8 +181,8 @@ workouts:
     discipline: swim
     category: SS
     type_code: SS2
-    name: "Fen-set: snabb och flytande"
-    parametrized: true
+    name: "Fenor på — snabbt och flytande"
+    parameterized: true
     parameters:
       duration_min:
         default: 32
@@ -236,8 +236,8 @@ workouts:
     discipline: swim
     category: SS
     type_code: SS2
-    name: "Snorkel-teknikset"
-    parametrized: true
+    name: "Snorkel på — teknik utan andningsstrul"
+    parameterized: true
     parameters:
       duration_min:
         default: 32
@@ -292,8 +292,8 @@ workouts:
     discipline: swim
     category: SS
     type_code: SS2
-    name: "Toy rotation set"
-    parametrized: true
+    name: "Leksakslådan — fenor, snorkel, platta"
+    parameterized: true
     parameters:
       duration_min:
         default: 30
@@ -350,8 +350,8 @@ workouts:
     discipline: swim
     category: SS
     type_code: SS2
-    name: "Fenor snabbhet (over-speed)"
-    parametrized: true
+    name: "Överfart med fenor — snabbare än du är"
+    parameterized: true
     parameters:
       duration_min:
         default: 33

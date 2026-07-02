@@ -17,7 +17,7 @@ workouts:
     discipline: run
     category: AE
     type_code: AE1
-    name: "Recovery — flex duration"
+    name: "Skakapass — lätt jogg"
     phase_appropriate: [prep, base_1, base_2, base_3, build_1, build_2, peak, race, recovery]
     parameterized: true
     parameters:
@@ -65,7 +65,7 @@ workouts:
     discipline: run
     category: AE
     type_code: AE2
-    name: "Aerobic Endurance — flex duration"
+    name: "Lugn distans — arbetshästen"
     phase_appropriate: [prep, base_1, base_2, base_3, build_1, build_2]
     parameterized: true
     parameters:
@@ -113,7 +113,7 @@ workouts:
     discipline: run
     category: AE
     type_code: AE2
-    name: "Långpass progressivt"
+    name: "Långpass med lyft på slutet"
     phase_appropriate: [base_2, base_3, build_1]
     parameterized: true
     parameters:
@@ -155,7 +155,7 @@ workouts:
     discipline: run
     category: AE
     type_code: AE2
-    name: "Trail-pass Z2"
+    name: "Lugn skogsrunda på stig"
     phase_appropriate: [prep, base_1, base_2, base_3]
     parameterized: true
     parameters:
@@ -196,7 +196,7 @@ workouts:
     discipline: run
     category: AE
     type_code: AE2
-    name: "Z2 + strides"
+    name: "Lugn löpning med stegringar"
     phase_appropriate: [base_1, base_2, base_3, build_1]
     parameterized: true
     parameters:
@@ -237,3 +237,107 @@ workouts:
       i base-fasen. Strides triggar inte träningsstress värd att
       räkna i veckoplaneringen. Strides-blocket är fast — bara Z2-delen,
       uppvärmning och nedvarvning skalas med budgeten.
+
+  - code: AE2_run_04
+    discipline: run
+    category: AE
+    type_code: AE2
+    name: "Långpass med block i målfart"
+    phase_appropriate: [build_1, build_2, peak]
+    parameterized: false
+    intent: |
+      Långpasset som repeterar tävlingens öppning: lugn Z2-bas med
+      block på ditt IM-målpace insprängda. Målpacet ska kännas nästan
+      förolämpande lätt i ett fräscht långpass — det är exakt så det
+      ska kännas de första milen i Kalmar också. Passet lär kroppen
+      pacet OCH huvudet disciplinen att inte springa fortare.
+    main_set:
+      - segment: warmup
+        duration_min: 15
+        zone: 1
+        description: "Lugn start, låt pulsen komma upp gradvis"
+      - segment: continuous
+        duration_min: 20
+        zone: 2
+      - segment: main
+        sets: 3
+        duration_min: 20
+        rest_sec: 300
+        effort_descriptor: "IM-målpace — maratonpacet du planerar öppna på"
+        description: |
+          3×20 min på målpace med 5 min avspänd Z2 mellan. Kolla pacet
+          mot klockan var 3-4:e minut, inte varje steg. Öva intag i
+          Z2-pauserna — gel/dryck enligt din race-plan.
+      - segment: cooldown
+        duration_min: 10
+        zone: 1
+    total_duration_min:
+      estimated: 115
+      flexible_range: [85, 135]
+    zone_refs: [Z1, Z2, Z3]
+    terrain: flat
+    surface: road
+    equipment: [hr_strap]
+    abort_conditions:
+      - "Yrsel, illamående eller energikrasch → gå, avbryt"
+      - "Målpace kräver Z4-puls i block 1 → dagsform eller orealistiskt mål; jogga hem, rapportera"
+      - "Pacet spricker i block 3 → normalt i tidig build; notera var det sprack"
+    coach_notes: |
+      Skala via blocken: 2×15 (tidig build) → 3×20 → 2×30 (sen build).
+      I peak: 2×15 räcker. Pulsen på målpace är passets facit — driftar
+      den upp mot tröskel är målet för ambitiöst satt, och det vill vi
+      veta i juli, inte i augusti. Ersätter INTE veckans lugna långpass
+      i base — det här är ett build-verktyg.
+
+  - code: AE2_run_05
+    discipline: run
+    category: AE
+    type_code: AE2
+    name: "Nio minuter löpa, en minut gå"
+    phase_appropriate: [prep, base_1, base_2, base_3, build_1, build_2, recovery]
+    parameterized: true
+    parameters:
+      duration_min:
+        default: 75
+        range: [45, 150]
+        description: "Total tid inkl. gångminuter. Skala fritt — belastningen per km är låg."
+    intent: |
+      Långpass i intervallform: 9 minuter löpning, 1 minut rask gång,
+      om och om igen. Gångminuten nollställer stötbelastningen och
+      håller pulsen ärligt aerob — du får mer tid på fötterna till
+      lägre skaderisk. Ingen nödlösning: run/walk är en beprövad
+      IM-maratonstrategi och ett förstklassigt verktyg för löpare
+      som byggs upp efter skada eller ökar volym försiktigt.
+    main_set:
+      - segment: warmup
+        duration_pct: 0.10
+        zone: 1
+        description: "Första blocket gås delvis — mjuk start"
+      - segment: continuous
+        duration_pct: 0.85
+        zone: 2
+        effort_descriptor: "9 min löpning Z2 / 1 min rask gång — repetera"
+        description: |
+          Gångminuten är obligatorisk, inte valfri — även när du känner
+          dig stark. Det är den som gör att pass nummer 40 i säsongen
+          fortfarande är skadefri. Drick/ät på gångminuterna.
+      - segment: cooldown
+        duration_pct: 0.05
+        zone: 1
+        description: "Sista minuterna gås"
+    total_duration_min:
+      estimated: 75
+      flexible_range: [45, 150]
+    zone_refs: [Z1, Z2]
+    terrain: flat
+    surface: any
+    equipment: []
+    abort_conditions:
+      - "Smärta som ändrar steget → gå hem, rapportera"
+      - "HR driftar över Z2 i löpminuterna trots gångpauserna → korta till 8/2, eller avsluta"
+    coach_notes: |
+      Rehab-vänligaste långpasset i banken — förstahandsval vid
+      återuppbyggnad, hög kroppsvikt-historik eller ryggkänslighet.
+      Kan även användas som RACE-strategi (gå vätskestationerna):
+      då övas exakt samma rytm här. 9/1 är default; 8/2 eller 4/1
+      för tyngre dagar.

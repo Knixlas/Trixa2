@@ -179,6 +179,11 @@ def _render_segment(
         return line
 
     label = _segment_label(seg_type, sets)
+    # Brick-segment bär eget `sport`-fält — märk upp så adepten ser växlingen
+    sport = seg.get("sport")
+    if sport:
+        sport_label = {"bike": "Cykel", "run": "Löp", "swim": "Sim"}.get(sport, sport)
+        label = f"{sport_label} — {label}"
     quantity = _segment_quantity(seg, zoneset.discipline)
 
     # Specialfall: 'rest' har inget annat innehåll än vilotid
@@ -327,16 +332,26 @@ def render_workout(
     """
     discipline = workout.get("discipline", "swim")
     profile = profile or AthleteProfile()
-    zoneset = compute_zones(discipline, profile)
+
+    # Brick = bike + run i samma pass. Zonuppslag görs per segment via
+    # segmentets `sport`-fält; default bike (brick börjar på cykeln).
+    if discipline == "brick":
+        zonesets = {
+            "bike": compute_zones("bike", profile),
+            "run": compute_zones("run", profile),
+        }
+        zoneset = zonesets["bike"]
+    else:
+        zonesets = None
+        zoneset = compute_zones(discipline, profile)
 
     out: list[str] = []
 
-    # Rubrik
-    out.append(f"## {workout['code']} — {workout['name']}")
+    # Rubrik — passnamnet bär; koden ligger i metaraden för spårbarhet
+    out.append(f"## {workout['name']}")
     out.append(
-        f"*Kategori: {workout['category']} ({workout['type_code']}) | "
-        f"Disciplin: {discipline} | "
-        f"Faser: {', '.join(workout['phase_appropriate'])}*"
+        f"*{workout['code']} · {workout['category']} · "
+        f"faser: {', '.join(workout['phase_appropriate'])}*"
     )
 
     # Bike-specifik info-rad
@@ -352,7 +367,10 @@ def render_workout(
     out.append("")
     out.append("**Upplägg:**")
     for seg in workout["main_set"]:
-        out.append(_render_segment(seg, zoneset, drill_map, exercise_map))
+        seg_zoneset = zoneset
+        if zonesets is not None:
+            seg_zoneset = zonesets.get(seg.get("sport", "bike"), zoneset)
+        out.append(_render_segment(seg, seg_zoneset, drill_map, exercise_map))
     out.append("")
 
     if workout.get("equipment"):

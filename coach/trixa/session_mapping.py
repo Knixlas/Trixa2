@@ -121,7 +121,8 @@ def resolve_session(
         matchar — anroparen ska eskalera, inte gissa.
     """
     discipline = discipline_for_sport(sport)
-    if discipline in ("rest", "", "brick", "strength"):
+    # brick har egna regler + passbanksfil (brick_BW.yaml) sedan 2026-07-02
+    if discipline in ("rest", "", "strength"):
         return None, None
     if rules is None:
         rules = load_session_mapping()

@@ -18,8 +18,8 @@ workouts:
     discipline: swim
     category: MF
     type_code: MF1
-    name: "8×50 katch-fokus"
-    parametrized: true
+    name: "Teknik-50:or — hitta taget"
+    parameterized: true
     parameters:
       duration_min:
         default: 26
@@ -68,8 +68,8 @@ workouts:
     discipline: swim
     category: MF
     type_code: MF1
-    name: "Buoy + paddles styrkeset"
-    parametrized: true
+    name: "Styrkeset med paddlar och boj"
+    parameterized: true
     parameters:
       duration_min:
         default: 35
@@ -121,8 +121,8 @@ workouts:
     discipline: swim
     category: MF
     type_code: MF1
-    name: "Band-only pull (ingen kick)"
-    parametrized: true
+    name: "Bara armar — sim med ankelband"
+    parameterized: true
     parameters:
       duration_min:
         default: 28
@@ -175,8 +175,8 @@ workouts:
     discipline: swim
     category: MF
     type_code: MF2
-    name: "Älv- eller åmotsim"
-    parametrized: true
+    name: "Motströms — sim i älv eller å"
+    parameterized: true
     parameters:
       duration_min:
         default: 24
@@ -223,8 +223,8 @@ workouts:
     discipline: swim
     category: MF
     type_code: MF2
-    name: "Choppy-water-tolerans"
-    parametrized: true
+    name: "Vågsim — lär dig gilla krabb sjö"
+    parameterized: true
     parameters:
       duration_min:
         default: 28
@@ -267,8 +267,8 @@ workouts:
     discipline: swim
     category: MF
     type_code: MF2
-    name: "Bassäng-simulering med snurr"
-    parametrized: true
+    name: "Sim på stället — band i bassängkanten"
+    parameterized: true
     parameters:
       duration_min:
         default: 20
@@ -315,8 +315,8 @@ workouts:
     discipline: swim
     category: MF
     type_code: MF3
-    name: "8×100 paddles main set"
-    parametrized: true
+    name: "8×100 med paddlar — tunga drag"
+    parameterized: true
     parameters:
       duration_min:
         default: 36
@@ -363,8 +363,8 @@ workouts:
     discipline: swim
     category: MF
     type_code: MF3
-    name: "Paddles + buoy descending"
-    parametrized: true
+    name: "Paddlar och boj — allt snabbare"
+    parameterized: true
     parameters:
       duration_min:
         default: 37
@@ -413,8 +413,8 @@ workouts:
     discipline: swim
     category: MF
     type_code: MF3
-    name: "Paddel-stege 50-100-150-200-150-100-50"
-    parametrized: true
+    name: "Paddelstegen — upp till 200 och ner"
+    parameterized: true
     parameters:
       duration_min:
         default: 33

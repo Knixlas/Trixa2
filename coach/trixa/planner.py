@@ -39,6 +39,7 @@ from coach.engine.overtraining import (
     recommend_adjustment,
 )
 from coach.engine.phases import AthleteState, determine_phase
+from coach.engine.profile import profile_from_athlete_row
 from coach.engine.renderer import render_workout
 from coach.engine.strength import current_strength_protocol
 from coach.engine.templates import resolve_template
@@ -68,6 +69,7 @@ class ScheduledWorkout:
     workout_data: dict | None = None  # hela passet från passbanken, resolved
     notes: str = ""
     details_markdown: str = ""  # fullständig pass-rendering (intent + main_set + zoner)
+
 
 @dataclass
 class WeekPlan:
@@ -461,8 +463,25 @@ def _profile_sports(athlete: dict) -> list[str]:
     return ["swim", "bike", "run"] if sports_value is None else list(sports_value)
 
 
-def _weeks_until_race(athlete: dict, today: date) -> int | None:
-    race_date_raw = athlete.get("race_date")
+def _weeks_until_race(
+    athlete: dict, today: date, client: Any | None = None
+) -> int | None:
+    """Veckor till nästa tävling. Primärt public.races (nästa A-race),
+    fallback athlete_profiles.race_date (denormaliserad reserv)."""
+    race_date_raw = None
+
+    if client is not None:
+        try:
+            from coach.trixa.races import fetch_next_a_race
+
+            race = fetch_next_a_race(client, athlete.get("id"), today)
+            if race:
+                race_date_raw = race.get("date")
+        except Exception:  # noqa: BLE001 — races-tabell saknas/fel → fallback
+            race_date_raw = None
+
+    if not race_date_raw:
+        race_date_raw = athlete.get("race_date")
     if not race_date_raw:
         return None
     try:
@@ -485,6 +504,7 @@ def _build_athlete_state(
     today: date,
     actual_weekly_hours: float | None = None,
     garmin_metrics: list[dict] | None = None,
+    client: Any | None = None,
 ) -> AthleteState:
     """Översätt athlete_profiles + weekly_report + TP-cache → AthleteState."""
     phase_state = athlete.get("phase_state") or {}
@@ -523,7 +543,7 @@ def _build_athlete_state(
         weekly_training_hours=weekly_hours,
         has_injury=_has_significant_injury(athlete),
         has_overtraining_signs=has_ot,
-        weeks_until_next_race=_weeks_until_race(athlete, today),
+        weeks_until_next_race=_weeks_until_race(athlete, today, client),
         last_race_completed_within_days=None,
         current_phase=phase_state.get("current_phase"),
         weeks_in_current_phase=phase_state.get("weeks_in_phase"),
@@ -588,38 +608,140 @@ def _build_ot_signals(
     )
 
 
-def _build_athlete_profile_for_zones(athlete: dict) -> AthleteProfile:
-    """Översätt athlete_profiles → AthleteProfile för zonberäkning."""
-
-    def _parse_swim_css(val: Any) -> float | None:
-        """'2:15' → 135.0 sec/100m. Tolererar redan-numeriska värden."""
-        if val is None:
-            return None
-        if isinstance(val, (int, float)):
-            return float(val)
-        try:
-            parts = str(val).split(":")
-            if len(parts) == 2:
-                return float(parts[0]) * 60 + float(parts[1])
-            return float(val)
-        except (ValueError, TypeError):
-            return None
-
-    def _parse_run_pace(val: Any) -> float | None:
-        """'5:15' → 315.0 sec/km."""
-        return _parse_swim_css(val)  # samma format
-
-    return AthleteProfile(
-        css_sec_per_100m=_parse_swim_css(athlete.get("swim_css")),
-        ftp_watts=athlete.get("ftp"),
-        lthr_bike_bpm=None,  # finns ej direkt i athlete_profiles ännu
-        threshold_pace_sec_per_km=_parse_run_pace(athlete.get("run_threshold_pace")),
-        at_hr_run_bpm=athlete.get("lthr"),
-        max_hr_bpm=None,
-    )
+# Konsoliderad till coach.engine.profile.profile_from_athlete_row (2026-07-02).
+# Aliaset behålls — cron.py och tester importerar namnet härifrån.
+_build_athlete_profile_for_zones = profile_from_athlete_row
 
 
 # ---------- Engine-orkestrering ----------
+
+
+def _resolve_period_position(
+    athlete: dict,
+    phase: str,
+    week_start: date,
+    override_week: int | None = None,
+    override_len: int | None = None,
+) -> tuple[int, int, int]:
+    """Bestäm (week_in_period, weeks_in_period, weeks_in_phase) för veckan.
+
+    Cykellängden styrs av adeptens recovery_week_ratio ('3:1' → 4-veckors-
+    cykel, '2:1' → 3-veckors för masters). Positionen räknas från
+    phase_state.weeks_in_phase som planner skriver tillbaka vid apply.
+    Sista veckan i cykeln är återhämtnings-/testvecka (constraints i
+    phase_details droppar hårda kategorier + volymen skalas).
+
+    Explicita CLI/API-argument (override_week/override_len) vinner alltid.
+    Re-körning av samma vecka (last_planned_week_start) ökar inte räknaren.
+    """
+    ratio = str(athlete.get("recovery_week_ratio") or "3:1")
+    try:
+        cycle_len = int(ratio.split(":")[0]) + 1
+    except (ValueError, IndexError):
+        cycle_len = 4
+
+    ps = athlete.get("phase_state") or {}
+    same_phase = ps.get("current_phase") == phase
+    prev_weeks = ps.get("weeks_in_phase") if same_phase else 0
+    if not isinstance(prev_weeks, int) or prev_weeks < 0:
+        prev_weeks = 0
+    if same_phase and ps.get("last_planned_week_start") == week_start.isoformat():
+        weeks_in_phase = max(1, prev_weeks)  # re-körning av samma vecka
+    else:
+        weeks_in_phase = prev_weeks + 1
+
+    weeks_in_period = override_len or cycle_len
+    if override_week is not None:
+        week_in_period = override_week
+    else:
+        week_in_period = ((weeks_in_phase - 1) % weeks_in_period) + 1
+    return week_in_period, weeks_in_period, weeks_in_phase
+
+
+def _apply_week_volume_scaling(
+    decisions: dict,
+    phase: str,
+    week_in_period: int,
+    weeks_in_period: int,
+    weeks_in_phase: int,
+) -> dict:
+    """Skala veckans volym för taper (peak) och återhämtningsvecka.
+
+    Peak: factor_per_week ** veckor-i-fasen (phase_details.volume_reduction_rule).
+    Prep/base/build: sista veckan i cykeln skalas med recovery_week.volume_factor.
+    Skalan appliceras på discipline_hours (som styr passlängderna) och loggas
+    spårbart i decisions.
+    """
+    details = load_yaml("phase_details.yaml")
+    factor: float | None = None
+
+    recovery = {"active": False, "week_in_period": week_in_period,
+                "weeks_in_period": weeks_in_period}
+
+    if phase == "peak":
+        rule = (details["phase_details"].get("peak") or {}).get(
+            "volume_reduction_rule"
+        ) or {}
+        per_week = float(rule.get("factor_per_week", 0.75))
+        factor = per_week ** max(1, weeks_in_phase)
+        decisions["taper"] = {
+            "factor_per_week": per_week,
+            "week_in_phase": weeks_in_phase,
+            "factor": round(factor, 3),
+        }
+    else:
+        rec_rule = details.get("recovery_week") or {}
+        if (
+            phase in (rec_rule.get("applies_to_phases") or [])
+            and week_in_period == weeks_in_period
+        ):
+            factor = float(rec_rule.get("volume_factor", 0.6))
+            recovery.update(active=True, volume_factor=factor)
+
+    decisions["recovery_week"] = recovery
+    if factor is not None:
+        dh = decisions.get("discipline_hours") or {}
+        decisions["discipline_hours"] = {
+            d: round(h * factor, 2) for d, h in dh.items()
+        }
+    return decisions
+
+
+def _build_nutrition(
+    athlete: dict,
+    phase: str,
+    week_in_period: int,
+    weeks_in_period: int,
+) -> dict | None:
+    """Bygg nutrition-beslut: generella defaults + adeptens överridor.
+
+    Returneras för race-fasen och sista peak-veckan (inför tävling), annars None.
+    Defaults i data/nutrition.yaml; per-adept-fält i athlete_profiles.
+    """
+    if not (phase == "race" or (phase == "peak" and week_in_period == weeks_in_period)):
+        return None
+    try:
+        config = load_yaml("nutrition.yaml")
+    except FileNotFoundError:
+        return None
+    defaults = config.get("defaults") or {}
+    result = {
+        "race_carbs_per_hour_g": athlete.get("race_carbs_per_hour_g")
+        or defaults.get("race_carbs_per_hour_g"),
+        "carb_load_g_per_kg_per_day": (
+            float(athlete["carb_load_g_per_kg"])
+            if athlete.get("carb_load_g_per_kg") is not None
+            else defaults.get("carb_load_g_per_kg_per_day")
+        ),
+        "carb_load_days_before": defaults.get("carb_load_days_before"),
+        "pre_start_minutes": defaults.get("pre_start_minutes"),
+        "pre_start_intake": defaults.get("pre_start_intake"),
+        "notes": (athlete.get("nutrition_notes") or "").strip() or None,
+        "individualized": bool(
+            athlete.get("race_carbs_per_hour_g") or athlete.get("carb_load_g_per_kg")
+        ),
+    }
+    return result
 
 
 def _run_engine(
@@ -627,9 +749,14 @@ def _run_engine(
     ot_signals: OvertrainingSignals,
     week_in_period: int,
     weeks_in_period: int,
+    phase_rec=None,
 ) -> dict:
-    """Kör alla engine-funktioner och samla beslut i en spårbar dict."""
-    phase_rec = determine_phase(state)
+    """Kör alla engine-funktioner och samla beslut i en spårbar dict.
+
+    phase_rec kan skickas in förberäknad (generate_week behöver fasen för att
+    resolva veckoposition INNAN engine körs) — annars beräknas den här.
+    """
+    phase_rec = phase_rec or determine_phase(state)
     categories = select_workout_types(
         phase=phase_rec.phase,
         period=phase_rec.period,
@@ -646,6 +773,7 @@ def _run_engine(
     adjustment = recommend_adjustment(ot)
 
     # Strength: undvik fall för faser utan protokoll
+    strength_detail = None
     try:
         strength = current_strength_protocol(
             phase=phase_rec.phase,
@@ -654,6 +782,18 @@ def _run_engine(
             weeks_in_period=weeks_in_period,
         )
         strength_code = strength.protocol_code
+        strength_detail = {
+            "code": strength.protocol_code,
+            "name": strength.protocol_name,
+            "intensity": strength.intensity,
+            "reps": list(strength.reps),
+            "sets": list(strength.sets),
+            "sessions_per_week": (
+                list(strength.sessions_per_week)
+                if strength.sessions_per_week
+                else None
+            ),
+        }
     except ValueError:
         strength_code = "none"
 
@@ -688,6 +828,7 @@ def _run_engine(
             else None
         ),
         "strength_protocol": strength_code,
+        "strength_protocol_detail": strength_detail,
     }
 
 
@@ -822,12 +963,14 @@ def _pick_long_workout_duration(
     workout: dict,
     discipline_hours: float,
     is_long_day: bool,
+    max_minutes: int | None = None,
 ) -> int:
     """Bestäm duration för parameterized pass.
 
     Heuristik:
       - Långpass-dag → max-spannet inom rimliga gränser (~50% av disciplinens veckotid)
       - Annars → default-värdet
+      - max_minutes = fasens/periodens max passlängd (phase_details) — hårt tak
     """
     if not workout.get("parameterized"):
         td = workout.get("total_duration_min") or {}
@@ -846,8 +989,12 @@ def _pick_long_workout_duration(
             )
             target = int(max_dur * 0.75)
             cap = int(discipline_hours * 60 * 0.5)  # max 50% av veckans disc-tid
-            return min(target, cap)
-        return int(default)
+            result = min(target, cap)
+        else:
+            result = int(default)
+        if max_minutes is not None:
+            result = min(result, max_minutes)
+        return result
 
     return 60
 
@@ -953,6 +1100,9 @@ def _schedule_workouts(
     existing_workout_count: int = 0,
     equipment: dict | None = None,
     preferred_settings: dict | None = None,
+    strength_sessions: int = 1,
+    phase: str | None = None,
+    period: str | None = None,
 ) -> list[ScheduledWorkout]:
     """Fördela utvalda pass över veckodagar.
 
@@ -960,13 +1110,17 @@ def _schedule_workouts(
       1. Vilodagar låses från `preferred_rest_days` (eller default måndag).
       2. Långpass-bike (största AE bike) på `long_bike_day` (default lördag).
       3. Långpass-löp (största AE run) på `long_run_day` (default söndag).
-      4. Kvalitetspass (ME/AC/MF) — använd båda-grannar-constraint:
+      4. Kvalitetspass (ME/AC/MF/TE) — använd båda-grannar-constraint:
          placera inte samma disciplin på dag före ELLER dag efter.
       5. Speed (SS) — samma constraint.
       6. Volym (AE som inte är långpass) — samma constraint.
-      7. Strength — konkret pass ur passbanken på en ledig kvalitetsdag.
+      7. Strength — konkret pass ur passbanken, upp till `strength_sessions`
+         pass (protokollets sessions_per_week) på lediga kvalitetsdagar.
       8. Fyll till minst fem pass inklusive mänskligt planerade pass.
       9. Skriv uttrycklig vila på återstående dagar.
+
+    phase/period används för fasens max passlängd (phase_details) som tak
+    på parameterized pass-längder.
 
     Brick: BW-kategori = bike+run kombo. När det finns konkreta brick-pass i
     passbanken (filer brick_*.yaml) placeras de på long_bike_day eftersom
@@ -975,11 +1129,21 @@ def _schedule_workouts(
     day_dates = {day: week_start + timedelta(days=_DAY_INDEX[day]) for day in _DAYS}
     schedule: dict[str, ScheduledWorkout] = {}
 
+    def _max_minutes_for(w: dict) -> int | None:
+        """Fasens/periodens max passlängd för passets disciplin (om definierad)."""
+        if phase is None:
+            return None
+        try:
+            return max_session_minutes(phase, w.get("discipline"), period)
+        except (ValueError, KeyError):
+            return None
+
     def _sfw(w: dict, dt: date, is_long: bool = False) -> ScheduledWorkout:
         """Skapa pass med rätt längd-skalning mot disciplinens faktiska veckotid."""
         return _scheduled_from_workout(
             w, dt, is_long=is_long,
             discipline_hours=discipline_hours.get(w.get("discipline"), 6.0),
+            max_minutes=_max_minutes_for(w),
         )
 
     # Dagar med Nils-/manualpass reserveras. Platshållarna skrivs aldrig till DB.
@@ -1018,7 +1182,7 @@ def _schedule_workouts(
     # Sortera passen i kategorier
     def kind_of(w: dict) -> str:
         cat = w.get("category", "")
-        if cat in ("ME", "AC", "MF"):
+        if cat in ("ME", "AC", "MF", "TE"):
             return "quality"
         if cat == "AE":
             return "volume"
@@ -1049,11 +1213,12 @@ def _schedule_workouts(
         else:
             candidates = [target_day] + [d for d in _DAYS if d != target_day]
 
-        # Om brick-pass finns och disciplin är bike — föredra brick istället
-        bike_options = volume + (brick_pool if discipline == "bike" else [])
-        run_options = volume
-
-        pool = bike_options if discipline == "bike" else run_options
+        # Om brick-pass finns och disciplin är bike — brick VINNER långdagen
+        # (brick ÄR veckans stora cykeldag + löpning på), annars största AE.
+        if discipline == "bike" and brick_pool:
+            pool = brick_pool
+        else:
+            pool = volume
         disc_pool = [w for w in pool if w.get("discipline") in (discipline, "brick")]
         if not disc_pool:
             return
@@ -1105,11 +1270,15 @@ def _schedule_workouts(
     place_with_neighbor_constraint(brick_pool)  # om kvar (oplacerade brick)
 
     # 6b. Konkret styrkepass ur passbanken. Styrka räknas mot veckans fem pass.
+    # Antal pass styrs av protokollets sessions_per_week (AA/MT/MS: 2, SM: 1).
     if strength_workout:
+        placed_strength = 0
         for d in ("wednesday", "friday", "tuesday", "thursday"):
+            if placed_strength >= max(1, strength_sessions):
+                break
             if d not in schedule:
                 schedule[d] = _sfw(strength_workout, day_dates[d])
-                break
+                placed_strength += 1
 
     # 6c. Hård regel: minst 5 pass per vecka (vila räknas inte).
     # Om engine + partial-impact gett oss <5 pass, fyll tomma dagar med
@@ -1254,17 +1423,21 @@ def _scheduled_from_workout(
     dt: date,
     is_long: bool = False,
     discipline_hours: float = 6.0,
+    max_minutes: int | None = None,
 ) -> ScheduledWorkout:
     """Konvertera passbankens workout-dict → ScheduledWorkout.
 
     discipline_hours = adeptens veckotid för passets disciplin; styr hur långt ett
     parameterized långpass blir (cap = 50 % av disciplinens veckotid). Var tidigare
     hårdkodat 6.0 → alla fick 6h-veckans längder (t.ex. 3h-cykel) oavsett volym.
+    max_minutes = fasens/periodens max passlängd från phase_details (extra tak).
     """
     resolved = (
         resolve_template(
             workout,
-            {"duration_min": _pick_long_workout_duration(workout, discipline_hours, is_long)},
+            {"duration_min": _pick_long_workout_duration(
+                workout, discipline_hours, is_long, max_minutes
+            )},
         )
         if workout.get("parameterized")
         else workout
@@ -1292,6 +1465,8 @@ def _scheduled_from_workout(
 
 
 # ---------- Skriv till MASTER planned_sessions (docs/08, steg 4) ----------
+# (De gamla persist-funktionerna mot training_plans/training_weeks/workouts
+#  togs bort 2026-07-02 — tabellerna droppades i datamodell-konsolideringen.)
 
 # Trixa2-disciplin → planned_sessions.sport (korrekt svenska, matchar Nils/dashboard).
 _PS_SPORT = {"swim": "Sim", "bike": "Cykel", "run": "Löpning",
@@ -1493,8 +1668,8 @@ def generate_week(
     week_start: date,
     dry_run: bool = True,
     today: date | None = None,
-    week_in_period: int = 1,
-    weeks_in_period: int = 6,
+    week_in_period: int | None = None,
+    weeks_in_period: int | None = None,
     locked_workouts: list[ScheduledWorkout] | None = None,
 ) -> WeekPlan:
     """Generera en veckoplan deterministiskt.
@@ -1504,8 +1679,9 @@ def generate_week(
         week_start: måndag-datum för veckan
         dry_run: om True, skriv inte till DB
         today: referensdatum för "weeks_until_race"
-        week_in_period: 1-indexerad position i nuvarande fas-period
-        weeks_in_period: total längd på nuvarande period
+        week_in_period: manuell override av position i perioden — default None
+            → auto från phase_state + adeptens recovery_week_ratio
+        weeks_in_period: manuell override av periodlängd (cykellängd)
 
     Returns:
         WeekPlan med alla beslut spårbara.
@@ -1553,12 +1729,31 @@ def generate_week(
         athlete, weekly_report, today,
         actual_weekly_hours=actual_weekly_hours,
         garmin_metrics=garmin_metrics,
+        client=client,
     )
     ot_signals = _build_ot_signals(athlete, weekly_report, garmin_metrics=garmin_metrics)
 
-    # 3. Kör engine
-    decisions = _run_engine(state, ot_signals, week_in_period, weeks_in_period)
+    # 3. Kör engine. Fasen behövs FÖRE engine för att resolva veckoposition
+    # (vilovecko-cykeln räknas per fas via phase_state).
+    phase_rec = determine_phase(state)
+    week_in_period, weeks_in_period, weeks_in_phase = _resolve_period_position(
+        athlete, phase_rec.phase, week_start,
+        override_week=week_in_period, override_len=weeks_in_period,
+    )
+    decisions = _run_engine(
+        state, ot_signals, week_in_period, weeks_in_period, phase_rec=phase_rec
+    )
     decisions["_weeks_in_period"] = weeks_in_period
+    decisions["_week_in_period"] = week_in_period
+    decisions["_weeks_in_phase"] = weeks_in_phase
+    decisions = _apply_week_volume_scaling(
+        decisions, phase_rec.phase, week_in_period, weeks_in_period, weeks_in_phase
+    )
+    nutrition = _build_nutrition(
+        athlete, phase_rec.phase, week_in_period, weeks_in_period
+    )
+    if nutrition:
+        decisions["nutrition"] = nutrition
     decisions, honored = _apply_overrides(decisions, overrides)
 
     # Spårbarhet: visa vad Trixa ser av TP-cache och utförd mastervolym.
@@ -1650,11 +1845,17 @@ def generate_week(
                     # Lägg ändå till AE-pass — engine sa inte AE men skada kräver det
                     pass
                 continue
-            # BW (brick) finns bara som disciplin "brick" eller "bike"+"run"-kombination
-            if cat == "BW" and disc != "bike":
-                continue
+            # BW (brick) är sin egen disciplin i passbanken (brick_*.yaml).
+            # Väljs en gång per vecka (via bike-iterationen) och kräver att
+            # både bike och run är aktiva — det ÄR bike följt av run.
+            if cat == "BW":
+                if disc != "bike" or "run" not in active_sports:
+                    continue
+                lookup_disc = "brick"
+            else:
+                lookup_disc = disc
             chosen = _select_workout_for(
-                cat, disc, phase_filter, workouts_pool, recent_codes, rng,
+                cat, lookup_disc, phase_filter, workouts_pool, recent_codes, rng,
                 equipment=equipment, preferred_settings=preferred_settings,
             )
             if chosen is None:
@@ -1709,6 +1910,9 @@ def generate_week(
     rest_days_raw = athlete.get("preferred_rest_days") or ["monday"]
     rest_days = rest_days_raw if isinstance(rest_days_raw, list) else ["monday"]
 
+    strength_detail = decisions.get("strength_protocol_detail") or {}
+    strength_sessions = (strength_detail.get("sessions_per_week") or [1])[0]
+
     scheduled = _schedule_workouts(
         selected=selected,
         discipline_hours=discipline_hours,
@@ -1722,6 +1926,9 @@ def generate_week(
         existing_workout_count=human_workout_count,
         equipment=equipment,
         preferred_settings=preferred_settings,
+        strength_sessions=strength_sessions,
+        phase=phase,
+        period=period,
     )
 
     # 5a. GRIND: Nils vinner. Släng motor-genererade pass för dagar coachen
@@ -1797,6 +2004,25 @@ def generate_week(
         plan.engine_decisions["overrides_honored_marked"] = _mark_overrides_honored(
             client, honored
         )
+
+        # Skriv tillbaka phase_state så vilovecko-cykeln räknar vidare nästa
+        # vecka (re-körning av samma vecka ökar inte räknaren — se
+        # _resolve_period_position). Trixa-lagret skriver; engine läser bara.
+        new_phase_state = {
+            **(athlete.get("phase_state") or {}),
+            "current_phase": phase,
+            "period": period,
+            "weeks_in_phase": weeks_in_phase,
+            "last_planned_week_start": week_start.isoformat(),
+            "updated_at": datetime.now(timezone.utc).isoformat(),
+        }
+        try:
+            client.table("athlete_profiles").update(
+                {"phase_state": new_phase_state}
+            ).eq("id", athlete_id).execute()
+            plan.engine_decisions["phase_state_written"] = new_phase_state
+        except Exception as exc:  # noqa: BLE001
+            plan.engine_decisions["phase_state_error"] = str(exc)
 
         # Skriv strukturerade alerts till coach_alerts
         from coach.trixa.alerts import build_alerts, persist_alerts
@@ -2087,7 +2313,51 @@ def render_plan_markdown(plan: WeekPlan) -> str:
         + ", ".join(f"{d} {h:.1f}h" for d, h in plan.discipline_hours.items())
     )
     lines.append(f"**Kategorier denna vecka:** {', '.join(plan.categories)}")
-    lines.append(f"**Styrkeprotokoll:** {plan.strength_protocol}")
+
+    strength_detail = plan.engine_decisions.get("strength_protocol_detail")
+    if strength_detail:
+        spw = strength_detail.get("sessions_per_week") or [1]
+        reps = strength_detail.get("reps") or []
+        sets = strength_detail.get("sets") or []
+        lines.append(
+            f"**Styrkeprotokoll:** {plan.strength_protocol} — "
+            f"{spw[0]} pass/vecka, {sets[0]}-{sets[-1]} set × {reps[0]}-{reps[-1]} reps"
+            f" ({strength_detail.get('intensity', '')})"
+        )
+    else:
+        lines.append(f"**Styrkeprotokoll:** {plan.strength_protocol}")
+
+    recovery = plan.engine_decisions.get("recovery_week") or {}
+    if recovery.get("active"):
+        lines.append(
+            f"**Återhämtningsvecka:** volym skalad till "
+            f"{recovery.get('volume_factor', 0.6):.0%} — lätt vecka, testa gärna."
+        )
+    taper = plan.engine_decisions.get("taper")
+    if taper:
+        lines.append(
+            f"**Taper:** vecka {taper.get('week_in_phase')} i peak — "
+            f"volym {taper.get('factor', 1):.0%} av normalvecka."
+        )
+
+    nutrition = plan.engine_decisions.get("nutrition")
+    if nutrition:
+        lines.append("")
+        lines.append("## Tävlingsnutrition")
+        lines.append(
+            f"- Kolhydrater under race: **{nutrition.get('race_carbs_per_hour_g')} g/h**"
+            + ("" if nutrition.get("individualized") else " _(generell default — individualisera!)_")
+        )
+        lines.append(
+            f"- Kolhydratladdning: {nutrition.get('carb_load_g_per_kg_per_day')} g/kg/dag, "
+            f"{'-'.join(str(d) for d in (nutrition.get('carb_load_days_before') or []))} dagar före"
+        )
+        lines.append(
+            f"- Före start: {nutrition.get('pre_start_intake')} "
+            f"~{nutrition.get('pre_start_minutes')} min innan"
+        )
+        if nutrition.get("notes"):
+            lines.append(f"- **Adept-notering:** {nutrition['notes']}")
     lines.append(
         f"**Överträningsbedömning:** {plan.overtraining_level}"
         + (
@@ -2126,7 +2396,7 @@ def render_plan_markdown(plan: WeekPlan) -> str:
         else:
             lines.append(f"### {day} — {wo.title} ({wo.sport})")
             lines.append(
-                f"`{wo.code}` | {wo.category} | {wo.duration_minutes} min | {wo.intensity}"
+                f"{wo.duration_minutes} min · {wo.intensity} · `{wo.code}`"
             )
             if wo.notes:
                 lines.append("")
@@ -2167,14 +2437,16 @@ def _cli() -> int:
     parser.add_argument(
         "--week-in-period",
         type=int,
-        default=1,
-        help="Position i nuvarande fas-period (1-indexerad).",
+        default=None,
+        help="Manuell override av position i fas-perioden (1-indexerad). "
+        "Default: auto från phase_state + recovery_week_ratio.",
     )
     parser.add_argument(
         "--weeks-in-period",
         type=int,
-        default=6,
-        help="Total längd på nuvarande fas-period.",
+        default=None,
+        help="Manuell override av periodlängd. Default: auto (cykellängd "
+        "från recovery_week_ratio, t.ex. 3:1 → 4 veckor).",
     )
     parser.add_argument(
         "--json",

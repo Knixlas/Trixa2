@@ -13,7 +13,7 @@ workouts:
     discipline: run
     category: AC
     type_code: AC1
-    name: "Klubblöp — varierad fart"
+    name: "Klubbrundan — gruppen sätter farten"
     phase_appropriate: [base_2, base_3, build_1, build_2]
     parameterized: true
     parameters:
@@ -60,7 +60,7 @@ workouts:
     discipline: run
     category: AC
     type_code: AC2
-    name: "6×3 min Z5"
+    name: "Hårda treor — 6×3 min"
     phase_appropriate: [build_2, peak]
     parameterized: true
     parameters:
@@ -111,7 +111,7 @@ workouts:
     discipline: run
     category: AC
     type_code: AC2
-    name: "12×400m Z5"
+    name: "Snabba 400-varv — 12×400 m"
     phase_appropriate: [build_2, peak]
     parameterized: true
     parameters:
@@ -154,7 +154,7 @@ workouts:
     discipline: run
     category: AC
     type_code: AC2
-    name: "Pyramid 800-1000-1200-1000-800 Z5"
+    name: "Pyramiden — upp till 1200 och ner"
     phase_appropriate: [build_2, peak]
     parameterized: true
     parameters:
@@ -219,7 +219,7 @@ workouts:
     discipline: run
     category: AC
     type_code: AC3
-    name: "8×90 sek hård backe Z5"
+    name: "Hårda backdrag — 8×90 sek"
     phase_appropriate: [build_1, build_2, peak]
     parameterized: true
     parameters:

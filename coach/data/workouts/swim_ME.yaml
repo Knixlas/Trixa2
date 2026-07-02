@@ -19,8 +19,8 @@ workouts:
     discipline: swim
     category: ME
     type_code: ME1
-    name: "3×800 @ CSS+3"
-    parametrized: true
+    name: "Tröskel-800:or — jämn och stark"
+    parameterized: true
     parameters:
       duration_min:
         default: 75
@@ -70,8 +70,8 @@ workouts:
     discipline: swim
     category: ME
     type_code: ME1
-    name: "4×500 @ CSS"
-    parametrized: true
+    name: "4×500 i tröskelfart — håll splitsen"
+    parameterized: true
     parameters:
       duration_min:
         default: 60
@@ -117,8 +117,8 @@ workouts:
     discipline: swim
     category: ME
     type_code: ME1
-    name: "2×1000 progressivt"
-    parametrized: true
+    name: "2×1000 — den andra ska vara snabbare"
+    parameterized: true
     parameters:
       duration_min:
         default: 65
@@ -170,8 +170,8 @@ workouts:
     discipline: swim
     category: ME
     type_code: ME2
-    name: "10×100 @ CSS"
-    parametrized: true
+    name: "10×100 i tröskelfart — håll linjen"
+    parameterized: true
     parameters:
       duration_min:
         default: 45
@@ -214,8 +214,8 @@ workouts:
     discipline: swim
     category: ME
     type_code: ME2
-    name: "15×100 rotation Z2/Z3/Z4"
-    parametrized: true
+    name: "Växelfart — 15×100 i tre tempon"
+    parameterized: true
     parameters:
       duration_min:
         default: 55
@@ -273,8 +273,8 @@ workouts:
     discipline: swim
     category: ME
     type_code: ME2
-    name: "20×100 säng-test"
-    parametrized: true
+    name: "Storsetet — 20×100 i tröskelfart"
+    parameterized: true
     parameters:
       duration_min:
         default: 65
@@ -330,8 +330,8 @@ workouts:
     discipline: swim
     category: ME
     type_code: ME3
-    name: "5×300 @ CSS"
-    parametrized: true
+    name: "Tröskel-300:or — fem raka"
+    parameterized: true
     parameters:
       duration_min:
         default: 50
@@ -377,8 +377,8 @@ workouts:
     discipline: swim
     category: ME
     type_code: ME3
-    name: "8×200 @ CSS-2"
-    parametrized: true
+    name: "8×200 strax över tröskeln — det ska kosta"
+    parameterized: true
     parameters:
       duration_min:
         default: 55
@@ -423,8 +423,8 @@ workouts:
     discipline: swim
     category: ME
     type_code: ME3
-    name: "3×400 @ CSS med teknikrespons"
-    parametrized: true
+    name: "Tröskel-400:or med tankepaus"
+    parameterized: true
     parameters:
       duration_min:
         default: 55

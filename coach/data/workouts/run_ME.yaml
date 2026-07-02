@@ -13,7 +13,7 @@ workouts:
     discipline: run
     category: ME
     type_code: ME1
-    name: "5×1km Z4"
+    name: "Tröskel-kilometrar — 5×1 km"
     phase_appropriate: [base_3, build_1, build_2]
     parameterized: true
     parameters:
@@ -63,7 +63,7 @@ workouts:
     discipline: run
     category: ME
     type_code: ME1
-    name: "4×1500m Z4"
+    name: "Långa tröskelrep — 4×1500 m"
     phase_appropriate: [build_1, build_2, peak]
     parameterized: true
     parameters:
@@ -106,7 +106,7 @@ workouts:
     discipline: run
     category: ME
     type_code: ME1
-    name: "8×600m Z4"
+    name: "Korta tröskelrep — 8×600 m"
     phase_appropriate: [base_3, build_1]
     parameterized: true
     parameters:
@@ -152,7 +152,7 @@ workouts:
     discipline: run
     category: ME
     type_code: ME2
-    name: "5×2 min backe Z4"
+    name: "Tröskel i backe — 5×2 min"
     phase_appropriate: [base_3, build_1, build_2]
     parameterized: true
     parameters:
@@ -196,7 +196,7 @@ workouts:
     discipline: run
     category: ME
     type_code: ME2
-    name: "Trail backe-tröskel — 4×3 min"
+    name: "Tröskel på stig — 4×3 min uppför"
     phase_appropriate: [build_1, build_2]
     parameterized: true
     parameters:
@@ -239,7 +239,7 @@ workouts:
     discipline: run
     category: ME
     type_code: ME3
-    name: "Crisscross 6×(2 min Z4 / 1 min Z3)"
+    name: "Växeltröskel — två på, en nästan av"
     phase_appropriate: [build_1, build_2, peak]
     parameterized: true
     parameters:
@@ -288,7 +288,7 @@ workouts:
     discipline: run
     category: ME
     type_code: ME3
-    name: "Crisscross 4×(3 min Z4 / 2 min Z3)"
+    name: "Växeltröskel XL — 20 min utan paus"
     phase_appropriate: [build_2, peak]
     parameterized: true
     parameters:
@@ -333,7 +333,7 @@ workouts:
     discipline: run
     category: ME
     type_code: ME4
-    name: "30 min sammanhängande tröskel"
+    name: "Tröskel i ett svep — 30 min"
     phase_appropriate: [build_2, peak]
     parameterized: true
     parameters:
@@ -378,7 +378,7 @@ workouts:
     discipline: run
     category: ME
     type_code: ME4
-    name: "2×20 min tröskelblock"
+    name: "Tröskel i två block — 2×20 min"
     phase_appropriate: [build_1, build_2]
     parameterized: true
     parameters:
