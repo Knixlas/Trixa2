@@ -36,88 +36,198 @@ def _monday_of(d: date) -> date:
     return d - timedelta(days=d.weekday())
 
 
-def build_phase_timeline(today: date, race_date: date | None) -> dict | None:
-    """Bygg en fas-tidslinje från denna vecka till tävlingsveckan.
+# ---------- Hela säsongen: optimal plan (fas + volym) vs faktiskt utfall ----------
 
-    Returnerar None om tävlingsdatum saknas eller redan passerat.
+# Hur många veckor historik vyn visar bakåt (för läsbarhet — inte hela ideal-
+# perioden om den är lång). Framåt visas alltid hela vägen till loppet.
+SEASON_LOOKBACK_WEEKS = 12
 
-    Struktur:
-        {
-          "total_weeks": int,        # antal veckor inkl. tävlingsveckan
-          "ideal_weeks": int,        # summa av fasernas min-längder (för kontrast)
-          "race_monday": date,
-          "weeks": [ {index, monday, iso_year, iso_week, weeks_until_race,
-                      phase, phase_label} ],
-          "bars": [ {phase, label, weeks, bg, fg} ],   # sammanslagna fas-block
-        }
+# Optimal veckovolym som ANDEL av peak-målet (peak = build-fasens volym).
+# Deterministisk kurva: ramp upp till peak (slutet av build), tapering ner mot
+# loppet. Faserna färgar banden; den här kurvan ger volym-linjen.
+_VOL_START_FRAC = 0.45   # tidig prep ≈ 45% av peak
+_VOL_TAPER_FRAC = 0.40   # tävlingsveckan ≈ 40% (tapering)
+
+
+def _optimal_phase_for(weeks_until_race: int) -> str:
+    """Samma mappning som engine.phases (race ≤2, peak 3-4, build 5-12,
+    base 13-24, prep >24)."""
+    if weeks_until_race <= 2:
+        return "race"
+    if weeks_until_race <= 4:
+        return "peak"
+    if weeks_until_race <= 12:
+        return "build"
+    if weeks_until_race <= 24:
+        return "base"
+    return "prep"
+
+
+def _optimal_volume(week_idx: int, race_idx: int, peak_idx: int, peak_hours: float) -> float:
+    """Optimal veckovolym (h) för en vecka: ramp till peak_idx, sen tapering.
+
+    peak_idx = veckan där volymen toppar (sista byggveckan före toppning).
+    """
+    if peak_hours <= 0:
+        return 0.0
+    if week_idx <= peak_idx:
+        # Ramp _VOL_START_FRAC → 1.0
+        frac = 1.0 if peak_idx <= 0 else (
+            _VOL_START_FRAC + (1.0 - _VOL_START_FRAC) * (week_idx / peak_idx)
+        )
+    else:
+        # Tapering 1.0 → _VOL_TAPER_FRAC fram till loppet
+        span = max(race_idx - peak_idx, 1)
+        frac = 1.0 - (1.0 - _VOL_TAPER_FRAC) * ((week_idx - peak_idx) / span)
+    return round(peak_hours * frac, 1)
+
+
+def build_season_plan(
+    today: date,
+    race_date: date | None,
+    peak_hours: float,
+    actual_by_week: dict[tuple[int, int], float] | None = None,
+    compliance_by_week: dict[tuple[int, int], str] | None = None,
+    lookback_weeks: int = SEASON_LOOKBACK_WEEKS,
+) -> dict | None:
+    """Hela träningsperioden: optimal fas + optimal volym per vecka, mot utfall.
+
+    Spänner ``lookback_weeks`` bakåt (historik) → tävlingsveckan (framåt). Varje
+    vecka får optimal fas, optimal volym (h) och — för passerade veckor —
+    faktisk volym + följsamhet. Ren funktion; DB-aggregaten skickas in.
+
+    Returnerar None om tävling saknas/passerat.
     """
     if not race_date or race_date <= today:
         return None
+    actual_by_week = actual_by_week or {}
+    compliance_by_week = compliance_by_week or {}
 
     phases = load_yaml("phases.yaml")["phases"]
-    start = _monday_of(today)
+    this_monday = _monday_of(today)
     race_monday = _monday_of(race_date)
-    total_weeks = (race_monday - start).days // 7 + 1  # inkl. tävlingsveckan
-    if total_weeks < 1:
-        return None
+    weeks_to_race = (race_monday - this_monday).days // 7
 
-    # Optimal fas per vecka = räkna bakåt från loppet, SAMMA mappning som
-    # engine.phases._optimal_phase_for_race (race ≤2 v, peak 3-4, build 5-12,
-    # base 13-24, prep >24). Tidslinjen visar alltså den OPTIMALA planen; vad
-    # adepten faktiskt klarar (capad fas) syns som "Aktuell fas" i dashboarden.
-    def _optimal(wur: int) -> str:
-        if wur <= 2:
-            return "race"
-        if wur <= 4:
-            return "peak"
-        if wur <= 12:
-            return "build"
-        if wur <= 24:
-            return "base"
-        return "prep"
+    ideal_weeks = sum(phases[p]["duration_weeks"][0] for p in _FORWARD_ORDER)
 
-    phase_by_index = [_optimal((total_weeks - 1) - i) for i in range(total_weeks)]
+    # Visa HELA den optimala periodiseringen (ideal_weeks v) — börja vid ideal-
+    # start om den ligger före lookback-fönstret. "Se hela vägen du borde haft."
+    ideal_start = race_monday - timedelta(weeks=ideal_weeks - 1)
+    lookback_start = this_monday - timedelta(weeks=lookback_weeks)
+    season_start = min(lookback_start, ideal_start)
 
-    # Bygg vecko-lista
-    weeks = []
+    total_weeks = (race_monday - season_start).days // 7 + 1
+    race_idx = total_weeks - 1
+    # Volymtoppen: sista byggveckan (weeks_until_race == 5), annars strax före loppet.
+    peak_idx = next(
+        (i for i in range(total_weeks) if (race_idx - i) == 5),
+        max(0, race_idx - 3),
+    )
+
+    weeks: list[dict] = []
+    max_hours = peak_hours
     for i in range(total_weeks):
-        wm = start + timedelta(weeks=i)
+        wm = season_start + timedelta(weeks=i)
         iso = wm.isocalendar()
-        ph = phase_by_index[i]
+        wur = race_idx - i
+        ph = _optimal_phase_for(wur)
+        opt_h = _optimal_volume(i, race_idx, peak_idx, peak_hours)
+        key = (iso[0], iso[1])
+        is_past = wm < this_monday
+        is_current = wm == this_monday
+        act_h = actual_by_week.get(key)
+        max_hours = max(max_hours, opt_h, act_h or 0)
         weeks.append({
-            "index": i,
-            "monday": wm,
-            "iso_year": iso[0],
-            "iso_week": iso[1],
-            "weeks_until_race": (total_weeks - 1) - i,
-            "phase": ph,
-            "phase_label": phases[ph]["name_sv"],
+            "index": i, "monday": wm, "monday_iso": wm.isoformat(),
+            "iso_year": iso[0], "iso_week": iso[1], "weeks_until_race": wur,
+            "phase": ph, "phase_label": phases[ph]["name_sv"],
+            "optimal_hours": opt_h,
+            "actual_hours": round(act_h, 1) if act_h is not None else None,
+            "compliance": compliance_by_week.get(key),
+            "is_past": is_past, "is_current": is_current, "future": wm > this_monday,
         })
 
-    # Slå ihop sammanhängande faser till staplar
+    # Fasinfo (vad fasen innebär) för klickbara fas-bubblor.
+    try:
+        details = load_yaml("phase_details.yaml")["phase_details"]
+    except Exception:  # noqa: BLE001
+        details = {}
+
+    # Slå ihop sammanhängande faser → staplar (för fas-bandet ovanför)
     bars: list[dict] = []
     for w in weeks:
         if bars and bars[-1]["phase"] == w["phase"]:
             bars[-1]["weeks"] += 1
         else:
-            colors = _PHASE_COLORS.get(w["phase"], {"bg": "#e5e7eb", "fg": "#374151"})
+            ph = w["phase"]
+            c = _PHASE_COLORS.get(ph, {"bg": "#e5e7eb", "fg": "#374151"})
             bars.append({
-                "phase": w["phase"],
-                "label": w["phase_label"],
-                "weeks": 1,
-                "bg": colors["bg"],
-                "fg": colors["fg"],
+                "phase": ph, "label": w["phase_label"],
+                "weeks": 1, "bg": c["bg"], "fg": c["fg"],
+                # Fas-innebörd: mål + innehåll (phases.yaml) + fokuspunkter (phase_details).
+                "goal": phases.get(ph, {}).get("goal", ""),
+                "content": phases.get(ph, {}).get("content", ""),
+                "focus": (details.get(ph, {}) or {}).get("training_focus", []) or [],
+                "duration_weeks": phases.get(ph, {}).get("duration_weeks"),
             })
 
-    ideal_weeks = sum(phases[p]["duration_weeks"][0] for p in _FORWARD_ORDER)
+    # Avstämning för innevarande vecka
+    cur = next((w for w in weeks if w["is_current"]), None)
+    now = None
+    if cur:
+        opt = cur["optimal_hours"]
+        act = cur["actual_hours"] or 0.0
+        now = {
+            "optimal_hours": opt,
+            "actual_hours": act,
+            "gap_pct": round((act / opt - 1) * 100) if opt > 0 else None,
+            "phase_label": cur["phase_label"],
+        }
 
     return {
-        "total_weeks": total_weeks,
-        "ideal_weeks": ideal_weeks,
-        "race_monday": race_monday,
-        "weeks": weeks,
-        "bars": bars,
+        "race_monday": race_monday, "total_weeks": total_weeks,
+        "weeks_to_race": weeks_to_race, "ideal_weeks": ideal_weeks,
+        "compressed": ideal_weeks > (weeks_to_race + 1),
+        "peak_hours": round(peak_hours, 1),
+        "max_hours": round(max_hours, 1) or 1.0,
+        "weeks": weeks, "bars": bars, "now": now,
     }
+
+
+def race_milestones(plan: dict) -> list[dict]:
+    """Tävlingar ur races.yaml som faller inom säsongsplanens fönster.
+
+    Ger varje tävling ett veckoindex + position (left_pct) för rendering som
+    milstolpe på tidslinjen. Multi-tävling = data, inte ny motor: A-loppet
+    ankrar periodiseringen (plan), B/C-lopp ritas som händelser längs den.
+    """
+    weeks = plan.get("weeks") or []
+    if not weeks:
+        return []
+    first = weeks[0]["monday"]
+    n = len(weeks)
+    try:
+        upcoming = load_yaml("races.yaml").get("upcoming") or []
+    except Exception:  # noqa: BLE001
+        return []
+    out: list[dict] = []
+    for r in upcoming:
+        try:
+            rd = date.fromisoformat(str(r.get("date"))[:10])
+        except (ValueError, TypeError):
+            continue
+        idx = (_monday_of(rd) - first).days // 7
+        if 0 <= idx < n:
+            out.append({
+                "name": r.get("name"),
+                "date": rd.isoformat(),
+                "priority": (r.get("priority") or "C").upper(),
+                "distance": r.get("distance"),
+                "week_index": idx,
+                "left_pct": round(idx / max(n - 1, 1) * 100, 2),
+            })
+    out.sort(key=lambda m: m["week_index"])
+    return out
 
 
 def race_label(race_date: date) -> str | None:

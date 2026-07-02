@@ -1,7 +1,7 @@
 """Läs YAML-filer från coach/data/workouts/.
 
 Hanterar:
-- Auto-discovery av disciplin-filer (swim_*.yaml, bike_*.yaml, run_*.yaml)
+- Auto-discovery av disciplin-filer (swim_*, bike_*, run_*, strength_*)
 - Drill-katalog (swim_drills.yaml — bara sim har drills idag)
 - AthleteProfile-dataclass för zonberäkningar
 """
@@ -51,19 +51,26 @@ def discover_workout_files(workout_dir: Path | None = None) -> dict[str, list[Pa
     """Hitta alla YAML-filer per disciplin.
 
     Returns:
-        {"swim": [Path, ...], "bike": [...], "run": [...]}
+        {"swim": [Path, ...], "bike": [...], "run": [...], "strength": [...]}
     """
     workout_dir = workout_dir or DEFAULT_WORKOUT_DIR
     if not workout_dir.exists():
         raise FileNotFoundError(f"Workout-katalog saknas: {workout_dir}")
 
-    result: dict[str, list[Path]] = {"swim": [], "bike": [], "run": [], "brick": []}
+    result: dict[str, list[Path]] = {
+        "swim": [],
+        "bike": [],
+        "run": [],
+        "strength": [],
+        "brick": [],
+    }
     for path in sorted(workout_dir.glob("*.yaml")):
         name = path.name
         # Hoppa över drill-filer och övriga konfigfiler
         if "drill" in name or name in {"athlete_config.yaml", "races.yaml",
                                        "phases.yaml", "phase_details.yaml",
                                        "workouts.yaml", "strength.yaml",
+                                       "strength_exercises.yaml",
                                        "overtraining.yaml"}:
             continue
         for disc in result:
@@ -87,12 +94,26 @@ def load_workouts(workout_dir: Path | None = None) -> list[dict[str, Any]]:
             if not data or "workouts" not in data:
                 continue
             for w in data["workouts"]:
+                if "parametrized" in w and "parameterized" not in w:
+                    w["parameterized"] = bool(w.pop("parametrized"))
                 # Sätt discipline om den saknas (säkerhetsbälte —
                 # alla pass i bike_*.yaml ska ha discipline: bike)
                 if "discipline" not in w:
                     w["discipline"] = disc
                 workouts.append(w)
     return workouts
+
+
+def load_strength_exercises(
+    workout_dir: Path | None = None,
+) -> list[dict[str, Any]]:
+    """Ladda styrkeövningskatalogen."""
+    workout_dir = workout_dir or DEFAULT_WORKOUT_DIR
+    path = workout_dir / "strength_exercises.yaml"
+    if not path.exists():
+        return []
+    data = yaml.safe_load(path.read_text(encoding="utf-8"))
+    return data.get("exercises", []) if data else []
 
 
 def load_drills(workout_dir: Path | None = None) -> list[dict[str, Any]]:

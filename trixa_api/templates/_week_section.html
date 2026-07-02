@@ -28,9 +28,12 @@
   {% if week and week.workouts %}
     <p>
       {% if week.phase %}<strong>Fas:</strong> {{ week.phase }} | {% endif %}<strong>Pass:</strong> {{ week.workouts | length }}
-      {% if week.plan_source == "coach" %}
+      {% if week.plan_source == "coach" and conn_ai|default(true) %}
       <span class="badge" style="background: var(--lagoon-soft); color: var(--lagoon-deep);"
             title="Planen kommer från din coach (Nils), inte den automatiska generatorn">coachens plan</span>
+      {% elif week.plan_source == "mixed" %}
+      <span class="badge" style="background: var(--lagoon-soft); color: var(--lagoon-deep);"
+            title="Nils och Trixa delar på veckan">Nils + Trixa</span>
       {% else %}
       <span class="badge" title="Automatiskt genererad av Trixa-motorn">genererad</span>
       {% endif %}
@@ -41,8 +44,8 @@
       <summary>Regenerera denna vecka</summary>
       <article style="margin-top: 0.5rem;">
         <p style="font-size: 0.875rem;">
-          Skriver över befintlig plan baserat på aktuell engine-state,
-          inställningar och eventuella overrides.
+          Bygger om Trixas pass utifrån aktuell status och inställningar.
+          Pass från Nils och egna pass lämnas orörda.
         </p>
         <form method="post" action="/ui/plan/regenerate"
               onsubmit="return confirm('Skriv över hela veckans plan?');">
@@ -166,14 +169,81 @@
           <ol style="font-size: 0.875rem;">
             {% for s in w.steps %}
             <li>
-              <strong>{{ s.segment or "?" }}:</strong>
-              {% if s.sets and s.sets > 1 %}{{ s.sets }}×{% endif %}{{ s.distance_m or s.duration_min or "?" }}{% if s.distance_m %}m{% elif s.duration_min %} min{% endif %}
-              {% if s.zone %}— Z{{ s.zone }}{% endif %}
-              {% if s.rest_sec %}, {{ s.rest_sec }}s vila{% endif %}
-              {% if s.description %}<br><em>{{ s.description }}</em>{% endif %}
+              {% if s.segment == "strength_block" %}
+                {% set p = s.prescription or {} %}
+                <strong>{{ (s.exercise or "Övning") | replace("_", " ") | title }}:</strong>
+                {% if p.sets %}{{ p.sets }} set{% endif %}{% if p.reps %} × {{ p.reps }} reps{% endif %}
+                {% if p.rir is not none %} · RIR {{ p.rir }}{% endif %}
+                {% if p.rest_sec %} · {{ p.rest_sec }}s vila{% endif %}
+                {% if s.load_pct %} · {{ s.load_pct }}{% endif %}
+                {% if s.alt %}<br><small>Alternativ: {{ s.alt | replace("_", " ") }}</small>{% endif %}
+                {% if s.note %}<br><em>{{ s.note }}</em>{% endif %}
+              {% else %}
+                <strong>{{ s.segment or "?" }}:</strong>
+                {% if s.sets_gt_one %}{{ s.sets }}×{% endif %}{{ s.distance_m or s.duration_min or "?" }}{% if s.distance_m %}m{% elif s.duration_min %} min{% endif %}
+                {% if s.zone %}— Z{{ s.zone }}{% endif %}
+                {% if s.rest_sec %}, {{ s.rest_sec }}s vila{% endif %}
+                {% if s.description %}<br><em>{{ s.description }}</em>{% endif %}
+              {% endif %}
             </li>
             {% endfor %}
           </ol>
+        </details>
+        {% endif %}
+
+        {# Manuell passlogg — uthållighetspass som inte ligger i framtiden.
+           Förifylld med det passet föreskriver; sparas i training_log. #}
+        {% if w.sport in ("swim", "bike", "run") and w.status.key not in ("planned",) %}
+        <details>
+          <summary>{% if w.status.actual %}Korrigera logg{% else %}Logga pass{% endif %}</summary>
+          <article style="margin-top: 6px;">
+            <form method="post" action="/ui/log/session" class="grid" style="align-items: end; gap: 0 10px;">
+              <input type="hidden" name="date" value="{{ w.date }}">
+              <input type="hidden" name="sport" value="{{ w.sport }}">
+              <input type="hidden" name="title" value="{{ w.title }}">
+              <input type="hidden" name="planned_session_id" value="{{ w.id }}">
+              <label>Tid (min)
+                <input type="number" name="duration_min" min="0" step="1"
+                       value="{{ (w.status.actual.duration_min if w.status.actual else w.duration_minutes) or '' }}">
+              </label>
+              <label>Distans (km)
+                <input type="number" name="distance_km" min="0" step="0.1"
+                       value="{{ w.status.actual.distance_km if w.status.actual and w.status.actual.distance_km else '' }}">
+              </label>
+              <label>Snittpuls
+                <input type="number" name="avg_hr" min="0" step="1"
+                       value="{{ w.status.actual.avg_hr if w.status.actual and w.status.actual.avg_hr else '' }}">
+              </label>
+              <label>Känsla (RPE 1–10)
+                <input type="number" name="rpe" min="1" max="10" step="1" placeholder="1–10">
+              </label>
+              <button type="submit" style="grid-column: 1 / -1;">Spara loggat pass</button>
+            </form>
+          </article>
+        </details>
+        {% endif %}
+
+        {# Justera planerat trixa2-pass: byt variant eller gren (Codex go-live). #}
+        {% if w.origin == "trixa2" and w.sport not in ("rest", "brick") %}
+        <details style="margin-top: 8px;">
+          <summary>Justera passet</summary>
+          <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px;">
+            <form method="post" action="/ui/workouts/{{ w.id }}/swap">
+              <button type="submit" class="outline">Byt till annat {{ w.sport }}pass</button>
+            </form>
+            <form method="post" action="/ui/workouts/{{ w.id }}/change-discipline"
+                  style="display: flex; gap: 6px; align-items: end;">
+              <label style="margin: 0;">Byt gren
+                <select name="discipline">
+                  <option value="swim">Simning</option>
+                  <option value="bike">Cykel</option>
+                  <option value="run">Löpning</option>
+                  <option value="strength">Styrka</option>
+                </select>
+              </label>
+              <button type="submit" class="outline">Byt och planera om</button>
+            </form>
+          </div>
         </details>
         {% endif %}
 

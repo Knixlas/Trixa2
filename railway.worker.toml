@@ -1,0 +1,23 @@
+# Railway-deploy-config för Trixa-WORKERN.
+#
+# Worker-servicen kör den schemalagda loopen (python -m coach.trixa.cron):
+#   - dagligen 05:00 UTC: TP→Supabase läs-sync (recovery + aktiviteter), gated TRIXA_TP_SYNC
+#   - dagligen 06:00 UTC: strukturera Nils fritext-pass + idempotent TP-push, gated TRIXA_PUSH_TO_TP
+#   - söndagar 20:00 UTC: generera nästa veckas plan (generate_week)
+#
+# VIKTIGT: peka worker-servicens "Config-as-code"-inställning i Railway på
+# DENNA fil (Settings → Config-as-code → railway.worker.toml). Annars läser
+# servicen rotens railway.toml, som startar uvicorn och kräver en
+# /health-healthcheck — det failar för en worker utan webbserver.
+#
+# Ingen healthcheckPath här: workern svarar inte på HTTP.
+
+[build]
+builder = "NIXPACKS"
+nixpacksConfigPath = "nixpacks.toml"
+
+[deploy]
+# Samma venv som nixpacks-bygget installerar deps i.
+startCommand = ". /opt/venv/bin/activate && python -m coach.trixa.cron"
+# Loopen ska aldrig dö självmant — starta alltid om vid krasch.
+restartPolicyType = "ALWAYS"

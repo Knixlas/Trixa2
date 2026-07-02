@@ -1,58 +1,174 @@
-{# Säsongs-tidslinje: fas-staplar (längd ∝ fasens veckor) + tävlings-milstolpe
-   + veckorad färgad efter följsamhet bakåt. Förväntar `timeline` (None → tyst).
+{# Säsongsplan: optimal fas + optimal volym per vecka vs faktiskt utfall.
+   `timeline` = season.build_season_plan(...) + race_label/readiness/races.
    Projektion, inte sparad plan — se trixa_api/season.py. Tropical-temat. #}
 {% if timeline %}
 {% set phasetl = {
-  'prep':       ['var(--phase-prep)',       'sprout'],
-  'base':       ['var(--phase-base)',       'waves'],
-  'build':      ['var(--phase-build)',      'trending-up'],
-  'peak':       ['var(--phase-peak)',       'sun'],
-  'race':       ['var(--phase-race)',       'trophy'],
-  'transition': ['var(--phase-transition)', 'palmtree']
+  'prep':  ['var(--phase-prep)',  'sprout'],
+  'base':  ['var(--phase-base)',  'waves'],
+  'build': ['var(--phase-build)', 'trending-up'],
+  'peak':  ['var(--phase-peak)',  'sun'],
+  'race':  ['var(--phase-race)',  'trophy'],
 } %}
 {% set compcol = {'green': 'var(--palm)', 'yellow': 'var(--mango)', 'red': 'var(--coral)'} %}
+{% set H = 78 %}
 <section>
   <h2>Säsong → {{ timeline.race_label }}</h2>
   <article>
-    <p style="margin: 0 0 12px; font-size: 13.5px; color: var(--ink-3);">
-      {{ timeline.total_weeks }} v till start ({{ timeline.race_date }}) ·
-      ideal periodisering {{ timeline.ideal_weeks }} v{% if timeline.ideal_weeks > timeline.total_weeks %} — komprimerad{% endif %}
+    <p style="margin: 0 0 14px; font-size: 13.5px; color: var(--ink-3);">
+      {{ timeline.weeks_to_race }} v till start ({{ timeline.race_date }}) ·
+      ideal periodisering {{ timeline.ideal_weeks }} v{% if timeline.compressed %} — <span style="color: var(--coral);">komprimerad</span>{% endif %}
+      · peak-mål {{ timeline.peak_hours }} h/v
     </p>
 
-    {# Fas-staplar: flex-vikt = antal veckor, så bredden speglar fas-längden #}
-    <div style="display: flex; gap: 3px;">
+    {# Tävlings-milstolpar längs tidslinjen (A ankrar, B/C = händelser) #}
+    {% if timeline.races %}
+    <div style="position: relative; height: 22px; margin-bottom: 2px;">
+      {% for m in timeline.races %}
+      <div title="{{ m.name }} ({{ m.priority }}) · {{ m.date }}"
+           style="position: absolute; left: {{ m.left_pct }}%; transform: translateX(-50%);
+                  display: flex; flex-direction: column; align-items: center; font-size: 10px;">
+        <span style="font-weight: 800; color: {{ 'var(--coral)' if m.priority == 'A' else 'var(--ink-3)' }};">
+          <i data-lucide="{{ 'trophy' if m.priority == 'A' else 'flag' }}" style="width: 13px; height: 13px;"></i>{{ m.priority }}
+        </span>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    {# Fas-band: flex-vikt = antal veckor #}
+    <div style="display: flex; gap: 2px;">
       {% for b in timeline.bars %}
       {% set pt = phasetl.get(b.phase, ['var(--ink-3)', 'flag']) %}
-      <div title="{{ b.label }} — {{ b.weeks }} v"
-           style="flex: {{ b.weeks }}; min-width: 0; background: {{ pt[0] }}; color: #fff;
-                  padding: 8px 6px; border-radius: var(--r-sm); text-align: center;
-                  font-size: 11.5px; line-height: 1.3; overflow: hidden;">
-        <i data-lucide="{{ pt[1] }}" style="width: 14px; height: 14px;"></i>
-        <div style="font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ b.label }}</div>
-        <div style="opacity: .8;">{{ b.weeks }} v</div>
+      <div title="{{ b.label }} — klicka för vad fasen innebär" onclick="trixaDetail('p{{ loop.index0 }}')"
+           style="flex: {{ b.weeks }}; min-width: 0; background: {{ pt[0] }}; color: #fff; cursor: pointer;
+                  padding: 5px 4px; border-radius: var(--r-sm); text-align: center;
+                  font-size: 10.5px; line-height: 1.25; overflow: hidden; white-space: nowrap;">
+        <i data-lucide="{{ pt[1] }}" style="width: 12px; height: 12px;"></i>
+        <span style="font-weight: 700;"> {{ b.label }}</span>
       </div>
       {% endfor %}
     </div>
 
-    {# Veckorad: en cell per vecka, färgad efter följsamhet (bakåt) #}
-    <div style="display: flex; gap: 3px; margin-top: 6px;">
+    {# Volym-graf: faktiska staplar (färg = följsamhet) + optimal-tick per vecka #}
+    <div style="display: flex; gap: 2px; align-items: flex-end; height: {{ H }}px; margin-top: 8px;
+                border-bottom: 1px solid var(--line); position: relative;">
+      {# peak-referenslinje #}
+      <div style="position: absolute; left: 0; right: 0; bottom: {{ (timeline.peak_hours / timeline.max_hours * H) | round | int }}px;
+                  border-top: 1px dashed var(--line-2); pointer-events: none;"></div>
       {% for w in timeline.weeks %}
-      {% if w.compliance %}{% set cbg = compcol[w.compliance] %}
-      {% elif w.future %}{% set cbg = 'var(--bg-sand)' %}
-      {% else %}{% set cbg = 'var(--line-2)' %}{% endif %}
-      <div title="v{{ w.iso_week }} · {{ w.monday_iso }} · {{ w.phase_label }} · {{ w.compliance_label }}"
-           style="flex: 1; height: 12px; border-radius: 3px; background: {{ cbg }};
-                  {% if w.is_current %}outline: 2px solid var(--ink); outline-offset: 1px;{% endif %}"></div>
+      {% set opx = (w.optimal_hours / timeline.max_hours * H) | round | int %}
+      {% set apx = ((w.actual_hours or 0) / timeline.max_hours * H) | round | int %}
+      <div title="v{{ w.iso_week }} ({{ w.monday_iso }}) — klicka för detaljer" onclick="trixaDetail('w{{ loop.index0 }}')"
+           style="flex: 1; min-width: 0; position: relative; height: {{ H }}px; cursor: pointer;
+                  {% if w.is_current %}outline: 2px solid var(--ink); outline-offset: 1px; border-radius: 2px;{% endif %}">
+        {% if w.future %}
+        {# Framtid: faint stapel = planen (optimal volym som ska byggas) #}
+        <div style="position: absolute; bottom: 0; left: 0; right: 0; height: {{ [opx,1]|max }}px;
+                    background: var(--lagoon-soft); border-radius: 2px 2px 0 0;"></div>
+        {% else %}
+        {# Passerat/nu: faktisk stapel, färgad av följsamhet (grå = ingen/data saknas) #}
+        {% set abg = compcol[w.compliance] if w.compliance else 'var(--ink-4, #cbd5e1)' %}
+        {% if w.actual_hours is not none %}
+        <div style="position: absolute; bottom: 0; left: 0; right: 0; height: {{ [apx,2]|max }}px;
+                    background: {{ abg }}; border-radius: 2px 2px 0 0;"></div>
+        {% endif %}
+        {# optimal-tick: var du BORDE varit den veckan #}
+        <div style="position: absolute; bottom: {{ opx }}px; left: 0; right: 0;
+                    border-top: 2px solid var(--ink-3); opacity: .65;"></div>
+        {% endif %}
+      </div>
       {% endfor %}
     </div>
 
-    <p style="margin: 12px 0 0; font-size: 11.5px; color: var(--ink-3);">
-      Veckoraden = följsamhet bakåt:
-      <span class="badge" style="background: var(--palm-soft); color: var(--palm-deep);">grön bra</span>
-      <span class="badge warning">gul ok</span>
-      <span class="badge critical">röd låg</span>
-      <span class="badge">ingen plan</span>.
-      Fas-staplarna är en projektion — engine omprövar fasen varje vecka.
+    {# Gles axel: fas-byten + "nu" #}
+    <div style="display: flex; gap: 2px; margin-top: 3px;">
+      {% for w in timeline.weeks %}
+      <div style="flex: 1; min-width: 0; text-align: center; font-size: 9px; color: var(--ink-3);">
+        {% if w.is_current %}<strong style="color: var(--ink);">nu</strong>{% elif w.index % 4 == 0 %}v{{ w.iso_week }}{% endif %}
+      </div>
+      {% endfor %}
+    </div>
+
+    {# Klickbar detalj — en panel per fas + per vecka, döljs tills man klickar #}
+    <div style="margin-top: 6px; font-size: 9px; color: var(--ink-3); text-align: center;">
+      <i data-lucide="hand-pointer" style="width: 11px; height: 11px; vertical-align: -1px;"></i>
+      Klicka på en fas eller vecka för detaljer
+    </div>
+    <div id="trixa-detail-wrap">
+      {% for b in timeline.bars %}
+      <div class="trixa-dpanel" id="td-p{{ loop.index0 }}" hidden
+           style="margin-top: 8px; padding: 12px 14px; background: var(--bg-sand); border-radius: var(--r-sm);">
+        <strong style="font-size: 14px;">{{ b.label }}{% if b.duration_weeks %} · {{ b.duration_weeks[0] }}–{{ b.duration_weeks[1] }} v{% endif %}</strong>
+        {% if b.goal %}<p style="margin: 6px 0 0; font-size: 13px;"><strong>Mål:</strong> {{ b.goal }}</p>{% endif %}
+        {% if b.content %}<p style="margin: 4px 0 0; font-size: 13px;"><strong>Innehåll:</strong> {{ b.content }}</p>{% endif %}
+        {% if b.focus %}
+        <p style="margin: 8px 0 2px; font-size: 12.5px; color: var(--ink-3);">Träningsfokus:</p>
+        <ul style="margin: 0; padding-left: 18px; font-size: 13px;">
+          {% for f in b.focus %}<li>{{ f }}</li>{% endfor %}
+        </ul>
+        {% endif %}
+      </div>
+      {% endfor %}
+
+      {% for w in timeline.weeks %}
+      <div class="trixa-dpanel" id="td-w{{ loop.index0 }}" hidden
+           style="margin-top: 8px; padding: 12px 14px; background: var(--bg-sand); border-radius: var(--r-sm);">
+        <strong style="font-size: 14px;">v{{ w.iso_week }} ({{ w.monday_iso }}) · {{ w.phase_label }}{% if w.is_current %} · nu{% endif %}</strong>
+        <p style="margin: 6px 0 0; font-size: 13px;">{{ w.analysis }}</p>
+        {% if w.sessions %}
+        <table style="width: 100%; margin-top: 8px; font-size: 12.5px; border-collapse: collapse;">
+          <tbody>
+          {% for s in w.sessions %}
+          <tr style="border-top: 1px solid var(--line);">
+            <td style="padding: 3px 6px 3px 0; color: var(--ink-3); white-space: nowrap;">{{ s.date[5:] }}</td>
+            <td style="padding: 3px 6px;"><strong>{{ s.sport }}</strong>{% if s.title %} — {{ s.title }}{% endif %}</td>
+            <td style="padding: 3px 0 3px 6px; text-align: right; white-space: nowrap; color: var(--ink-3);">
+              {{ s.duration_min }} min{% if s.distance_km %} · {{ s.distance_km }} km{% endif %}{% if s.avg_hr %} · {{ s.avg_hr }} bpm{% endif %}{% if s.tss %} · TSS {{ s.tss|round|int }}{% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+        {% elif not w.future %}
+        <p style="margin: 6px 0 0; font-size: 12.5px; color: var(--ink-3);">Inga loggade pass den veckan.</p>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+    <script>
+      function trixaDetail(key) {
+        var wrap = document.getElementById('trixa-detail-wrap');
+        if (!wrap) return;
+        var panels = wrap.querySelectorAll('.trixa-dpanel');
+        var target = document.getElementById('td-' + key);
+        var wasOpen = target && !target.hidden;
+        panels.forEach(function (p) { p.hidden = true; });
+        if (target && !wasOpen) {  // klick på samma → toggla av
+          target.hidden = false;
+          if (window.lucide) window.lucide.createIcons();
+        }
+      }
+    </script>
+
+    {# Avstämning innevarande vecka #}
+    {% if timeline.now %}{% set n = timeline.now %}
+    <div style="margin-top: 12px; padding: 10px 12px; background: var(--bg-sand); border-radius: var(--r-sm); font-size: 13.5px;">
+      <strong>Denna vecka ({{ n.phase_label }}):</strong>
+      optimal <strong>{{ n.optimal_hours }} h</strong> · faktiskt <strong>{{ n.actual_hours }} h</strong>
+      {% if n.gap_pct is not none %}
+      <span class="badge" style="background: {{ 'var(--palm-soft)' if n.gap_pct >= -15 else 'var(--coral-soft)' }};
+            color: {{ 'var(--palm-deep)' if n.gap_pct >= -15 else 'var(--coral)' }};">
+        {{ '+' if n.gap_pct > 0 }}{{ n.gap_pct }}%
+      </span>
+      {% endif %}
+    </div>
+    {% endif %}
+
+    <p style="margin: 10px 0 0; font-size: 11px; color: var(--ink-3);">
+      Staplar = faktisk volym (<span style="color: var(--palm-deep);">grön</span>/<span style="color: var(--mango);">gul</span>/<span style="color: var(--coral);">röd</span> = följsamhet,
+      <span style="color: #94a3b8;">grå</span> = ingen plan den veckan) ·
+      <span style="border-top: 2px solid var(--ink-3); padding-top: 1px;">streck</span> = optimal volym den veckan ·
+      <span style="color: var(--lagoon);">ljusa</span> = planen framåt. Fas-banden är en projektion — engine omprövar varje vecka.
     </p>
 
     {% if timeline.readiness %}{% set r = timeline.readiness %}
@@ -60,8 +176,8 @@
       <p style="margin: 0; font-size: 13.5px;">
         <strong><i data-lucide="trending-up" style="width:15px;height:15px;vertical-align:-2px;"></i>
         Readiness:</strong> {{ r.current_hours }} h/v nu
-        {% if r.base_eta is not none and r.base_eta > 0 %}· base om ~{{ r.base_eta }} v{% endif %}
-        {% if r.build_eta is not none and r.build_eta > 0 %}· build om ~{{ r.build_eta }} v{% endif %}
+        {% if r.base_eta_positive %}· base om ~{{ r.base_eta }} v{% endif %}
+        {% if r.build_eta_positive %}· build om ~{{ r.build_eta }} v{% endif %}
         (vid säker ~{{ r.ramp_pct }}%/v + avlastning)
       </p>
       <p style="margin: 4px 0 0; font-size: 13px; color: {{ 'var(--palm-deep)' if r.on_track else 'var(--coral)' }};">

@@ -221,6 +221,7 @@ _SPORT_CANON = {
     "cykel": "bike", "cykling": "bike", "mtb": "bike",
     "swim": "swim", "swimming": "swim", "sim": "swim", "simning": "swim",
     "strength": "strength", "styrka": "strength",
+    "brick": "brick",
 }
 
 
@@ -291,6 +292,48 @@ def dedup_training_log_rows(tp_rows: list[dict], existing_non_tp: list[dict]) ->
     return fresh, skipped
 
 
+def pair_training_log_rows(
+    rows: list[dict], planned_sessions: list[dict]
+) -> list[dict]:
+    """Koppla utförda TP-pass till planrad.
+
+    TP-id är starkast. För pass utan sparat TP-id används datum + sport och
+    närmast planerad varaktighet. Funktionen muterar inte input-raderna.
+    """
+    paired: list[dict] = []
+    for row in rows:
+        out = dict(row)
+        tp_id = row.get("tp_workout_id")
+        match = next(
+            (
+                planned for planned in planned_sessions
+                if tp_id is not None
+                and planned.get("tp_workout_id") is not None
+                and int(planned["tp_workout_id"]) == int(tp_id)
+            ),
+            None,
+        )
+        if match is None:
+            candidates = [
+                planned for planned in planned_sessions
+                if planned.get("status") != "cancelled"
+                and str(planned.get("date"))[:10] == str(row.get("date"))[:10]
+                and canon_sport(planned.get("sport")) == canon_sport(row.get("sport"))
+            ]
+            if candidates:
+                duration = float(row.get("duration_min") or 0)
+                match = min(
+                    candidates,
+                    key=lambda planned: abs(
+                        float(planned.get("duration_min") or 0) - duration
+                    ),
+                )
+        if match and match.get("id"):
+            out["planned_session_id"] = match["id"]
+        paired.append(out)
+    return paired
+
+
 # ---------- orkestrering ----------
 
 
@@ -349,14 +392,29 @@ def sync_activities(
     end: date,
     pg: Any = None,
 ) -> SyncResult:
-    """Hämta genomförda pass och skriv activities."""
+    """Hämta genomförda pass och skriv activities-cache.
+
+    `garmin_coach.activities` är numera en kompatibilitetscache. MASTER för
+    utfört är `public.training_log`, så ett schemafel i cachen ska inte fälla
+    hela TP-synken eller `/health/integrations`.
+    """
     try:
         workouts = client.get_workouts(start, end)
         rows = workouts_to_activity_rows(workouts, athlete_id)
         if pg is not None and rows:
-            _schema_table(pg, "activities").upsert(
-                rows, on_conflict="athlete_id,garmin_activity_id"
-            ).execute()
+            try:
+                _schema_table(pg, "activities").upsert(
+                    rows, on_conflict="athlete_id,garmin_activity_id"
+                ).execute()
+            except Exception as e:  # noqa: BLE001
+                return SyncResult(
+                    "activities",
+                    records=0,
+                    warnings=[
+                        "activities-cache hoppades: "
+                        f"{e}. MASTER training_log påverkas inte."
+                    ],
+                )
         return SyncResult("activities", records=len(rows))
     except Exception as e:  # noqa: BLE001
         return SyncResult("activities", status="failed", error=str(e))
@@ -381,6 +439,7 @@ def sync_completed_to_training_log(
         tp_rows = [r for r in (tp_workout_to_training_log_row(w, user_id) for w in workouts) if r]
 
         existing_non_tp: list[dict] = []
+        planned_sessions: list[dict] = []
         if pg is not None:
             res = (
                 pg.from_("training_log")
@@ -391,8 +450,18 @@ def sync_completed_to_training_log(
                 .execute()
             )
             existing_non_tp = [e for e in (getattr(res, "data", None) or []) if e.get("source") != "tp"]
+            planned_res = (
+                pg.from_("planned_sessions")
+                .select("id,date,sport,duration_min,status,tp_workout_id")
+                .eq("user_id", user_id)
+                .gte("date", start.isoformat())
+                .lte("date", end.isoformat())
+                .execute()
+            )
+            planned_sessions = getattr(planned_res, "data", None) or []
 
         fresh, skipped = dedup_training_log_rows(tp_rows, existing_non_tp)
+        fresh = pair_training_log_rows(fresh, planned_sessions)
 
         if not dry_run and pg is not None and fresh:
             pg.from_("training_log").upsert(fresh, on_conflict="user_id,tp_workout_id").execute()

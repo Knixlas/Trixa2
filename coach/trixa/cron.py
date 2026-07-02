@@ -35,6 +35,10 @@ _POLL_INTERVAL_SEC = int(os.environ.get("TRIXA_CRON_POLL_SEC", "3600"))  # 1h
 _TP_SYNC_ENABLED = os.environ.get("TRIXA_TP_SYNC", "").lower() in ("1", "true", "yes")
 _TP_SYNC_HOUR_UTC = int(os.environ.get("TRIXA_TP_SYNC_HOUR_UTC", "5"))  # ≈07 svensk sommartid
 _TP_SYNC_DAYS = int(os.environ.get("TRIXA_TP_SYNC_DAYS", "2"))
+# Intervalläge: synka var N:e timme istället för en gång per dygn. 0 = av
+# (daglig vid _TP_SYNC_HOUR_UTC). Sätt t.ex. 2 för att fånga pass samma dag —
+# "Hämta från TP nu"-knappen i appen finns för det omedelbara behovet.
+_TP_SYNC_EVERY_H = int(os.environ.get("TRIXA_TP_SYNC_EVERY_HOURS", "0"))
 
 # Daglig strukturering av Nils fritext-pass + idempotent TP-push (innevarande +
 # nästa vecka). Fångar ad-hoc-redigeringar i planned_sessions så de når klockan
@@ -91,12 +95,13 @@ def _run_once_for(athlete_user_id: str) -> None:
         logger.error("Fel vid generering för %s: %s", athlete_user_id, exc)
 
 
-def _run_tp_sync() -> None:
+def _run_tp_sync() -> bool:
     """Daglig TP→Supabase recovery-sync, **per adept**. Varje adept synkas med
     sin egen cookie till sin egen recovery-nyckel (``garmin_athlete_id`` ur
     athlete_profiles — samma nyckel planner läser recovery med, så write/read är
     överens). Adept utan cookie eller utan recovery-nyckel hoppas. Best-effort —
     fel loggas men fäller aldrig worker-loopen."""
+    all_success = True
     try:
         from coach.integrations.trainingpeaks.auth_store import supabase_cookie_provider
         from coach.integrations.trainingpeaks.run_sync import main as tp_sync_main
@@ -123,11 +128,18 @@ def _run_tp_sync() -> None:
                     ["--user", uid, "--athlete-id", str(garmin_id),
                      "--days", str(_TP_SYNC_DAYS)]
                 )
-                logger.info("TP-sync %s klar (rc=%d)", uid, rc)
+                if rc == 0:
+                    logger.info("TP-sync %s klar", uid)
+                else:
+                    all_success = False
+                    logger.error("TP-sync %s misslyckades (rc=%d)", uid, rc)
             except Exception as exc:  # noqa: BLE001
+                all_success = False
                 logger.error("TP-sync fel %s: %s", uid, exc)
     except Exception as exc:  # noqa: BLE001
+        all_success = False
         logger.error("TP-sync topp-fel: %s", exc)
+    return all_success
 
 
 def _run_structure_and_push() -> None:
@@ -190,14 +202,16 @@ def _run_structure_and_push() -> None:
 def main() -> int:
     """Loopa och kör planner + (ev.) daglig TP-sync. Stoppar aldrig självmant."""
     logger.info(
-        "Trixa-cron startad. Planner: %02d:00 UTC weekday=%d. TP läs-sync: %s (%02d:00). "
+        "Trixa-cron startad. Planner: %02d:00 UTC weekday=%d. TP läs-sync: %s (%s). "
         "Strukturera+push: %s (%02d:00). Poll var %ds.",
         _RUN_HOUR_UTC, _RUN_WEEKDAY,
-        "på" if _TP_SYNC_ENABLED else "av", _TP_SYNC_HOUR_UTC,
+        "på" if _TP_SYNC_ENABLED else "av",
+        f"var {_TP_SYNC_EVERY_H}:e timme" if _TP_SYNC_EVERY_H > 0 else f"{_TP_SYNC_HOUR_UTC:02d}:00",
         "på" if _PUSH_ENABLED else "av", _PUSH_HOUR_UTC, _POLL_INTERVAL_SEC,
     )
     last_run: datetime | None = None
     last_tp_sync: date | None = None
+    last_tp_sync_at: datetime | None = None
     last_push: date | None = None
     while True:
         now = datetime.now(timezone.utc)
@@ -208,10 +222,23 @@ def main() -> int:
                 if a.get("user_id"):
                     _run_once_for(a["user_id"])
             last_run = now
-        # Daglig TP läs-sync (gated). En gång per dygn vid TP-sync-timmen.
-        if _TP_SYNC_ENABLED and now.hour == _TP_SYNC_HOUR_UTC and last_tp_sync != now.date():
-            _run_tp_sync()
-            last_tp_sync = now.date()
+        # TP läs-sync (gated). Intervalläge (var N:e timme) eller dagligen
+        # vid TP-sync-timmen. -60s-marginal så timpollen inte missar slottet.
+        # Misslyckad sync loggas (detaljer i integration_runs, migration 009).
+        if _TP_SYNC_ENABLED:
+            if _TP_SYNC_EVERY_H > 0:
+                due = (
+                    last_tp_sync_at is None
+                    or (now - last_tp_sync_at).total_seconds() >= _TP_SYNC_EVERY_H * 3600 - 60
+                )
+                if due:
+                    if not _run_tp_sync():
+                        logger.error("En eller flera TP-synkar misslyckades; se integration_runs")
+                    last_tp_sync_at = now
+            elif now.hour == _TP_SYNC_HOUR_UTC and last_tp_sync != now.date():
+                if not _run_tp_sync():
+                    logger.error("En eller flera TP-synkar misslyckades; se integration_runs")
+                last_tp_sync = now.date()
         # Daglig strukturering + idempotent push (gated). Fångar Nils ad-hoc-pass.
         if _PUSH_ENABLED and now.hour == _PUSH_HOUR_UTC and last_push != now.date():
             _run_structure_and_push()

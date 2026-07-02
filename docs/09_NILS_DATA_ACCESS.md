@@ -42,23 +42,49 @@ values
 ```
 
 - Motorns **grind** skyddar dina dagar: den genererar aldrig pass för datum som
-  redan har en rad med `origin != 'trixa2'`. Du behöver inte radera motorns
-  rader själv — men om en `trixa2`-rad redan ligger på dagen du planerar,
-  ta bort den så vyn inte visar dubbelt.
-- Alternativ skrivväg: `garmin_coach.planned_workouts` (engelska discipliner
-  bike/swim/run/rest) — planeraren speglar den till `planned_sessions` vid
-  nästa körning. Direktskrivning i `planned_sessions` är att föredra (syns i
-  appen direkt, TP-pushen plockar den).
+  redan har en rad med `origin != 'trixa2'`.
+- Använd **bara** `public.planned_sessions` som skrivväg. Den äldre
+  `garmin_coach.planned_workouts`-vägen är pensionerad och speglas inte längre.
+- Om en `trixa2`-rad redan ligger på dagen du planerar: ändra den inte till
+  `nils`. Skapa/behåll din `origin='nils'`-rad; Trixas nästa regenerering
+  markerar sin egen överflödiga rad som `cancelled`, och TP-workern tar bort
+  motsvarande pass från TrainingPeaks.
 
-## Läsa utfört
+## Läsa utfört (genomförda pass)
+
+Det finns TVÅ ställen — läs båda och föredra `training_log`:
+
+**1. `public.training_log` — MASTER (primär).** Källtaggad, deduppad, rika fält.
+Pass från TrainingPeaks får `source='tp'`, från Strava `source='strava'`.
 
 ```sql
-select date, sport, title, duration_min, distance_km, avg_hr, tss, source
+select date, sport, title, duration_min, distance_km, avg_hr, max_hr,
+       avg_power, normalized_power, tss, source, tp_workout_id
 from public.training_log
 where user_id = '09db449d-b8fd-409a-b475-3401b0de9858'
   and date >= '<datum>'
 order by date desc;
 ```
+
+**2. `garmin_coach.activities` — TP-RÅCACHE (fallback).** Hit landar varje
+TP-synkat pass FÖRST (nyckel `athlete_id`, inte user_id). Workern propagerar
+sedan genomförda pass → `training_log`. Saknas ett mycket färskt pass i
+`training_log` ligger det här:
+
+```sql
+select start_time, activity_type, duration_sec/60 as min,
+       round(distance_m/1000.0,1) as km, avg_hr, normalized_power, training_load
+from garmin_coach.activities
+where athlete_id = '98057fa1-4fb9-48f5-be86-b31272dcfed0'
+  and start_time >= '<datum>'
+order by start_time desc;
+```
+
+`activity_type` här är engelska (`cycling`/`running`/`swimming`/`strength_training`).
+
+> Om ett pass syns i `garmin_coach.activities` men inte i `training_log`: synken
+> har cachat det men inte hunnit propagera till mastern (sker vid nästa
+> TP-sync, eller direkt när adepten trycker "Hämta från TrainingPeaks nu").
 
 ## Läsa recovery (HRV/sömn/RHR)
 
@@ -88,7 +114,37 @@ Planeraren kvitterar respekterad override med `honored_by_planner=true` + `honor
 
 ## Via Trixa-API (alternativ till MCP)
 
-- `GET /api/week/current?athlete_user_id=09db449d-...` — veckans plan ur mastern
-- `GET /api/athlete/09db449d-...` — athlete-state (hälsa, testvärden, mål)
-- `POST /api/override` — skapa override
-- Auth: Bearer-token (`TRIXA_API_TOKEN`)
+Två ytor:
+
+### `/agent/*` — per-adept-token (REKOMMENDERAS för extern AI)
+
+Token = identitet. Adepten skapar en token i Trixa (Inställningar → "AI-åtkomst")
+och lägger in den i AI-projektet. **Alla anrop låses till den adepten** — ingen
+`athlete_user_id`-param, ingen risk att nå andras data. Provider-agnostiskt
+(vilken AI som helst som kan HTTP + Bearer).
+
+Auth: `Authorization: Bearer <token>`. Bara token-hashen lagras; råvärdet visas
+en gång vid skapande. Återkalla när som helst i Inställningar.
+
+| Metod | Endpoint | Gör |
+|---|---|---|
+| GET | `/agent/whoami` | Vilken adept är token:en scope:ad till? |
+| GET | `/agent/athlete` | Mål, testvärden, hälsa |
+| GET | `/agent/week/current` | Veckans plan (denna vecka) |
+| GET | `/agent/week?monday=YYYY-MM-DD` | Godtycklig vecka |
+| GET | `/agent/log?since=YYYY-MM-DD&limit=` | Utfört (training_log) |
+| GET | `/agent/recovery?days=` | HRV/sömn/RHR/load |
+| POST | `/agent/plan/session` | Skriv pass (origin='nils', upsert på dag+gren) |
+| DELETE | `/agent/plan/session/{id}` | Ta bort eget pass |
+| POST | `/agent/override` | Skapa manual_override |
+
+`POST /agent/plan/session`-body: `{date, sport (bike/run/swim/strength/rest),
+title, duration_min, intensity, details, workout_code}`. Läs-svar normaliserar
+sport till engelska; lagring sker svenska.
+
+### `/api/*` — delad token (intern/admin/dev)
+
+Äldre ytan med `athlete_user_id`-param + delad `TRIXA_API_TOKEN`. Bredare
+åtkomst — använd inte för extern AI per adept; håll till `/agent/*` ovan.
+- `GET /api/week/current?athlete_user_id=09db449d-...`, `GET /api/athlete/<id>`,
+  `POST /api/override` m.fl.

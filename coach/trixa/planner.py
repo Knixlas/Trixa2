@@ -27,7 +27,12 @@ from datetime import date, datetime, timedelta, timezone
 from typing import Any
 
 from coach.engine._loader import load_yaml
-from coach.engine.loader import AthleteProfile, load_drills, load_workouts
+from coach.engine.loader import (
+    AthleteProfile,
+    load_drills,
+    load_strength_exercises,
+    load_workouts,
+)
 from coach.engine.overtraining import (
     OvertrainingSignals,
     assess_overtraining,
@@ -116,26 +121,17 @@ def _fetch_athlete(client, athlete_user_id: str) -> dict:
 
 
 def _resolve_activity_sources(athlete: dict) -> tuple[str | None, str | None]:
-    """Källprioritet för läsning av UTFÖRDA pass: Garmin primär, Strava reserv.
+    """Nycklar för recovery-cachen och användarens training_log-rader.
 
-    Returnerar ``(garmin_athlete_id, strava_user_id)`` att skicka till
-    aktivitetsläsarna:
-
-    - ``use_strava=True`` → manuell nödutgång: tvinga Strava (Garmin ignoreras).
-      För perioder då Garmin-synken ligger nere.
-    - Annars Garmin om kopplad, med Strava som reserv. Reserven fyller bara
-      veckoglapp (läsaren faller tillbaka på Strava enbart när Garmin saknar
-      pass den veckan) och är enda källa för Garmin-lösa adepter.
-
-    "Lita på sin databas": ``garmin_coach.activities`` är sanning när den
-    svarar — Strava når bara in i glappen. Att passera ``strava_user_id`` även
-    för rena Garmin-adepter är gratis: läsaren rör Strava först när Garmin är
-    tom, och en Strava-lös adept får då bara ett tomt (indexerat) svar.
+    Utfört läses normalt från MASTER `training_log`. `garmin_athlete_id`
+    används bara för TP-matad recovery i `garmin_coach.daily_metrics`.
+    Strava-reserven används bara när adepten aktiverat den eller helt saknar
+    recovery-cache.
     """
     uid = athlete.get("user_id")
-    if athlete.get("use_strava"):
-        return None, uid
-    return athlete.get("garmin_athlete_id"), uid
+    garmin_id = athlete.get("garmin_athlete_id")
+    strava_uid = uid if athlete.get("use_strava") or not garmin_id else None
+    return garmin_id, strava_uid
 
 
 def _fetch_active_overrides(client, athlete_id: str) -> list[dict]:
@@ -157,13 +153,13 @@ def _fetch_recent_workouts(client, user_id: str, weeks_back: int = 4) -> list[di
     since = (date.today() - timedelta(weeks=weeks_back)).isoformat()
     res = (
         client.table("planned_sessions")
-        .select("date, sport, workout_code, intensity")
+        .select("date, sport, workout_code, intensity, status")
         .eq("user_id", user_id)
         .gte("date", since)
         .order("date", desc=True)
         .execute()
     )
-    return res.data or []
+    return [row for row in (res.data or []) if row.get("status") != "cancelled"]
 
 
 def _fetch_latest_weekly_report(client, athlete_id: str) -> dict | None:
@@ -178,72 +174,18 @@ def _fetch_latest_weekly_report(client, athlete_id: str) -> dict | None:
     return res.data[0] if res.data else None
 
 
-# ---------- Coachplan — grind + projektion (Nils är auktoritativ) ----------
+# ---------- Mänskligt skapade pass — Nils är auktoritativ ----------
 #
-# BESLUT: Nils (coachens plan i garmin_coach.planned_workouts) vinner ALLTID
-# över Trixa-motorn. Motorn får aldrig generera eller skriva över en dag som
-# redan finns i coachens plan. Flödet i generate_week:
-#     läs coachplan  ->  grinda (motorn hoppar coachade dagar)
-#                    ->  projicera coachplan -> planned_sessions (origin='nils')
-#                    ->  generera resten av veckan fritt
-#
-# planned_sessions är SaaS-vyns källa. Coachens plan speglas dit så att vyn
-# visar exakt det Nils lagt — utan tolkning.
-
-# garmin_coach.planned_workouts.discipline -> public.planned_sessions.sport (svenska)
-_DISCIPLINE_TO_SPORT_SV = {
-    "bike": "Cykel",
-    "swim": "Sim",
-    "run": "Löpning",
-    "rest": "Vila",
-}
+# Nils och adepten skriver direkt till MASTER `planned_sessions`. Motorn läser
+# samma tabell och rör aldrig dagar som har en rad med origin != 'trixa2'.
+# Den äldre projektionen från garmin_coach.planned_workouts är pensionerad:
+# tabellen saknar säker adeptkoppling och får därför inte användas i SaaS-flödet.
 
 
-def _coach_plan_date(row: dict) -> date | None:
-    """Tolerant datumparsning av planned_workouts.plan_date (str eller date)."""
-    raw = row.get("plan_date")
-    if isinstance(raw, date):
-        return raw
-    if isinstance(raw, str):
-        try:
-            return date.fromisoformat(raw[:10])
-        except ValueError:
-            return None
-    return None
-
-
-def _fetch_coach_plan(client, week_start: date) -> list[dict]:
-    """Coachens (Nils) plan för veckan ur garmin_coach.planned_workouts.
-
-    Auktoritativ källa: dagar som finns här ägs av Nils och rörs aldrig av
-    motorn. Returnerar [] om tabellen saknas/är tom — motorn genererar då fritt.
-    """
-    end = week_start + timedelta(days=6)
-    try:
-        res = (
-            client.schema("garmin_coach")
-            .table("planned_workouts")
-            .select(
-                "plan_date, discipline, workout_code, title, duration_min,"
-                " zone, details, conditional, status"
-            )
-            .gte("plan_date", week_start.isoformat())
-            .lte("plan_date", end.isoformat())
-            .order("plan_date")
-            .execute()
-        )
-        return res.data or []
-    except Exception:  # noqa: BLE001
-        return []
-
-
-def _coached_dates(coach_rows: list[dict]) -> set[date]:
-    """Datum coachen lagt pass på — motorns grind hoppar dessa."""
-    return {d for r in coach_rows if (d := _coach_plan_date(r)) is not None}
-
-
-def _human_planned_dates(client, user_id: str, week_start: date) -> set[date]:
-    """Datum i veckan som redan har mänskligt skapade planned_sessions-rader.
+def _human_planned_sessions(
+    client, user_id: str, week_start: date
+) -> list[dict]:
+    """Mänskligt skapade planned_sessions-rader för veckan.
 
     Allt som INTE är origin='trixa2' räknas som mänskligt (nils, manual,
     legacy-NULL) och skyddas av grinden — motorn får aldrig dubbelskriva en
@@ -253,80 +195,19 @@ def _human_planned_dates(client, user_id: str, week_start: date) -> set[date]:
     try:
         res = (
             client.table("planned_sessions")
-            .select("date, origin")
+            .select("date, sport, origin, status")
             .eq("user_id", user_id)
             .gte("date", week_start.isoformat())
             .lte("date", end.isoformat())
             .execute()
         )
     except Exception:  # noqa: BLE001
-        return set()
-    out: set[date] = set()
-    for row in res.data or []:
-        if (row.get("origin") or "") == "trixa2":
-            continue
-        raw = row.get("date")
-        try:
-            out.add(date.fromisoformat(str(raw)[:10]))
-        except (ValueError, TypeError):
-            continue
-    return out
-
-
-def _coach_row_to_session(row: dict, user_id: str) -> dict:
-    """Mappa en planned_workouts-rad -> planned_sessions-rad (origin='nils').
-
-    Mapping (rakt av där inget annat anges):
-        plan_date  -> date
-        discipline -> sport   (bike->Cykel, swim->Sim, run->Löpning, rest->Vila)
-        zone       -> intensity (null -> "—")
-        title, duration_min, workout_code, details, status -> oförändrat
-    'conditional' finns inte i planned_sessions — titlarna bär redan
-    "(villkorad)". exercises/steps lämnas null tills vi renderar pass-stegen.
-    """
-    disc = (row.get("discipline") or "").strip()
-    d = _coach_plan_date(row)
-    return {
-        "user_id": user_id,
-        "date": d.isoformat() if d else row.get("plan_date"),
-        "sport": _DISCIPLINE_TO_SPORT_SV.get(disc, disc),
-        "title": row.get("title"),
-        "duration_min": row.get("duration_min"),
-        "workout_code": row.get("workout_code"),
-        "details": row.get("details"),
-        "intensity": row.get("zone") or "—",
-        "status": row.get("status") or "planned",
-        "origin": "nils",
-        "purpose": None,
-        "exercises": None,
-        "steps": None,
-    }
-
-
-def _project_coach_plan(client, user_id: str, coach_rows: list[dict]) -> dict:
-    """Spegla coachens plan in i planned_sessions så SaaS-vyn visar den.
-
-    Nils vinner: för varje coachad dag raderas FÖRST alla planned_sessions
-    (oavsett origin — även en ev. 'trixa2'-rad) för (user_id, dag), sedan
-    skrivs färska 'nils'-rader. Det gör att det aldrig finns två rader för
-    samma dag (konflikten löses i tabellen, inte bara i läsningen) och att
-    projektionen är idempotent — körs om utan dubbletter.
-    """
-    if not coach_rows:
-        return {"projected": 0, "dates": []}
-    dates = sorted({d for r in coach_rows if (d := _coach_plan_date(r))})
-    for d in dates:
-        (
-            client.table("planned_sessions")
-            .delete()
-            .eq("user_id", user_id)
-            .eq("date", d.isoformat())
-            .execute()
-        )
-    rows = [_coach_row_to_session(r, user_id) for r in coach_rows]
-    if rows:
-        client.table("planned_sessions").insert(rows).execute()
-    return {"projected": len(rows), "dates": [d.isoformat() for d in dates]}
+        return []
+    return [
+        row for row in (res.data or [])
+        if row.get("status") != "cancelled"
+        and (row.get("origin") or "") != "trixa2"
+    ]
 
 
 def _mark_overrides_honored(client, honored: list[dict]) -> int:
@@ -354,7 +235,7 @@ def _mark_overrides_honored(client, honored: list[dict]) -> int:
     return count
 
 
-# ---------- Garmin-data (primärkälla för OT-bedömning + faktisk volym) ----------
+# ---------- TP-cache och faktisk mastervolym ----------
 
 
 def _fetch_garmin_metrics(
@@ -429,7 +310,7 @@ def _fetch_strava_weekly_hours(
 ) -> float | None:
     """Snitt-träningstimmar per vecka från public.strava_activities.
 
-    Faktisk-volym-källa för externa adepter (Strava) utan Garmin-koppling.
+    Faktisk-volym-reserv för externa adepter när training_log saknar pass.
     Strava lagrar duration_min + lokalt datum.
     """
     if not strava_user_id:
@@ -572,6 +453,16 @@ def _injury_impacts_per_discipline(athlete: dict) -> dict[str, str]:
     return result
 
 
+def _profile_sports(athlete: dict) -> list[str]:
+    """Adeptens aktiva grenar.
+
+    None betyder gammal profil utan explicit val och får triathlon-default.
+    Tom lista betyder att adepten aktivt valt bort alla grenar.
+    """
+    sports_value = athlete.get("sports")
+    return ["swim", "bike", "run"] if sports_value is None else list(sports_value)
+
+
 def _weeks_until_race(
     athlete: dict, today: date, client: Any | None = None
 ) -> int | None:
@@ -615,7 +506,7 @@ def _build_athlete_state(
     garmin_metrics: list[dict] | None = None,
     client: Any | None = None,
 ) -> AthleteState:
-    """Översätt athlete_profiles + weekly_report + Garmin-data → AthleteState."""
+    """Översätt athlete_profiles + weekly_report + TP-cache → AthleteState."""
     phase_state = athlete.get("phase_state") or {}
 
     # Self-rapporterad återhämtning från senaste veckorapport
@@ -635,7 +526,7 @@ def _build_athlete_state(
     # 1,7 h över en vecka blir meningslöst — minst en base-nivå (5 h) prescriberas.
     weekly_hours = max(weekly_hours, MIN_PLANNED_WEEKLY_HOURS)
 
-    # OT-tecken från Garmin (snabb-koll innan full assessment)
+    # OT-tecken från TP-matad kompatibilitetscache (snabb-koll innan full assessment)
     has_ot = False
     if garmin_metrics:
         latest = garmin_metrics[0]
@@ -666,13 +557,14 @@ def _build_ot_signals(
     weekly_report: dict | None,
     garmin_metrics: list[dict] | None = None,
 ) -> OvertrainingSignals:
-    """Bygg OT-signaler från Garmin-data + adept-rapporter.
+    """Bygg OT-signaler från TP-cache + adept-rapporter.
 
-    Garmin är primärkälla för objektiva signaler (RHR, HRV, sömn, ACWR).
+    TP fyller garmin_coach.daily_metrics som kompatibilitetscache för objektiva
+    signaler (RHR, HRV, sömn, ACWR).
     Weekly report ger subjektiva signaler (motivation, energi).
     active_concerns ger injury_present-flaggan.
     """
-    # Objektiva signaler från Garmin
+    # Objektiva signaler från TP-matad kompatibilitetscache.
     rhr_delta = None
     hrv_pct = None
     sleep_avg = None
@@ -685,8 +577,7 @@ def _build_ot_signals(
         sleep_avg = _compute_sleep_avg(garmin_metrics, days=7)
         sleep_low_streak = _compute_sleep_low_streak(garmin_metrics)
         high_load_streak = _compute_consecutive_high_load_weeks(garmin_metrics)
-        # Senaste readiness — Garmin uppdaterar denna dagligen baserat på
-        # sömn, HRV-trend, stress, aktivitet. 0-100.
+        # Senaste readiness om leverantören fyller den. TP lämnar den normalt tom.
         readiness = garmin_metrics[0].get("readiness_score")
         if readiness is not None:
             readiness = float(readiness)
@@ -947,7 +838,8 @@ def _run_engine(
 def _phase_filter_value(phase: str, period: str | None) -> str:
     """Konvertera engine-fas/period till värdet som passbankens phase_appropriate
     förväntar (base + base_2 → 'base_2'; prep utan period → 'prep')."""
-    return period or phase
+    value = period or phase
+    return "recovery" if value == "transition" else value
 
 
 def _pass_requires_trainer(w: dict) -> bool:
@@ -1020,7 +912,7 @@ def _select_workout_for(
       1. Match category + discipline + phase_filter
       2. Utrustnings-filter (hård — saknar utrustning = skippa)
       3. Variation-filter (undvik pass kört de senaste 4 veckorna)
-      4. Setting-preferens (mjuk — föredra men fall tillbaka)
+      4. Setting-val (hårt när adepten valt indoor/outdoor)
     """
     candidates = [
         w
@@ -1053,17 +945,16 @@ def _select_workout_for(
     fresh = [w for w in candidates if w.get("code") not in recent_codes]
     candidates = fresh or candidates
 
-    # 4. Setting-preferens (mjuk)
+    # 4. Setting-val. "any" är fritt; indoor/outdoor är ett krav.
     if preferred_settings is not None:
         pref = preferred_settings.get(discipline, "any")
         if pref != "any":
-            preferred = [
+            candidates = [
                 w for w in candidates
                 if _pass_setting(w) in (pref, "either")
             ]
-            if preferred:
-                candidates = preferred
-            # Om inga matchar pref: behåll fullständig pool (fallback)
+            if not candidates:
+                return None
 
     return rng.choice(candidates)
 
@@ -1203,9 +1094,12 @@ def _schedule_workouts(
     long_bike_day: str | None,
     long_run_day: str | None,
     rest_days: list[str],
-    strength_code: str,
+    strength_workout: dict | None,
     locked: list[ScheduledWorkout] | None = None,
-    include_strength: bool = True,
+    reserved_dates: set[date] | None = None,
+    existing_workout_count: int = 0,
+    equipment: dict | None = None,
+    preferred_settings: dict | None = None,
     strength_sessions: int = 1,
     phase: str | None = None,
     period: str | None = None,
@@ -1220,7 +1114,10 @@ def _schedule_workouts(
          placera inte samma disciplin på dag före ELLER dag efter.
       5. Speed (SS) — samma constraint.
       6. Volym (AE som inte är långpass) — samma constraint.
-      7. Strength — upp till `strength_sessions` pass på lediga kvalitetsdagar.
+      7. Strength — konkret pass ur passbanken, upp till `strength_sessions`
+         pass (protokollets sessions_per_week) på lediga kvalitetsdagar.
+      8. Fyll till minst fem pass inklusive mänskligt planerade pass.
+      9. Skriv uttrycklig vila på återstående dagar.
 
     phase/period används för fasens max passlängd (phase_details) som tak
     på parameterized pass-längder.
@@ -1248,6 +1145,20 @@ def _schedule_workouts(
             discipline_hours=discipline_hours.get(w.get("discipline"), 6.0),
             max_minutes=_max_minutes_for(w),
         )
+
+    # Dagar med Nils-/manualpass reserveras. Platshållarna skrivs aldrig till DB.
+    for reserved in reserved_dates or set():
+        if week_start <= reserved <= week_start + timedelta(days=6):
+            day_name = _DAYS[reserved.weekday()]
+            schedule[day_name] = ScheduledWorkout(
+                date=reserved,
+                sport="rest",
+                code="reserved_human",
+                title="Reserverad för mänskligt pass",
+                category="RESERVED",
+                duration_minutes=0,
+                intensity="—",
+            )
 
     # 0. Låsta pass — placera först, dessa rörs aldrig av algoritmen
     for lock in locked or []:
@@ -1358,40 +1269,48 @@ def _schedule_workouts(
     place_with_neighbor_constraint(other)
     place_with_neighbor_constraint(brick_pool)  # om kvar (oplacerade brick)
 
-    # 6b. Hård regel: minst 5 pass per vecka (vila räknas inte).
+    # 6b. Konkret styrkepass ur passbanken. Styrka räknas mot veckans fem pass.
+    # Antal pass styrs av protokollets sessions_per_week (AA/MT/MS: 2, SM: 1).
+    if strength_workout:
+        placed_strength = 0
+        for d in ("wednesday", "friday", "tuesday", "thursday"):
+            if placed_strength >= max(1, strength_sessions):
+                break
+            if d not in schedule:
+                schedule[d] = _sfw(strength_workout, day_dates[d])
+                placed_strength += 1
+
+    # 6c. Hård regel: minst 5 pass per vecka (vila räknas inte).
     # Om engine + partial-impact gett oss <5 pass, fyll tomma dagar med
     # extra AE-volym i discipliner som inte har full impact. Frekvens är
     # viktigare än tid — passen kan vara korta.
     _ensure_minimum_workouts(
         schedule=schedule,
         day_dates=day_dates,
-        selected_so_far=selected,
         discipline_hours=discipline_hours,
-        include_strength=include_strength,
-        min_total_workouts=5,
+        min_total_workouts=max(0, 5 - existing_workout_count),
+        equipment=equipment,
+        preferred_settings=preferred_settings,
     )
 
-    # 7. Strength på lediga kvalitetsdagar (om aktiverad). Antal pass styrs
-    # av protokollets sessions_per_week (AA/MT/MS: 2-3, SM: 1).
-    if include_strength and strength_code and strength_code != "none":
-        placed_strength = 0
-        for d in ("wednesday", "friday", "tuesday", "thursday"):
-            if placed_strength >= max(1, strength_sessions):
-                break
-            if d not in schedule:
-                schedule[d] = ScheduledWorkout(
-                    date=day_dates[d],
-                    sport="strength",
-                    code=f"strength_{strength_code}",
-                    title=f"Styrka — {strength_code}",
-                    category="STR",
-                    duration_minutes=45,
-                    intensity=strength_code,
-                    notes=f"Protokoll: {strength_code}. Se data/strength.yaml för övningar och reps.",
-                )
-                placed_strength += 1
+    # 7. Alla dagar ska synas. Tom dag betyder uttrycklig planerad vila.
+    for d in _DAYS:
+        if d not in schedule:
+            schedule[d] = ScheduledWorkout(
+                date=day_dates[d],
+                sport="rest",
+                code="rest",
+                title="Vilodag",
+                category="REST",
+                duration_minutes=0,
+                intensity="—",
+                notes="Planerad vila. Lätt rörlighet eller promenad är valfritt.",
+            )
 
-    return [schedule[d] for d in _DAYS if d in schedule]
+    return [
+        schedule[d] for d in _DAYS
+        if schedule[d].code != "reserved_human"
+    ]
 
 
 def _count_discipline_balance(
@@ -1408,10 +1327,10 @@ def _count_discipline_balance(
 def _ensure_minimum_workouts(
     schedule: dict[str, ScheduledWorkout],
     day_dates: dict[str, date],
-    selected_so_far: list[dict],
     discipline_hours: dict[str, float],
-    include_strength: bool,
     min_total_workouts: int = 5,
+    equipment: dict | None = None,
+    preferred_settings: dict | None = None,
 ) -> None:
     """Hård regel: minst N pass per vecka, fyll lediga dagar.
 
@@ -1448,7 +1367,16 @@ def _ensure_minimum_workouts(
 
     rng = random.Random(0)
 
+    def _eligible(w: dict, disc: str) -> bool:
+        if equipment is not None and not _passes_equipment_filter(w, equipment):
+            return False
+        pref = (preferred_settings or {}).get(disc, "any")
+        return pref == "any" or _pass_setting(w) in (pref, "either")
+
     for d in free_days:
+        workout_count = sum(1 for w in schedule.values() if w.sport != "rest")
+        if workout_count >= min_total_workouts:
+            break
         # Räkna nuvarande balans — välj disciplin med MINST pass hittills.
         # Vid lika, föredra den med mest timmar-budget.
         counts = _count_discipline_balance(schedule)
@@ -1467,6 +1395,7 @@ def _ensure_minimum_workouts(
                 w for w in pool
                 if w.get("category") == "AE"
                 and w.get("discipline") == disc
+                and _eligible(w, disc)
             ]
             if candidates:
                 chosen = rng.choice(candidates)
@@ -1481,6 +1410,7 @@ def _ensure_minimum_workouts(
                     w for w in pool
                     if w.get("category") == "AE"
                     and w.get("discipline") == disc
+                    and _eligible(w, disc)
                 ]
                 if candidates:
                     chosen = rng.choice(candidates)
@@ -1516,7 +1446,10 @@ def _scheduled_from_workout(
     duration = int(td.get("estimated") or 60)
 
     zones = resolved.get("zone_refs") or []
-    intensity = ", ".join(str(z) for z in zones) if zones else "Z2"
+    if resolved.get("discipline") == "strength":
+        intensity = f"{resolved.get('type_code', 'styrka')} · RIR-styrt"
+    else:
+        intensity = ", ".join(str(z) for z in zones) if zones else "Z2"
 
     return ScheduledWorkout(
         date=dt,
@@ -1529,9 +1462,6 @@ def _scheduled_from_workout(
         workout_data=resolved,
         notes=(resolved.get("intent") or "").strip(),
     )
-
-
-# ---------- Skriv till DB ----------
 
 
 # ---------- Skriv till MASTER planned_sessions (docs/08, steg 4) ----------
@@ -1561,32 +1491,77 @@ def _planned_session_row(sw: ScheduledWorkout, user_id: str) -> dict:
     }
 
 
-def _persist_to_planned_sessions(client, plan: WeekPlan, user_id: str) -> int:
+def _persist_to_planned_sessions(client, plan: WeekPlan, user_id: str) -> dict:
     """Skriv veckans pass till MASTER public.planned_sessions.
 
-    Idempotent + säkert i en fler-användar, legacy-delad tabell:
-    - raderar FÖRST bara veckans EGNA rader (user_id + origin='trixa2'),
-    - rör ALDRIG legacy/Nils-rader (origin NULL eller annat),
-    - skriver sedan de nya. user_id = athlete_user_id (profiles.id).
+    Befintliga Trixa-rader uppdateras per datum så deras id och TP-koppling
+    överlever regenerering. Rader som inte längre ingår markeras `cancelled`;
+    TP-workern tar då bort motsvarande TP-pass innan länken rensas.
+    Mänskliga rader (Nils/manual/legacy) rörs aldrig.
     """
     if not user_id:
-        return 0
+        return {"written": 0, "updated": 0, "inserted": 0, "cancelled": 0}
     week_start = plan.week_start
     week_end = (week_start + timedelta(days=6)).isoformat()
-    # Radera bara våra egna trixa2-rader för veckan (clobbra aldrig legacy/Nils).
-    (
+    existing = (
         client.table("planned_sessions")
-        .delete()
+        .select("id,date,status")
         .eq("user_id", user_id)
         .eq("origin", "trixa2")
         .gte("date", week_start.isoformat())
         .lte("date", week_end)
         .execute()
-    )
-    rows = [_planned_session_row(sw, user_id) for sw in plan.workouts]
-    if rows:
-        client.table("planned_sessions").insert(rows).execute()
-    return len(rows)
+    ).data or []
+
+    by_date: dict[str, list[dict]] = {}
+    for row in existing:
+        by_date.setdefault(str(row.get("date"))[:10], []).append(row)
+
+    used_ids: set[str] = set()
+    inserted = 0
+    updated = 0
+    for sw in plan.workouts:
+        payload = _planned_session_row(sw, user_id)
+        candidates = by_date.get(payload["date"], [])
+        current = next(
+            (row for row in candidates if row.get("status") != "cancelled"),
+            candidates[0] if candidates else None,
+        )
+        if current:
+            (
+                client.table("planned_sessions")
+                .update(payload)
+                .eq("id", current["id"])
+                .eq("user_id", user_id)
+                .eq("origin", "trixa2")
+                .execute()
+            )
+            used_ids.add(str(current["id"]))
+            updated += 1
+        else:
+            client.table("planned_sessions").insert(payload).execute()
+            inserted += 1
+
+    cancelled = 0
+    for row in existing:
+        if str(row.get("id")) in used_ids or row.get("status") == "cancelled":
+            continue
+        (
+            client.table("planned_sessions")
+            .update({"status": "cancelled"})
+            .eq("id", row["id"])
+            .eq("user_id", user_id)
+            .eq("origin", "trixa2")
+            .execute()
+        )
+        cancelled += 1
+
+    return {
+        "written": inserted + updated,
+        "updated": updated,
+        "inserted": inserted,
+        "cancelled": cancelled,
+    }
 
 
 # ---------- Override-hantering ----------
@@ -1626,7 +1601,7 @@ def _apply_overrides(
             }
             honored.append(ov)
         # week/workout-overrides hanteras inte här — de gäller specifika rader
-        # och tillämpas av Nils direkt på workouts-tabellen.
+        # och tillämpas av Nils direkt på planned_sessions.
 
     return modified, honored
 
@@ -1721,19 +1696,23 @@ def generate_week(
     weekly_report = _fetch_latest_weekly_report(client, athlete_id)
     recent_workouts = _fetch_recent_workouts(client, athlete_user_id, weeks_back=4)
 
-    # 1b. Coachens plan (Nils) — auktoritativ. Dagar Nils lagt rör motorn aldrig
-    #     (grind nedan). coach_rows speglas till planned_sessions vid apply.
-    coach_rows = _fetch_coach_plan(client, week_start)
-    coached = _coached_dates(coach_rows)
-    # Grinden gäller även dagar som redan har mänskligt skapade rader DIREKT i
-    # MASTER planned_sessions (origin nils/manual/legacy-NULL) — Nils behöver
-    # alltså inte gå via garmin_coach.planned_workouts för att vinna över motorn.
-    coached |= _human_planned_dates(client, athlete_user_id, week_start)
+    # 1b. Nils/adeptens pass i MASTER är auktoritativa. Motorn rör aldrig dagar
+    #     som redan har origin nils/manual/legacy-NULL.
+    human_rows = _human_planned_sessions(client, athlete_user_id, week_start)
+    coached: set[date] = set()
+    for row in human_rows:
+        try:
+            coached.add(date.fromisoformat(str(row.get("date"))[:10]))
+        except (TypeError, ValueError):
+            continue
+    human_workout_count = sum(
+        1 for row in human_rows
+        if (row.get("sport") or "").strip().lower()
+        not in ("vila", "rest", "yoga", "promenad", "vandring")
+    )
 
-    # 2. Hämta aktivitetsdata (primärkälla för faktisk volym + OT-signaler).
-    # Garmin primär, Strava reserv (se _resolve_activity_sources). OT-signaler
-    # (HRV/sömn/RHR) finns bara i Garmin → de faller tillbaka på profil/
-    # självskattning när Garmin saknas.
+    # 2. Hämta mastervolym + TP-matad recovery-cache. HRV/sömn/RHR ligger
+    # fortfarande i garmin_coach.daily_metrics av kompatibilitetsskäl.
     garmin_id, strava_user_id = _resolve_activity_sources(athlete)
     garmin_metrics = _fetch_garmin_metrics(client, garmin_id, today, days_back=28)
     # Veckovolym från MASTER training_log (user_id), som redan rymmer strava+tp+manuellt.
@@ -1777,7 +1756,7 @@ def generate_week(
         decisions["nutrition"] = nutrition
     decisions, honored = _apply_overrides(decisions, overrides)
 
-    # Spårbarhet: visa vad Trixa "ser" av Garmin-data
+    # Spårbarhet: visa vad Trixa ser av TP-cache och utförd mastervolym.
     decisions["_data_sources"] = {
         "actual_weekly_hours_4w_avg": (
             round(actual_weekly_hours, 1) if actual_weekly_hours else None
@@ -1822,12 +1801,9 @@ def generate_week(
     categories = decisions["categories"]
     discipline_hours = decisions["discipline_hours"]
 
-    # Filtrera till adeptens aktiva discipliner
-    raw_sports = athlete.get("sports") or ["swim", "bike", "run"]
+    # Filtrera till adeptens aktiva discipliner.
+    raw_sports = _profile_sports(athlete)
     active_sports = [s for s in raw_sports if s in ("swim", "bike", "run")]
-    if not active_sports:
-        # Säkerhetsnät — om listan är tom: fall tillbaka till alla tre
-        active_sports = ["swim", "bike", "run"]
 
     # Filtrera bort discipliner som blockeras av skada (impact=full)
     impacts = _injury_impacts_per_discipline(athlete)
@@ -1846,6 +1822,7 @@ def generate_week(
     # 4. Välj pass från passbanken
     workouts_pool = load_workouts()
     drills = load_drills()  # noqa: F841 — används av render om vi vill rendra här
+    strength_exercises = load_strength_exercises()
     recent_codes = {w.get("workout_code") for w in recent_workouts if w.get("workout_code")}
     rng = random.Random(_seed_for(athlete_id, week_start))
     phase_filter = _phase_filter_value(phase, period)
@@ -1904,6 +1881,29 @@ def generate_week(
                     f"{disc}: hårda pass utbytta mot AE pga partial skadeimpact"
                 )
 
+    strength_workout = None
+    if "strength" in raw_sports and impacts.get("strength") != "full":
+        protocol = decisions["strength_protocol"]
+        protocol_type = "SM" if protocol == "light_maintenance" else protocol
+        strength_candidates = [
+            w for w in workouts_pool
+            if w.get("discipline") == "strength"
+            and w.get("type_code") == protocol_type
+            and phase_filter in (w.get("phase_appropriate") or [])
+        ]
+        if strength_candidates:
+            fresh = [
+                w for w in strength_candidates
+                if w.get("code") not in recent_codes
+            ]
+            strength_workout = rng.choice(fresh or strength_candidates)
+        else:
+            warnings.append(
+                f"Inget styrkepass matchar protokoll {protocol} + {phase_filter}"
+            )
+    elif "strength" in raw_sports and impacts.get("strength") == "full":
+        warnings.append("strength skippad denna vecka — skada med impact=full")
+
     # 5. Schemalägg på dagar — läs adept-preferenser från athlete-row
     long_bike_day = athlete.get("long_bike_day")  # None = "spelar ingen roll"
     long_run_day = athlete.get("long_run_day")
@@ -1920,9 +1920,12 @@ def generate_week(
         long_bike_day=long_bike_day,
         long_run_day=long_run_day,
         rest_days=rest_days,
-        strength_code=decisions["strength_protocol"],
+        strength_workout=strength_workout,
         locked=locked_workouts,
-        include_strength="strength" in raw_sports,
+        reserved_dates=coached,
+        existing_workout_count=human_workout_count,
+        equipment=equipment,
+        preferred_settings=preferred_settings,
         strength_sessions=strength_sessions,
         phase=phase,
         period=period,
@@ -1939,14 +1942,24 @@ def generate_week(
             )
     decisions["_coached_dates"] = sorted(d.isoformat() for d in coached)
 
+    combined_workout_count = human_workout_count + sum(
+        1 for sw in scheduled if sw.sport != "rest"
+    )
+    if combined_workout_count < 5:
+        warnings.append(
+            f"Veckan innehåller bara {combined_workout_count} träningspass efter "
+            "skade-, gren- och coachbegränsningar; Trixa lade inte tillbaka blockerade grenar."
+        )
+
     # 5b. Rendera fullständig pass-text per pass (intent + main_set + zoner)
     zones_profile = _build_athlete_profile_for_zones(athlete)
     drill_map = {d["code"]: d for d in drills}
+    exercise_map = {e["code"]: e for e in strength_exercises}
     for sw in scheduled:
-        if sw.workout_data and sw.sport not in ("rest", "strength"):
+        if sw.workout_data and sw.sport != "rest":
             try:
                 sw.details_markdown = render_workout(
-                    sw.workout_data, zones_profile, drill_map
+                    sw.workout_data, zones_profile, drill_map, exercise_map
                 )
             except Exception:  # noqa: BLE001
                 # Render-fel ska inte krascha hela planen — fall back till notes
@@ -1978,19 +1991,14 @@ def generate_week(
         # De gamla engine-tabellerna (workouts/training_weeks/training_plans)
         # skrivs INTE längre — planned_sessions är enda plan-källan.
         try:
-            plan.engine_decisions["planned_sessions_written"] = _persist_to_planned_sessions(
+            persist_result = _persist_to_planned_sessions(
                 client, plan, athlete_user_id
             )
+            plan.engine_decisions["planned_sessions_written"] = persist_result["written"]
+            plan.engine_decisions["planned_sessions_persist"] = persist_result
         except Exception as exc:  # noqa: BLE001
             plan.engine_decisions["planned_sessions_error"] = str(exc)
         plan.engine_decisions["persisted_week_id"] = None
-
-        # GRIND-komplement: spegla coachens plan -> planned_sessions (origin='nils')
-        # så SaaS-vyn visar exakt Nils plan. Idempotent + löser ev. konflikt
-        # (raderar andra origins på coachade dagar).
-        plan.engine_decisions["coach_projection"] = _project_coach_plan(
-            client, athlete_user_id, coach_rows
-        )
 
         # Stäng honoring-loopen för respekterade overrides.
         plan.engine_decisions["overrides_honored_marked"] = _mark_overrides_honored(
@@ -2065,9 +2073,10 @@ def list_workout_alternatives(
 def swap_workout_code(
     workout_db_id: str,
     new_code: str,
+    user_id: str,
     note: str | None = None,
 ) -> dict:
-    """Byt ut ett specifikt pass i workouts-tabellen mot ett annat från passbanken.
+    """Byt ut ett specifikt pass i planned_sessions mot ett annat från passbanken.
 
     Behåller dag och vecka. Uppdaterar title, code, steps, intensity, notes.
     Loggar substitutionen i coach_notes för spårbarhet.
@@ -2076,7 +2085,14 @@ def swap_workout_code(
         Den uppdaterade workout-raden.
     """
     client = get_supabase()
-    res = client.table("planned_sessions").select("*").eq("id", workout_db_id).execute()
+    res = (
+        client.table("planned_sessions")
+        .select("*")
+        .eq("id", workout_db_id)
+        .eq("user_id", user_id)
+        .eq("origin", "trixa2")
+        .execute()
+    )
     if not res.data:
         raise ValueError(f"planned_sessions-rad saknas: {workout_db_id}")
 
@@ -2092,7 +2108,10 @@ def swap_workout_code(
     td = resolved.get("total_duration_min") or {}
     duration = int(td.get("estimated") or 60)
     zones = resolved.get("zone_refs") or []
-    intensity = ", ".join(str(z) for z in zones) if zones else "Z2"
+    if resolved.get("discipline") == "strength":
+        intensity = f"{resolved.get('type_code', 'styrka')} · RIR-styrt"
+    else:
+        intensity = ", ".join(str(z) for z in zones) if zones else "Z2"
 
     details = (resolved.get("intent") or "").strip()
     if note:
@@ -2106,13 +2125,78 @@ def swap_workout_code(
         "steps": resolved.get("main_set") or [],
         "details": details,
     }
-    upd = client.table("planned_sessions").update(update).eq("id", workout_db_id).execute()
+    upd = (
+        client.table("planned_sessions")
+        .update(update)
+        .eq("id", workout_db_id)
+        .eq("user_id", user_id)
+        .eq("origin", "trixa2")
+        .execute()
+    )
     return upd.data[0] if upd.data else {}
+
+
+def swap_workout_to_next_alternative(
+    workout_db_id: str,
+    user_id: str,
+) -> dict:
+    """Byt till nästa deterministiska pass i samma kategori och disciplin."""
+    client = get_supabase()
+    res = (
+        client.table("planned_sessions")
+        .select("*")
+        .eq("id", workout_db_id)
+        .eq("user_id", user_id)
+        .eq("origin", "trixa2")
+        .execute()
+    )
+    if not res.data:
+        raise ValueError("Passet saknas eller ägs inte av användaren")
+    old = res.data[0]
+    sport_map = {
+        "Sim": "swim", "Simning": "swim", "Cykel": "bike",
+        "Löpning": "run", "Lopning": "run", "Styrka": "strength",
+    }
+    discipline = sport_map.get(
+        old.get("sport"), (old.get("sport") or "").strip().lower()
+    )
+    category = old.get("purpose") or (
+        (old.get("workout_code") or "").split("_", 1)[0]
+    )
+
+    athlete = _fetch_athlete(client, user_id)
+    state = _build_athlete_state(athlete, None, date.today())
+    decisions = _run_engine(state, _build_ot_signals(athlete, None), 1, 6)
+    phase = decisions["phase_recommendation"]["phase"]
+    period = decisions["phase_recommendation"]["period"]
+    candidates = list_workout_alternatives(
+        category, discipline, phase, period, old.get("workout_code")
+    )
+    equipment = athlete.get("equipment") or {}
+    settings = athlete.get("preferred_settings") or {}
+    candidates = [
+        w for w in candidates
+        if _passes_equipment_filter(w, equipment)
+        and (
+            settings.get(discipline, "any") == "any"
+            or _pass_setting(w) in (settings.get(discipline), "either")
+        )
+    ]
+    if not candidates:
+        raise ValueError("Inget annat pass matchar gren, fas och inställningar")
+    chosen = sorted(candidates, key=lambda w: w.get("code") or "")[0]
+    return swap_workout_code(
+        workout_db_id,
+        chosen["code"],
+        user_id,
+        note=f"Adepten bytte från {old.get('workout_code') or old.get('title')}",
+    )
 
 
 def swap_workout_discipline_and_replan(
     workout_db_id: str,
     new_discipline: str,
+    user_id: str,
     new_category: str | None = None,
 ) -> WeekPlan:
     """Byt en specifik dag till annan disciplin och planera om resten av veckan.
@@ -2127,18 +2211,29 @@ def swap_workout_discipline_and_replan(
         Den uppdaterade veckoplanen.
     """
     client = get_supabase()
-    res = client.table("planned_sessions").select("*").eq("id", workout_db_id).execute()
+    if new_discipline not in ("swim", "bike", "run", "strength"):
+        raise ValueError(f"Ogiltig disciplin: {new_discipline}")
+    res = (
+        client.table("planned_sessions")
+        .select("*")
+        .eq("id", workout_db_id)
+        .eq("user_id", user_id)
+        .eq("origin", "trixa2")
+        .execute()
+    )
     if not res.data:
         raise ValueError(f"planned_sessions-rad saknas: {workout_db_id}")
     old = res.data[0]
 
     # user_id finns direkt på planned_sessions; week_start = måndagen för raden.
-    athlete_user_id = old["user_id"]
+    athlete_user_id = user_id
     row_date = date.fromisoformat(old["date"]) if isinstance(old["date"], str) else old["date"]
     week_start = row_date - timedelta(days=row_date.weekday())
 
     # Bestäm kategori — behåll om inte angiven (härled ur workout_code).
     target_category = new_category
+    if new_discipline == "strength":
+        target_category = "ST"
     if target_category is None:
         old_code = old.get("workout_code") or ""
         target_category = old_code.split("_")[0][:2] if "_" in old_code else "AE"

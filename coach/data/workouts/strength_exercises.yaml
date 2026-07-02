@@ -1,0 +1,661 @@
+# Styrkeövningar — katalog
+#
+# Övningar är förstklassiga objekt (precis som simdrills). Sessionsmallar
+# refererar dem via `exercise: <code>`. Renderaren slår upp koden och visar
+# namn, cues och ev. kontraindikation intill passet.
+#
+# Organiserad per RÖRELSEMÖNSTER, inte per muskel. Filosofin (samma som
+# SvD/forskningsläget): ansträngning, volym och rörelseomfång avgör effekten
+# — inte fri vikt vs maskin. Maskinvariant är DEFAULT eftersom låst bana ger
+# lägre skaderisk, små progressionssteg och nära-failure utan passare.
+#
+# Rörelsemönster (pattern):
+#   knee_dominant   — knäböj/benpress
+#   hip_hinge       — höftfällning, hamstrings/säte
+#   horizontal_push — press framåt (bröstpress, armhävning)
+#   horizontal_pull — drag mot kropp (rodd)
+#   vertical_pull   — drag uppifrån (latsdrag, chins)
+#   vertical_push   — press över huvud (FLAGGAS — axel/biceps)
+#   single_leg      — enbensstyrka och stabilitet
+#   core            — bål: anti-extension/-rotation/-lateralflexion
+#   explosive       — kraftutveckling (FLAGGAS — CNS/impact)
+#   mobility        — rörlighet och prehab
+#
+# Modalitet (modality): machine / cable / free_weight / bodyweight
+#
+# Svårighetsgrad (difficulty):
+#   1 — lärbar för alla
+#   2 — kräver viss vana
+#   3 — avancerad, kräver teknisk bas
+#
+# Kontraindikationer (contraindications) — kontrollerad vokabulär.
+# Athlete-gaten i renderaren filtrerar bort övningar vars flagga matchar
+# adeptens aktiva tillstånd. Tom lista = inga generella flaggor.
+#   biceps_tendon     — bicepssena/long head-känning
+#   shoulder          — axelimpingement/-instabilitet
+#   thoracic_spine    — bröstryggsproblematik
+#   overhead_loading  — last över huvudhöjd
+#   lower_back        — ländryggsbelastning
+#   high_cns_fatigue  — hög CNS-belastning, olämpligt vid låg readiness
+#   impact            — stötbelastning (hopp etc.)
+
+exercises:
+
+  # ─────────────────────────────────────────────────────────────
+  # knee_dominant
+  # ─────────────────────────────────────────────────────────────
+
+  - code: leg_press_machine
+    name: "Benpress (maskin)"
+    pattern: knee_dominant
+    modality: machine
+    difficulty: 1
+    primary_muscles: [quadriceps, glutes]
+    equipment: [leg_press]
+    contraindications: []
+    triathlon_relevance: |
+      Tung knädominant belastning utan att ryggen blir begränsning.
+      Bygger benstyrka som bär över i både cykel och löpsteg.
+    intent: |
+      Default-valet för tung underkroppsstyrka. Stabil bana, stor
+      belastning på framsida lår och säte, ländryggen avlastad jämfört
+      med skivstångsknäböj.
+    execution:
+      - "Säte inställt så knäna går till ~90° utan att ländryggen rundar."
+      - "Fötter höftbrett, fotplattans mitt, tår lätt utåt."
+      - "Pressa kontrollerat, lås inte ut knäna hårt i toppen."
+    cues: ["tryck genom hela foten", "andas ut i pressen"]
+    common_mistakes: ["för djupt så svanken släpper", "knän faller inåt"]
+    regression: bodyweight_squat
+    related: [goblet_squat, bulgarian_split_squat]
+
+  - code: goblet_squat
+    name: "Goblet squat"
+    pattern: knee_dominant
+    modality: free_weight
+    difficulty: 1
+    primary_muscles: [quadriceps, glutes, core]
+    equipment: [dumbbell]
+    contraindications: []
+    triathlon_relevance: |
+      Lär upprätt böjmönster och bålstöd. Bra fri-vikts-komplement
+      när maskin inte finns.
+    intent: |
+      Knäböj med vikt hållen mot bröstet. Frontlasten tvingar fram
+      upprätt hållning och aktiverar bålen.
+    execution:
+      - "Håll hantel/kettlebell mot bröstet, armbågar ned."
+      - "Böj till lår parallellt eller så djupt tekniken håller."
+      - "Driv upp genom hälarna, håll bröstet uppe."
+    cues: ["armbågar mellan knäna i botten", "stolt bröstkorg"]
+    common_mistakes: ["hälarna lyfter", "ryggen rundar i botten"]
+    regression: bodyweight_squat
+    related: [leg_press_machine]
+
+  - code: bodyweight_squat
+    name: "Knäböj med kroppsvikt"
+    pattern: knee_dominant
+    modality: bodyweight
+    difficulty: 1
+    primary_muscles: [quadriceps, glutes]
+    equipment: []
+    contraindications: []
+    triathlon_relevance: "Teknik- och volympass utan utrustning. Lågtröskel-prehab."
+    intent: "Grundmönstret. Används i prep/återhämtning och som regression."
+    execution:
+      - "Fötter höftbrett, böj höft och knä samtidigt."
+      - "Ned till bekvämt djup med neutral rygg."
+      - "Upp till stående, spänn säte i toppen."
+    cues: ["sätt dig bakåt", "knän följer tårna"]
+    common_mistakes: ["knän faller inåt", "tippar framåt på tå"]
+    related: [goblet_squat, leg_press_machine]
+
+  # ─────────────────────────────────────────────────────────────
+  # hip_hinge
+  # ─────────────────────────────────────────────────────────────
+
+  - code: leg_curl_machine
+    name: "Leg curl (maskin)"
+    pattern: hip_hinge
+    modality: machine
+    difficulty: 1
+    primary_muscles: [hamstrings]
+    equipment: [leg_curl]
+    contraindications: []
+    triathlon_relevance: |
+      Isolerad hamstringsstyrka — viktig skadeprevention för löpare,
+      balanserar de quad-dominanta cykel/löp-mönstren.
+    intent: |
+      Specifik hamstringsbelastning utan ländryggsinblandning. Säkraste
+      sättet att lägga volym på baksida lår.
+    execution:
+      - "Justera dyna mot vristen, knäleden i linje med maskinens axel."
+      - "Böj benen kontrollerat, paus i toppen."
+      - "Sänk långsamt — eccentriken är poängen."
+    cues: ["dra hälen mot sätet", "släpp inte snabbt"]
+    common_mistakes: ["lyfter höften från dynan", "kör för fort"]
+    related: [romanian_deadlift, nordic_hamstring_curl]
+
+  - code: romanian_deadlift
+    name: "Rumänsk marklyft (RDL)"
+    pattern: hip_hinge
+    modality: free_weight
+    difficulty: 2
+    primary_muscles: [hamstrings, glutes, erector_spinae]
+    equipment: [barbell, dumbbell]
+    contraindications: [lower_back, thoracic_spine]
+    triathlon_relevance: "Höftfällningsmönstret — kraftöverföring för både cykel och löpning."
+    intent: |
+      Höftdominant fällning med lätt böjda knän. Stark posterior chain.
+      Flaggad vid rygg-/bröstryggsproblematik — gate-styrd.
+    execution:
+      - "Stång nära kroppen, lätt böjda knän."
+      - "Fäll i höften, skjut sätet bakåt, neutral rygg."
+      - "Till känbar stretch i hamstrings, driv höften fram tillbaka."
+    cues: ["stäng dörren med rumpan", "stång skrapar låret"]
+    common_mistakes: ["rundar rygg", "böjer knäna som vanlig marklyft"]
+    regression: leg_curl_machine
+    related: [hip_thrust, leg_curl_machine]
+
+  - code: hip_thrust
+    name: "Höftlyft (hip thrust)"
+    pattern: hip_hinge
+    modality: free_weight
+    difficulty: 1
+    primary_muscles: [glutes, hamstrings]
+    equipment: [barbell, bench]
+    contraindications: []
+    triathlon_relevance: "Sätesdriv utan ländryggslast — bra säker glute-volym."
+    intent: "Horisontellt höftdriv. Maximal sätesaktivering, ryggvänligt."
+    execution:
+      - "Övre rygg mot bänk, stång över höften (med dyna)."
+      - "Driv höften upp till kropp i rät linje från knä till axel."
+      - "Kläm sätet i toppen, sänk kontrollerat."
+    cues: ["revben ned, klipp inte i svanken", "haka in mot bröstet"]
+    common_mistakes: ["överextenderar ländryggen", "knän faller isär"]
+    related: [romanian_deadlift]
+
+  - code: nordic_hamstring_curl
+    name: "Nordic hamstring curl"
+    pattern: hip_hinge
+    modality: bodyweight
+    difficulty: 3
+    primary_muscles: [hamstrings]
+    equipment: []
+    contraindications: [high_cns_fatigue]
+    triathlon_relevance: |
+      Stark evidens för hamstrings-skadeprevention hos löpare. Eccentrisk
+      belastning — börja med få reps, mycket ömmande första gångerna.
+    intent: "Tung eccentrisk hamstring. Avancerad — introduceras försiktigt."
+    execution:
+      - "Knästående, fötter fixerade (partner eller utrustning)."
+      - "Luta överkroppen framåt så långt du kan bromsa."
+      - "Fånga med händerna, tryck tillbaka upp."
+    cues: ["bromsa så långt det går", "höften rak hela vägen"]
+    common_mistakes: ["böjer i höften istället för att hålla rak linje", "för många reps för tidigt"]
+    regression: leg_curl_machine
+    related: [leg_curl_machine, romanian_deadlift]
+
+  # ─────────────────────────────────────────────────────────────
+  # horizontal_push
+  # ─────────────────────────────────────────────────────────────
+
+  - code: chest_press_machine
+    name: "Bröstpress (maskin)"
+    pattern: horizontal_push
+    modality: machine
+    difficulty: 1
+    primary_muscles: [pectorals, triceps, front_delts]
+    equipment: [chest_press]
+    contraindications: [shoulder]
+    triathlon_relevance: "Pressbalans mot all dragvolym i simning. Låst bana, axelvänlig vid rätt inställning."
+    intent: |
+      Default horisontell press. Stabil bana, lätt att köra nära failure.
+      Mild axelflagga — sänk handtag/säte om impingement-känning.
+    execution:
+      - "Säte så handtagen ligger i höjd med mitten av bröstet."
+      - "Pressa fram utan att låsa armbågarna hårt."
+      - "Sänk kontrollerat till lätt stretch, inte längre än axeln gillar."
+    cues: ["skuldror ned och bak", "pressa inte upp mot öronen"]
+    common_mistakes: ["för högt säte → axelstress", "studsar i botten"]
+    regression: pushup
+    related: [pushup]
+
+  - code: pushup
+    name: "Armhävning"
+    pattern: horizontal_push
+    modality: bodyweight
+    difficulty: 1
+    primary_muscles: [pectorals, triceps, core]
+    equipment: []
+    contraindications: [shoulder]
+    triathlon_relevance: "Press + bålstabilitet i ett. Skalbar via lutning."
+    intent: "Kroppsviktspress med bålkrav. Regression: händer på bänk/vägg."
+    execution:
+      - "Händer strax utanför axelbredd, kropp i rak linje."
+      - "Sänk till armbågar ~45° från kroppen."
+      - "Pressa upp, håll bålen spänd hela vägen."
+    cues: ["rak planka, ingen svank", "armbågar bakåt inte rakt ut"]
+    common_mistakes: ["höften hänger", "armbågar flär ut 90°"]
+    related: [chest_press_machine]
+
+  # ─────────────────────────────────────────────────────────────
+  # horizontal_pull
+  # ─────────────────────────────────────────────────────────────
+
+  - code: seated_row_machine
+    name: "Sittande rodd (maskin)"
+    pattern: horizontal_pull
+    modality: machine
+    difficulty: 1
+    primary_muscles: [lats, rhomboids, mid_traps, biceps]
+    equipment: [seated_row]
+    contraindications: [biceps_tendon]
+    triathlon_relevance: |
+      Motvikt till framåtlutad cykel-/skrivbordshållning. Drar tillbaka
+      skuldror — direkt nytta för thorakal hållning.
+    intent: |
+      Default horisontell drag. Bröststöd om tillgängligt avlastar
+      ländrygg. Mild bicepsflagga — neutralt grepp minskar senbelastning.
+    execution:
+      - "Bröst mot dyna (om finns), neutral rygg."
+      - "Dra handtaget mot nedre revbenen, för ihop skulderbladen."
+      - "Släpp kontrollerat till full sträckning utan att tappa hållning."
+    cues: ["led med armbågarna", "kläm skulderbladen bakåt-ned"]
+    common_mistakes: ["rycker med ryggen", "drar för högt mot bröstet"]
+    related: [inverted_row, straight_arm_pulldown]
+
+  - code: inverted_row
+    name: "Upprätt rodd i ring/stång (inverted row)"
+    pattern: horizontal_pull
+    modality: bodyweight
+    difficulty: 2
+    primary_muscles: [lats, rhomboids, biceps, core]
+    equipment: [trx, barbell]
+    contraindications: [biceps_tendon]
+    triathlon_relevance: "Drag + bålstabilitet, lätt att skala via kroppsvinkel."
+    intent: "Kroppsviktsdrag. Justera svårighet med fötternas placering."
+    execution:
+      - "Häng under stång/ringar, kropp rak, hälar i golvet."
+      - "Dra bröstet mot stången, skulderblad ihop."
+      - "Sänk kontrollerat till raka armar."
+    cues: ["rak kropp hela vägen", "led med bröstet"]
+    common_mistakes: ["höften sjunker", "halva reps"]
+    regression: seated_row_machine
+    related: [seated_row_machine]
+
+  # ─────────────────────────────────────────────────────────────
+  # vertical_pull
+  # ─────────────────────────────────────────────────────────────
+
+  - code: lat_pulldown_machine
+    name: "Latsdrag (maskin)"
+    pattern: vertical_pull
+    modality: machine
+    difficulty: 1
+    primary_muscles: [lats, biceps, mid_traps]
+    equipment: [lat_pulldown]
+    contraindications: [biceps_tendon]
+    triathlon_relevance: |
+      Latsstyrka bär över i simdraget. OBS biceps kopplas in — håll lätt
+      och neutralt grepp vid senkänning, undvik tungt vid aktiv flagga.
+    intent: |
+      Vertikal drag. Bicepsflagga: vid aktiv senproblematik gate:as den
+      bort och ersätts av maskinrodd med bröststöd.
+    execution:
+      - "Lårstöd justerat, grepp något bredare än axlar."
+      - "Dra stången mot övre bröstet, armbågar ned-bak."
+      - "Släpp upp kontrollerat till full sträckning."
+    cues: ["dra med armbågar inte händer", "bröstet upp mot stången"]
+    common_mistakes: ["lutar bakåt och gungar", "drar bakom nacken"]
+    related: [assisted_pullup, seated_row_machine]
+
+  - code: straight_arm_pulldown
+    name: "Raka-arm-latsdrag (straight-arm pulldown)"
+    pattern: vertical_pull
+    modality: cable
+    difficulty: 1
+    primary_muscles: [lats]
+    equipment: [cable]
+    contraindications: []
+    triathlon_relevance: |
+      Latsisolering med raka armar — laddar lats UTAN bicepsinblandning.
+      Den biceps-säkra vertikaldrag-varianten och simdragets slutfas.
+    intent: |
+      Lats utan armbågsflexion under last. Default-swap för latsdrag/chins
+      när bicepssenan är flaggad.
+    execution:
+      - "Stå mot kabel högt fäste, raka (lätt böjda) armar."
+      - "Dra stången i en båge ned mot låren, lats gör jobbet."
+      - "Släpp kontrollerat upp till stretch."
+    cues: ["raka armar hela vägen", "känn lats inte biceps"]
+    common_mistakes: ["böjer armbågarna (blir drag)", "lutar med ryggen"]
+    related: [lat_pulldown_machine, seated_row_machine]
+
+  - code: assisted_pullup
+    name: "Assisterade chins"
+    pattern: vertical_pull
+    modality: machine
+    difficulty: 2
+    primary_muscles: [lats, biceps]
+    equipment: [assisted_pullup_machine, band]
+    contraindications: [biceps_tendon]
+    triathlon_relevance: "Vertikal drag mot egen kroppsvikt, skalbar assistans."
+    intent: "Chins med motvikt/band. Samma bicepsflagga som latsdrag."
+    execution:
+      - "Ställ in assistansvikt/band."
+      - "Dra hakan över stången, kontrollerad väg."
+      - "Sänk fullt, undvik att tappa i botten."
+    cues: ["skulderblad ned först", "ingen kipp"]
+    common_mistakes: ["halva reps", "rycker igång rörelsen"]
+    regression: lat_pulldown_machine
+    related: [lat_pulldown_machine]
+
+  # ─────────────────────────────────────────────────────────────
+  # vertical_push  (FLAGGAS för overhead)
+  # ─────────────────────────────────────────────────────────────
+
+  - code: landmine_press
+    name: "Landmine-press"
+    pattern: vertical_push
+    modality: free_weight
+    difficulty: 2
+    primary_muscles: [front_delts, triceps, upper_pec, core]
+    equipment: [landmine, barbell]
+    contraindications: [shoulder]
+    triathlon_relevance: |
+      Den AXELVÄNLIGA pressvarianten — sneddande bana belastar inte
+      i full overhead-position. Default-press när overhead är flaggat.
+    intent: |
+      Press i sned bana istället för rakt över huvudet. Mindre
+      impingement-risk än maskin-/hantelpress over head.
+    execution:
+      - "Stångände i landmine, håll motsatt ände vid axeln."
+      - "Pressa upp-framåt, följ stångens båge."
+      - "Sänk kontrollerat tillbaka till axeln."
+    cues: ["pressa snett upp inte rakt", "bålen spänd, ingen svank"]
+    common_mistakes: ["svankar för att nå högre", "tappar bålspänning"]
+    related: [shoulder_press_machine]
+
+  - code: shoulder_press_machine
+    name: "Axelpress (maskin)"
+    pattern: vertical_push
+    modality: machine
+    difficulty: 1
+    primary_muscles: [delts, triceps]
+    equipment: [shoulder_press]
+    contraindications: [overhead_loading, shoulder, biceps_tendon]
+    triathlon_relevance: "Overhead-press. Flaggad tungt för dig — gate:as bort vid axel/biceps."
+    intent: |
+      Klassisk overhead-press i maskin. Flera flaggor: används inte vid
+      aktiv axel-/bicepsproblematik. Ersätts av landmine_press.
+    execution:
+      - "Säte så handtagen startar vid axelhöjd."
+      - "Pressa upp utan att låsa hårt, skuldror ned."
+      - "Sänk kontrollerat till axelhöjd."
+    cues: ["revben ned", "kläm inte skuldrorna mot öronen"]
+    common_mistakes: ["överextenderar ryggen", "pressar bakom huvudet"]
+    regression: landmine_press
+    related: [landmine_press]
+
+  # ─────────────────────────────────────────────────────────────
+  # single_leg
+  # ─────────────────────────────────────────────────────────────
+
+  - code: bulgarian_split_squat
+    name: "Bulgarisk utfallsknäböj"
+    pattern: single_leg
+    modality: free_weight
+    difficulty: 2
+    primary_muscles: [quadriceps, glutes]
+    equipment: [bench, dumbbell]
+    contraindications: []
+    triathlon_relevance: |
+      Enbensstyrka adresserar sidoskillnader — direkt relevant för
+      löpsteget. Hög stimulus med måttlig last, ryggvänlig.
+    intent: "Bakre foten upphöjd, tung belastning per ben med låg ryggbelastning."
+    execution:
+      - "Bakre foten på bänk, främre foten en bit fram."
+      - "Sänk rakt ned tills bakre knät nära golvet."
+      - "Driv upp genom främre hälen."
+    cues: ["upprätt överkropp", "vikt på främre hälen"]
+    common_mistakes: ["främre foten för nära", "lutar för långt fram"]
+    regression: step_up
+    related: [step_up, walking_lunge]
+
+  - code: step_up
+    name: "Step-up"
+    pattern: single_leg
+    modality: free_weight
+    difficulty: 1
+    primary_muscles: [quadriceps, glutes]
+    equipment: [box, dumbbell]
+    contraindications: []
+    triathlon_relevance: "Enkelt enbensmönster, lätt att dosera höjd och vikt."
+    intent: "Stig upp på låda, kontrollerad nedstigning. Skalbar och säker."
+    execution:
+      - "Hela foten på lådan, höjd så knät blir ~90°."
+      - "Driv upp genom hälen utan att skjuta ifrån med bakre foten."
+      - "Sänk långsamt tillbaka."
+    cues: ["all kraft från övre benet", "ingen avstamp nedtill"]
+    common_mistakes: ["hoppar upp med bakbenet", "för hög låda"]
+    related: [bulgarian_split_squat, walking_lunge]
+
+  - code: walking_lunge
+    name: "Gående utfall"
+    pattern: single_leg
+    modality: free_weight
+    difficulty: 1
+    primary_muscles: [quadriceps, glutes, hamstrings]
+    equipment: [dumbbell]
+    contraindications: []
+    triathlon_relevance: "Dynamiskt enbensmönster med balanskrav, nära löpsteget."
+    intent: "Utfall framåt i rörelse. Bygger enbensstyrka och kontroll."
+    execution:
+      - "Kliv fram, sänk bakre knät mot golvet."
+      - "Driv fram till nästa steg genom främre hälen."
+      - "Håll överkroppen upprätt hela vägen."
+    cues: ["långt steg", "knät över ankeln inte framför tårna"]
+    common_mistakes: ["för korta steg", "tippar framåt"]
+    regression: step_up
+    related: [bulgarian_split_squat]
+
+  - code: single_leg_balance
+    name: "Enbensstående balans"
+    pattern: single_leg
+    modality: bodyweight
+    difficulty: 1
+    primary_muscles: [glute_medius, calves, foot_stabilizers, core]
+    equipment: [dumbbell]
+    contraindications: []
+    triathlon_relevance: |
+      Fot- och höftstabilitet — direkt prehab för löpsteget. Kan lastas
+      lätt med hantel eller störas (blundande, mjukt underlag) för progression.
+    intent: "Stabilitet på ett ben. AA-fasens grundsten, lågtröskel-prehab."
+    execution:
+      - "Stå på ett ben, mjukt knä, höften plan."
+      - "Håll balansen, ev. med lätt hantel eller på mjukt underlag."
+      - "Byt ben. Progression: blunda eller lägg till armrörelse."
+    cues: ["plan höft", "tryck genom hela foten"]
+    common_mistakes: ["höften tippar (Trendelenburg)", "låst knä"]
+    related: [step_up]
+
+  # ─────────────────────────────────────────────────────────────
+  # core
+  # ─────────────────────────────────────────────────────────────
+
+  - code: plank
+    name: "Planka"
+    pattern: core
+    modality: bodyweight
+    difficulty: 1
+    primary_muscles: [transverse_abdominis, rectus_abdominis]
+    equipment: []
+    contraindications: []
+    triathlon_relevance: "Anti-extension — håller bäcken neutralt i löpning och aero."
+    intent: "Isometrisk bålstabilitet. Kvalitet > tid; bryt vid hållningstapp."
+    execution:
+      - "Underarmar under axlar, kropp i rak linje."
+      - "Spänn säte och bål, dra naveln in."
+      - "Håll tiden, andas normalt."
+    cues: ["revben ned mot höften", "ingen svank"]
+    common_mistakes: ["höften upp eller ned", "håller andan"]
+    related: [side_plank, dead_bug]
+
+  - code: side_plank
+    name: "Sidoplanka"
+    pattern: core
+    modality: bodyweight
+    difficulty: 1
+    primary_muscles: [obliques, glute_medius]
+    equipment: []
+    contraindications: [shoulder]
+    triathlon_relevance: "Anti-lateralflexion + höftstabilitet — sidostabilitet i löpsteget."
+    intent: "Isometrisk sidostabilitet. Mild axelflagga i stödarmen."
+    execution:
+      - "Underarm under axeln, kropp rak från sida."
+      - "Lyft höften, håll linjen."
+      - "Byt sida."
+    cues: ["höften upp och fram", "stapla axlarna"]
+    common_mistakes: ["höften sjunker", "roterar framåt"]
+    related: [plank, pallof_press]
+
+  - code: pallof_press
+    name: "Pallof-press"
+    pattern: core
+    modality: cable
+    difficulty: 1
+    primary_muscles: [obliques, transverse_abdominis]
+    equipment: [cable, band]
+    contraindications: []
+    triathlon_relevance: "Anti-rotation — motstår vridmoment, stabiliserar bålen under asymmetrisk last."
+    intent: "Pressa ut handtag rakt fram och motstå kabelns rotation."
+    execution:
+      - "Stå i sidled mot kabel, handtag vid bröstet."
+      - "Pressa rakt ut, motstå draget mot rotation."
+      - "Håll kort, dra in, upprepa. Byt sida."
+    cues: ["bålen stilla", "andas under hållet"]
+    common_mistakes: ["roterar mot kabeln", "höjer skuldrorna"]
+    related: [plank, dead_bug]
+
+  - code: dead_bug
+    name: "Dead bug"
+    pattern: core
+    modality: bodyweight
+    difficulty: 1
+    primary_muscles: [transverse_abdominis, rectus_abdominis]
+    equipment: []
+    contraindications: []
+    triathlon_relevance: "Anti-extension med extremitetsrörelse — ländryggsvänlig bålträning."
+    intent: "Ryggligg, motverka svank medan motsatt arm/ben sträcks ut."
+    execution:
+      - "Ryggligg, armar rakt upp, höft/knä i 90°."
+      - "Sänk motsatt arm och ben utan att svanka."
+      - "Tillbaka, byt sida. Ländryggen kvar i golvet."
+    cues: ["pressa ländryggen i golvet", "långsamt"]
+    common_mistakes: ["svankar när benet sänks", "håller andan"]
+    related: [plank, bird_dog]
+
+  - code: bird_dog
+    name: "Bird dog"
+    pattern: core
+    modality: bodyweight
+    difficulty: 1
+    primary_muscles: [erector_spinae, glutes, core]
+    equipment: []
+    contraindications: []
+    triathlon_relevance: |
+      Bål- och bäckenkontroll i fyrfota — bröstryggsvänlig, bra prehab
+      för din thorakala situation.
+    intent: "Fyrfota, sträck motsatt arm och ben, håll bålen stilla."
+    execution:
+      - "Fyrfota, händer under axlar, knän under höft."
+      - "Sträck ut motsatt arm och ben till rak linje."
+      - "Håll kort, tillbaka, byt sida."
+    cues: ["höften plan, ingen rotation", "lång nacke"]
+    common_mistakes: ["höften tippar", "överstäcker i ländryggen"]
+    related: [dead_bug, plank]
+
+  # ─────────────────────────────────────────────────────────────
+  # explosive  (FLAGGAS — CNS/impact)
+  # ─────────────────────────────────────────────────────────────
+
+  - code: kettlebell_swing
+    name: "Kettlebell-sving"
+    pattern: explosive
+    modality: free_weight
+    difficulty: 2
+    primary_muscles: [glutes, hamstrings, core]
+    equipment: [kettlebell]
+    contraindications: [lower_back, high_cns_fatigue]
+    triathlon_relevance: "Explosiv höftfällning. Bra kraftutveckling — men gate:as vid låg readiness."
+    intent: |
+      Höftdriven sving. Kraft kommer från höften, inte armarna. Flaggad
+      vid ländrygg och hög CNS-trötthet (olämplig i återhämtningsvecka).
+    execution:
+      - "Höftfällning, kettlebell svingas mellan benen."
+      - "Explosiv höftsträckning driver vikten till brösthöjd."
+      - "Armarna är bara rep — låt höften göra jobbet."
+    cues: ["snärt med höften", "revben ned i toppen"]
+    common_mistakes: ["lyfter med armarna", "böjer knäna som knäböj"]
+    related: [hip_thrust, box_jump]
+
+  - code: box_jump
+    name: "Lådhopp"
+    pattern: explosive
+    modality: bodyweight
+    difficulty: 2
+    primary_muscles: [quadriceps, glutes, calves]
+    equipment: [box]
+    contraindications: [impact, high_cns_fatigue]
+    triathlon_relevance: "Reaktiv kraft. Flaggad för impact — kliv NED, hoppa aldrig ned."
+    intent: "Explosivt hopp upp på låda. Stötflagga: stig alltid ned, hoppa aldrig av."
+    execution:
+      - "Lätt böj, svinga armarna, explosivt upp."
+      - "Landa mjukt med böjda knän mitt på lådan."
+      - "Kliv ned ett ben i taget."
+    cues: ["mjuk landning", "kliv ned, hoppa aldrig"]
+    common_mistakes: ["hoppar ned (knästress)", "för hög låda"]
+    related: [kettlebell_swing]
+
+  # ─────────────────────────────────────────────────────────────
+  # mobility
+  # ─────────────────────────────────────────────────────────────
+
+  - code: thoracic_rotation
+    name: "Bröstryggsrotation (open book)"
+    pattern: mobility
+    modality: bodyweight
+    difficulty: 1
+    primary_muscles: [thoracic_spine]
+    equipment: []
+    contraindications: []
+    triathlon_relevance: |
+      Direkt relevant för din thorakala situation och aero-position.
+      Öppnar bröstryggsrotation utan att belasta.
+    intent: "Rörlighet i bröstryggen. Prehab, passar uppvärmning eller egen session."
+    execution:
+      - "Sidliggande, knän ihop i 90°, armar utsträckta framför."
+      - "Öppna övre armen i en båge mot motsatt sida, följ med blicken."
+      - "Andas ut i ytterläget, tillbaka. Byt sida."
+    cues: ["rotera från bröstryggen", "höften stilla"]
+    common_mistakes: ["roterar i ländryggen", "knäna släpper isär"]
+    related: [bird_dog]
+
+  - code: dynamic_hip_flexor_stretch
+    name: "Dynamisk höftböjarstretch"
+    pattern: mobility
+    modality: bodyweight
+    difficulty: 1
+    primary_muscles: [hip_flexors]
+    equipment: []
+    contraindications: []
+    triathlon_relevance: "Motverkar strama höftböjare från cykel och sittande — öppnar löpsteget."
+    intent: "Dynamisk öppning av höftböjarna. Uppvärmning eller egen rörlighet."
+    execution:
+      - "Utfallsposition, bakre knät i golvet."
+      - "Skjut höften fram tills känbar stretch i bakre höftböjaren."
+      - "Pulsera lätt eller håll, byt sida."
+    cues: ["spänn säte på bakre benet", "upprätt överkropp"]
+    common_mistakes: ["svankar istället för att tippa bäckenet", "knät framför tårna"]
+    related: [thoracic_rotation]
