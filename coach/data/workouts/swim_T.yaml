@@ -20,7 +20,7 @@ workouts:
     category: T
     type_code: CSS_Test
     name: "CSS-test: 400 + 200"
-    parametrized: true
+    parameterized: true
     parameters:
       duration_min:
         default: 42
@@ -94,7 +94,7 @@ workouts:
     category: T
     type_code: CSS_Test
     name: "CSS-test: 1500m time trial"
-    parametrized: true
+    parameterized: true
     parameters:
       duration_min:
         default: 55

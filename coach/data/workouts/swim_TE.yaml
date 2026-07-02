@@ -13,7 +13,7 @@ workouts:
     category: TE
     type_code: TE1
     name: "4×300 Z3"
-    parametrized: true
+    parameterized: true
     parameters:
       duration_min:
         default: 45
@@ -66,7 +66,7 @@ workouts:
     category: TE
     type_code: TE1
     name: "6×200 Z3 kort vila"
-    parametrized: true
+    parameterized: true
     parameters:
       duration_min:
         default: 40
@@ -111,7 +111,7 @@ workouts:
     category: TE
     type_code: TE1
     name: "Tempo-pyramid 100-200-300-400-300-200-100"
-    parametrized: true
+    parameterized: true
     parameters:
       duration_min:
         default: 50
@@ -184,7 +184,7 @@ workouts:
     category: TE
     type_code: TE1
     name: "2×800 Z3"
-    parametrized: true
+    parameterized: true
     parameters:
       duration_min:
         default: 50

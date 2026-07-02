@@ -1,4 +1,5 @@
-# Styrketräning per träningsfas (källa: 3.5 Styrketräning i Olika Träningsfaser)
+# Styrketräning per träningsfas (källa: 3.5 Styrketräning i Olika Träningsfaser,
+# korrigerad 2026-07-02 efter expertgranskning: MS/SM-parametrarna var inverterade).
 # VIKTIGT: Anpassa alltid övningarna för att undvika att belasta skadade kroppsdelar.
 
 protocol_types:
@@ -7,15 +8,48 @@ protocol_types:
   MS: Max Strength
   SM: Strength Maintenance
 
-# Styrkeprotokoll per fas. Volymen anges som intervall (low, high).
+# Parametrar per PROTOKOLL (inte per fas — base_1 växlar MT→MS mitt i perioden).
+# Dessa vinner över fas-blockens värden. sessions_per_week = [min, max] pass/vecka.
+protocol_parameters:
+  AA:
+    reps: [12, 15]
+    sets: [2, 3]
+    intensity: light_to_moderate
+    sessions_per_week: [2, 3]
+  MT:
+    # Övergång mot tunga lyft: lär rörelsemönstren med måttlig vikt.
+    reps: [10, 15]
+    sets: [3, 4]
+    intensity: moderate
+    sessions_per_week: [2, 2]
+  MS:
+    # Maxstyrka: få reps, tung vikt (~80-90% 1RM), full vila mellan set.
+    # Kräver att rörelsemönstren sitter (MT genomförd).
+    reps: [3, 6]
+    sets: [2, 3]
+    intensity: heavy
+    sessions_per_week: [2, 2]
+  SM:
+    # Underhåll under tävlingssäsong: ETT kort pass/vecka, 1-2 set.
+    # Styrkan byggdes i base — nu ska den bara bevaras medan sport-specifik
+    # intensitet ökar. Mer än så konkurrerar med nyckelpassen.
+    reps: [6, 10]
+    sets: [1, 2]
+    intensity: moderate
+    sessions_per_week: [1, 1]
+  light_maintenance:
+    reps: [10, 15]
+    sets: [1, 2]
+    intensity: very_light
+    sessions_per_week: [1, 1]
+
+# Styrkeprotokoll per fas: mål, fokus och övningsval.
+# Reps/sets/intensitet kommer från protocol_parameters ovan.
 strength_by_phase:
 
   prep:
     protocol: AA
     goal: Skapa grundläggande styrka och uthållighet
-    intensity: light_to_moderate
-    reps: [12, 15]
-    sets: [2, 3]
     focus: Teknik och korrekt utförande
     exercises:
       bodyweight:
@@ -37,11 +71,10 @@ strength_by_phase:
         second_half: MS  # andra halvan
       base_2: MS
       base_3: MS
-    goal: Utveckla grundläggande styrka och förbättra uthållighet
-    intensity: light_to_moderate
-    reps: [10, 12]
-    sets: [3, 4]
-    focus: Öka muskeluthållighet och förbättra stabilitet
+    goal: Bygga maximal styrka medan sport-intensiteten fortfarande är låg
+    focus: >
+      Tunga baslyft med perfekt teknik. Full vila mellan set (2-4 min).
+      Styrkan som byggs här underhålls sedan hela säsongen.
     exercises:
       compound:
         - marklyft
@@ -56,17 +89,14 @@ strength_by_phase:
         - utfall med vikt
 
   build:
-    protocol: SM   # men med fokus på styrkebygge enligt 2.2.3
-    goal: Förbättra specifik styrka och kraftutveckling
-    intensity: moderate_to_heavy
-    reps: [6, 8]
-    sets: [4, 5]
-    focus: Bygga styrka och explosivitet, förbättra muskelkraft
+    protocol: SM
+    goal: Bevara styrkan från base utan att störa den sport-specifika träningen
+    focus: >
+      Underhåll — ett kort pass per vecka med måttlig vikt. Intensiteten
+      i sim/cykel/löp ökar nu; styrketräningen får inte konkurrera med
+      nyckelpassen eller addera återhämtningsskuld.
     note: Ange alltid set, repetitioner och vikter för varje övning.
     exercises:
-      explosive:
-        - kettlebell svingar
-        - boxhopp
       heavy_compound:
         - knäböj
         - marklyft
@@ -79,9 +109,6 @@ strength_by_phase:
   peak:
     protocol: SM
     goal: Bevara styrka och minska skaderisken
-    intensity: light_to_moderate
-    reps: [8, 10]
-    sets: [2, 3]
     focus: Bevara styrka utan att trötta ut musklerna; rörlighet och skadeprevention
     note: Minska vikter och volym jämfört med tidigare faser.
     exercises:
@@ -98,17 +125,11 @@ strength_by_phase:
   race:
     protocol: SM
     goal: Minimal belastning, bibehåll skärpa
-    intensity: very_light
-    reps: [8, 10]
-    sets: [1, 2]
     focus: Bibehåll rörelsemönster utan att trötta ut
     note: Mycket lätt belastning, högst ett kort pass under fasen.
 
   transition:
     protocol: light_maintenance
     goal: Bibehåll muskeltonus och förebygg skador
-    intensity: very_light
-    reps: [10, 15]
-    sets: [1, 2]
     focus: Kroppsviktsövningar och lätta vikter
     note: Inkludera gärna alternativa former (yoga, pilates).

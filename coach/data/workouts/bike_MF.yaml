@@ -169,9 +169,8 @@ workouts:
       - "Kadens går upp över 75 trots ansträngning att hålla den nere → sänk watt eller välj brantare backe"
     coach_notes: |
       Mer realistisk styrkeöverföring än trainer-versionen — men kräver
-      rätt backe. För Niklas i Stockholmsområdet: typ Skogås-backarna eller
-      Vällingby-höjderna fungerar. Backens längd avgör vilken kadens som
-      faktiskt går att hålla i Z4-watt.
+      rätt backe: 1-3 min lång, jämn lutning på 5-8 %. Backens längd avgör
+      vilken kadens som faktiskt går att hålla i Z4-watt.
 
   # ─────────────────────────────────────────────────────────────
   # MF2 — Hilly Ride
@@ -223,9 +222,9 @@ workouts:
       - "Backar tvingar Z5 upprepade gånger → välj plattare rutt eller sänk watt-tak"
     coach_notes: |
       Bättre verkligheten än indoor MF1 — naturlig variation i kadens, hr,
-      watt. För adepter med tillgång till bra terräng (Stockholm:
-      Lidingö-loop, Värmdö). Tävlingsbanor som Kalmar är platta så denna är
-      inte tävlingsspecifik, men styrkeadaptionen överförs.
+      watt. Kräver tillgång till kuperad terräng (rullande rutt med
+      återkommande 1-5 min-backar). Är tävlingsbanan platt är passet inte
+      tävlingsspecifikt, men styrkeadaptionen överförs.
 
   - code: MF2_bike_02
     discipline: bike
@@ -338,8 +337,7 @@ workouts:
     coach_notes: |
       MF3 är ME-träning i förklädnad — backens lutning lägger på styrke-
       momentum. Bra för adepter som behöver bygga både kraft och tröskel
-      utan att dubblera pass. Kräver rätt backe; för Niklas funkar t.ex.
-      Skogås- eller Hellasgården-backar.
+      utan att dubblera pass. Kräver rätt backe: 6-8 min i jämn lutning.
 
   - code: MF3_bike_02
     discipline: bike
@@ -389,8 +387,8 @@ workouts:
       - "Watt-spik > Z5 vid stående → för stor kraftutveckling, lugnare"
     coach_notes: |
       Kombinerar MF3 med teknisk variation. Bra för adepter som redan har
-      MF3_bike_01 inkört och behöver progression. För Niklas: passa stå-tramp
-      med fysio om ryggrehab fortfarande är aktuell.
+      MF3_bike_01 inkört och behöver progression. OBS: vid pågående
+      ryggrehab — stäm av stå-tramp med fysio innan passet väljs.
 
   - code: MF3_bike_03
     discipline: bike
@@ -439,5 +437,5 @@ workouts:
     coach_notes: |
       Mer aerobt än MF3_bike_01 (Sweet Spot vs ren tröskel). Bra "stark
       build_2-pass" som inte är fullt tröskelarbete men tar styrke-dosen.
-      Kräver lång backe (minst 2 km) — i Stockholm svårare att hitta;
-      alternativ: ramp på trainer (men då tappar man backe-realismen).
+      Kräver lång backe (minst 2 km) — saknas sådan lokalt: kör ramp på
+      trainer (men då tappar man backe-realismen).

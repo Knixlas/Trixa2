@@ -20,7 +20,7 @@ workouts:
     category: ME
     type_code: ME1
     name: "3×800 @ CSS+3"
-    parametrized: true
+    parameterized: true
     parameters:
       duration_min:
         default: 75
@@ -71,7 +71,7 @@ workouts:
     category: ME
     type_code: ME1
     name: "4×500 @ CSS"
-    parametrized: true
+    parameterized: true
     parameters:
       duration_min:
         default: 60
@@ -118,7 +118,7 @@ workouts:
     category: ME
     type_code: ME1
     name: "2×1000 progressivt"
-    parametrized: true
+    parameterized: true
     parameters:
       duration_min:
         default: 65
@@ -171,7 +171,7 @@ workouts:
     category: ME
     type_code: ME2
     name: "10×100 @ CSS"
-    parametrized: true
+    parameterized: true
     parameters:
       duration_min:
         default: 45
@@ -215,7 +215,7 @@ workouts:
     category: ME
     type_code: ME2
     name: "15×100 rotation Z2/Z3/Z4"
-    parametrized: true
+    parameterized: true
     parameters:
       duration_min:
         default: 55
@@ -274,7 +274,7 @@ workouts:
     category: ME
     type_code: ME2
     name: "20×100 säng-test"
-    parametrized: true
+    parameterized: true
     parameters:
       duration_min:
         default: 65
@@ -331,7 +331,7 @@ workouts:
     category: ME
     type_code: ME3
     name: "5×300 @ CSS"
-    parametrized: true
+    parameterized: true
     parameters:
       duration_min:
         default: 50
@@ -378,7 +378,7 @@ workouts:
     category: ME
     type_code: ME3
     name: "8×200 @ CSS-2"
-    parametrized: true
+    parameterized: true
     parameters:
       duration_min:
         default: 55
@@ -424,7 +424,7 @@ workouts:
     category: ME
     type_code: ME3
     name: "3×400 @ CSS med teknikrespons"
-    parametrized: true
+    parameterized: true
     parameters:
       duration_min:
         default: 55

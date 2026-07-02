@@ -324,8 +324,8 @@ def post_generate_plan(req: GeneratePlanRequest) -> WeekPlanResponse:
 def get_plan_markdown(
     athlete_user_id: str = Query(...),
     week_start: date_type = Query(...),
-    week_in_period: int = Query(1, ge=1),
-    weeks_in_period: int = Query(6, ge=1),
+    week_in_period: int | None = Query(None, ge=1),
+    weeks_in_period: int | None = Query(None, ge=1),
 ) -> dict:
     """Generera och returnera markdown-versionen av en veckoplan (dry-run).
 

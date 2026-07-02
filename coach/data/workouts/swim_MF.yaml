@@ -19,7 +19,7 @@ workouts:
     category: MF
     type_code: MF1
     name: "8×50 katch-fokus"
-    parametrized: true
+    parameterized: true
     parameters:
       duration_min:
         default: 26
@@ -69,7 +69,7 @@ workouts:
     category: MF
     type_code: MF1
     name: "Buoy + paddles styrkeset"
-    parametrized: true
+    parameterized: true
     parameters:
       duration_min:
         default: 35
@@ -122,7 +122,7 @@ workouts:
     category: MF
     type_code: MF1
     name: "Band-only pull (ingen kick)"
-    parametrized: true
+    parameterized: true
     parameters:
       duration_min:
         default: 28
@@ -176,7 +176,7 @@ workouts:
     category: MF
     type_code: MF2
     name: "Älv- eller åmotsim"
-    parametrized: true
+    parameterized: true
     parameters:
       duration_min:
         default: 24
@@ -224,7 +224,7 @@ workouts:
     category: MF
     type_code: MF2
     name: "Choppy-water-tolerans"
-    parametrized: true
+    parameterized: true
     parameters:
       duration_min:
         default: 28
@@ -268,7 +268,7 @@ workouts:
     category: MF
     type_code: MF2
     name: "Bassäng-simulering med snurr"
-    parametrized: true
+    parameterized: true
     parameters:
       duration_min:
         default: 20
@@ -316,7 +316,7 @@ workouts:
     category: MF
     type_code: MF3
     name: "8×100 paddles main set"
-    parametrized: true
+    parameterized: true
     parameters:
       duration_min:
         default: 36
@@ -364,7 +364,7 @@ workouts:
     category: MF
     type_code: MF3
     name: "Paddles + buoy descending"
-    parametrized: true
+    parameterized: true
     parameters:
       duration_min:
         default: 37
@@ -414,7 +414,7 @@ workouts:
     category: MF
     type_code: MF3
     name: "Paddel-stege 50-100-150-200-150-100-50"
-    parametrized: true
+    parameterized: true
     parameters:
       duration_min:
         default: 33

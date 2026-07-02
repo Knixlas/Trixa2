@@ -1,0 +1,21 @@
+# Nutrition — generella defaults (flyttade från phase_details.race.nutrition
+# 2026-07-02). Per-adept-överridor bor i athlete_profiles:
+#   race_carbs_per_hour_g, carb_load_g_per_kg, nutrition_notes
+# Planner bygger decisions["nutrition"] = defaults + adeptens överridor
+# när fasen är race (och sista peak-veckan).
+#
+# OBS: defaults är riktvärden för en frisk mage. Adepter med begränsat
+# intag (t.ex. GLP-1-medicinering) ska ha lägre per-adept-värden och
+# race-nutrition måste alltid tränas i långpass innan tävling.
+
+defaults:
+  race_carbs_per_hour_g: 90
+  carb_load_g_per_kg_per_day: 10
+  carb_load_days_before: [2, 3]
+  pre_start_minutes: 15
+  pre_start_intake: gel eller lite sportdryck
+
+# Tillåtna spann för per-adept-överridor (validering i formulär/planner).
+ranges:
+  race_carbs_per_hour_g: [40, 120]
+  carb_load_g_per_kg_per_day: [6, 12]

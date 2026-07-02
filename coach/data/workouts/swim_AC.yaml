@@ -18,7 +18,7 @@ workouts:
     category: AC
     type_code: AC1
     name: "16×50 @ Z5"
-    parametrized: true
+    parameterized: true
     parameters:
       duration_min:
         default: 50
@@ -69,7 +69,7 @@ workouts:
     category: AC
     type_code: AC1
     name: "12×75 @ Z5"
-    parametrized: true
+    parameterized: true
     parameters:
       duration_min:
         default: 50
@@ -116,7 +116,7 @@ workouts:
     category: AC
     type_code: AC1
     name: "Tabata-inspired 8×(25 sprint / 15s vila)"
-    parametrized: true
+    parameterized: true
     parameters:
       duration_min:
         default: 40
@@ -174,7 +174,7 @@ workouts:
     category: AC
     type_code: AC2
     name: "8×100 @ Z5 lika vila"
-    parametrized: true
+    parameterized: true
     parameters:
       duration_min:
         default: 55
@@ -222,7 +222,7 @@ workouts:
     category: AC
     type_code: AC2
     name: "6×150 @ Z5"
-    parametrized: true
+    parameterized: true
     parameters:
       duration_min:
         default: 55
@@ -269,7 +269,7 @@ workouts:
     category: AC
     type_code: AC2
     name: "10×100 descending från Z4 till Z5"
-    parametrized: true
+    parameterized: true
     parameters:
       duration_min:
         default: 55

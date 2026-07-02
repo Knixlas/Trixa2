@@ -101,6 +101,24 @@ def _resolve_segment_duration(seg: dict, total_min: float) -> dict:
     return seg
 
 
+# Inline-spec: sim-banken skriver `sets: {default: 16, range: [10, 24]}`
+# direkt på segmentet (i stället för en topp-nivå-parameter). Sådana dicts
+# plattas till default-värdet vid resolvning så att renderare/planner/TP-
+# mappning alltid ser skalärer.
+_INLINE_SPEC_KEYS = {"default", "range", "min", "max", "description"}
+
+
+def _flatten_inline_specs(value: Any) -> Any:
+    """Ersätt {default: X, range: [...]}-dicts med X, rekursivt."""
+    if isinstance(value, dict):
+        if "default" in value and set(value.keys()) <= _INLINE_SPEC_KEYS:
+            return value["default"]
+        return {k: _flatten_inline_specs(v) for k, v in value.items()}
+    if isinstance(value, list):
+        return [_flatten_inline_specs(v) for v in value]
+    return value
+
+
 def resolve_template(
     workout: dict[str, Any],
     parameter_values: dict[str, Any] | None = None,
@@ -144,6 +162,9 @@ def resolve_template(
 
     # Resolva alla string-uttryck rekursivt
     resolved = _resolve_value(resolved, params, total_min)
+
+    # Platta inline-specs ({default: X, ...} → X) i main_set
+    resolved["main_set"] = _flatten_inline_specs(resolved.get("main_set", []))
 
     # Konvertera duration_pct → duration_min på segmenten
     if total_min is not None:

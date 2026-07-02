@@ -217,8 +217,8 @@ workouts:
       - "Kadens går under 65 trots växel-val → välj annan backe"
     coach_notes: |
       Mer styrke-tung än ME1_bike_01 — backens lutning ger kraft-belastning
-      utöver tröskel-belastningen. Bra build-pass. Kräver tillgänglig backe;
-      i Stockholm: Skogås, Hellasgården, Brevik (Värmdö).
+      utöver tröskel-belastningen. Bra build-pass. Kräver tillgänglig backe
+      på 6-10 min i jämn lutning.
 
   - code: ME2_bike_02
     discipline: bike

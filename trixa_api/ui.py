@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import json
 import os
-from datetime import date as date_type, timedelta
+from datetime import date as date_type, datetime, timedelta, timezone
 from pathlib import Path
 
 from fastapi import APIRouter, Form, HTTPException, Request, status
@@ -110,6 +110,45 @@ def logout(request: Request) -> Any:
     return resp
 
 
+def _ensure_athlete_profile(client, user_id: str, name: str | None = None) -> dict:
+    """Se till att användaren har en athlete_profiles-rad; skapa med defaults annars.
+
+    Idempotent (upsert on_conflict user_id) — anropas efter signup OCH som
+    säkerhetsnät vid dashboard-access, så användare skapade utanför UI:t
+    (admin-API, äldre signups) också får en rad.
+    """
+    res = (
+        client.table("athlete_profiles")
+        .select("*")
+        .eq("user_id", user_id)
+        .limit(1)
+        .execute()
+    )
+    if res.data:
+        return res.data[0]
+
+    defaults = {
+        "user_id": user_id,
+        "goal": "triathlon",
+        "sports": ["swim", "bike", "run"],
+        "weekly_hours": 6,
+        "preferred_rest_days": ["monday"],
+        "recovery_week_ratio": "3:1",
+        # onboarded_at lämnas NULL → dashboarden redirectar till /ui/onboarding
+    }
+    client.table("athlete_profiles").upsert(
+        defaults, on_conflict="user_id", ignore_duplicates=True
+    ).execute()
+    res = (
+        client.table("athlete_profiles")
+        .select("*")
+        .eq("user_id", user_id)
+        .limit(1)
+        .execute()
+    )
+    return res.data[0] if res.data else defaults
+
+
 @router.get("/signup", response_class=HTMLResponse)
 def signup_form(request: Request) -> HTMLResponse:
     return _render("signup.html", {
@@ -140,7 +179,13 @@ def signup_submit(
     session, error = supabase_auth.sign_up(email.strip(), password, name.strip() or None)
     if error or not session:
         return _err(error or "Kunde inte skapa kontot.")
-    resp = RedirectResponse(url="/ui/", status_code=303)
+    # Skapa athlete_profiles-raden direkt — halv-registrerade användare
+    # (profiles utan athlete_profiles) kraschar planner och dashboard.
+    try:
+        _ensure_athlete_profile(get_postgrest(), session["user_id"], name.strip() or None)
+    except Exception:  # noqa: BLE001 — säkerhetsnätet i dashboard tar det annars
+        pass
+    resp = RedirectResponse(url="/ui/onboarding", status_code=303)
     set_session_cookies(resp, session, secure=is_secure_request(request))
     return resp
 
@@ -401,8 +446,24 @@ def _weekly_hours_series(
 
 
 def _build_season_context(client, athlete, today, this_monday) -> dict | None:
-    """Bygg säsongs-tidslinjen för dashboarden, eller None om ingen tävling."""
-    race_raw = athlete.get("race_date")
+    """Bygg säsongs-tidslinjen för dashboarden, eller None om ingen tävling.
+
+    Race läses från public.races (nästa A-race) — samma helper som planner —
+    med fallback till athlete_profiles.race_date.
+    """
+    race_raw = None
+    race_name = None
+    try:
+        from coach.trixa.races import fetch_next_a_race
+
+        race = fetch_next_a_race(client, athlete.get("id"), today)
+        if race:
+            race_raw = race.get("date")
+            race_name = race.get("name")
+    except Exception:  # noqa: BLE001 — races-tabell saknas/fel → fallback
+        race_raw = None
+    if not race_raw:
+        race_raw = athlete.get("race_date")
     if not race_raw:
         return None
     try:
@@ -426,7 +487,9 @@ def _build_season_context(client, athlete, today, this_monday) -> dict | None:
     _decorate_timeline(timeline, comp_map, today, this_monday)
     timeline["race_date"] = race_d.isoformat()
     timeline["race_label"] = (
-        season.race_label(race_d) or (athlete.get("race_type") or "Tävling").capitalize()
+        race_name
+        or season.race_label(race_d)
+        or (athlete.get("race_type") or "Tävling").capitalize()
     )
 
     # Readiness-projektion (skala upp säkert → när når man build, mot loppet?)
@@ -457,11 +520,20 @@ def dashboard(request: Request) -> HTMLResponse:
     athlete = a_res.data[0] if a_res.data else None
 
     if not athlete:
-        return _render("dashboard.html", {
-            "request": request, "athlete": None,
-            "this_week": None, "next_week": None, "alerts": [],
-            "timeline": None,
-        })
+        # Säkerhetsnät: användare skapad utanför signup-flödet — skapa raden
+        # och skicka till onboarding.
+        try:
+            _ensure_athlete_profile(client, user_id)
+            return RedirectResponse(url="/ui/onboarding", status_code=303)
+        except Exception:  # noqa: BLE001
+            return _render("dashboard.html", {
+                "request": request, "athlete": None,
+                "this_week": None, "next_week": None, "alerts": [],
+                "timeline": None,
+            })
+
+    if not athlete.get("onboarded_at"):
+        return RedirectResponse(url="/ui/onboarding", status_code=303)
 
     # Hämta båda veckorna från DB
     today = date_type.today()
@@ -1145,6 +1217,158 @@ _DISCIPLINES_FOR_IMPACT = [
     ("run", "Löpning"),
     ("strength", "Styrka"),
 ]
+
+
+# ---------- Onboarding (första inloggningen — grunddata för planeringen) ----------
+
+
+@router.get("/onboarding", response_class=HTMLResponse)
+def onboarding_form(request: Request, error: str = "") -> HTMLResponse:
+    user_id = _current_user_id(request)
+    client = get_postgrest()
+    athlete = _ensure_athlete_profile(client, user_id)
+
+    from coach.engine._loader import load_yaml
+
+    try:
+        nutrition_defaults = load_yaml("nutrition.yaml").get("defaults", {})
+    except Exception:  # noqa: BLE001
+        nutrition_defaults = {"race_carbs_per_hour_g": 90, "carb_load_g_per_kg_per_day": 10}
+
+    return _render(
+        "onboarding.html",
+        {
+            "request": request,
+            "athlete": athlete,
+            "days": _DAY_LABELS,
+            "locations": _BODY_LOCATIONS,
+            "nutrition_defaults": nutrition_defaults,
+            "error": error,
+        },
+    )
+
+
+@router.post("/onboarding")
+def onboarding_submit(
+    request: Request,
+    ftp: str = Form(""),
+    lthr_bike: str = Form(""),
+    run_threshold_pace: str = Form(""),
+    lthr: str = Form(""),
+    swim_css: str = Form(""),
+    max_hr: str = Form(""),
+    resting_hr: str = Form(""),
+    threshold_source: str = Form("estimate"),
+    race_name: str = Form(""),
+    race_date: str = Form(""),
+    race_distance: str = Form("full"),
+    race_priority: str = Form("A"),
+    race_target: str = Form(""),
+    weekly_hours: str = Form("8"),
+    long_bike_day: str = Form(""),
+    long_run_day: str = Form(""),
+    rest_days: list[str] = Form(default=[]),
+    recovery_week_ratio: str = Form("3:1"),
+    concern_name: str = Form(""),
+    concern_location: str = Form(""),
+    concern_severity: str = Form("2"),
+    condition_name: str = Form(""),
+    condition_medication: str = Form(""),
+    race_carbs: str = Form(""),
+    nutrition_notes: str = Form(""),
+) -> Any:
+    user_id = _current_user_id(request)
+    client = get_postgrest()
+    athlete = _ensure_athlete_profile(client, user_id)
+    athlete_id = athlete["id"]
+
+    def _int_or_none(v: str) -> int | None:
+        try:
+            return int(v) if str(v).strip() else None
+        except (ValueError, TypeError):
+            return None
+
+    def _float_or_none(v: str) -> float | None:
+        try:
+            return float(str(v).replace(",", ".")) if str(v).strip() else None
+        except (ValueError, TypeError):
+            return None
+
+    source = threshold_source if threshold_source in ("estimate", "test") else "estimate"
+    today_iso = date_type.today().isoformat()
+    threshold_meta = {
+        key: {"source": source, "tested_at": today_iso}
+        for key, filled in (
+            ("ftp", ftp), ("css", swim_css), ("run_pace", run_threshold_pace)
+        )
+        if str(filled).strip()
+    }
+
+    update: dict = {
+        "ftp": _int_or_none(ftp),
+        "lthr_bike": _int_or_none(lthr_bike),
+        "lthr": _int_or_none(lthr),
+        "max_hr": _int_or_none(max_hr),
+        "resting_hr": _int_or_none(resting_hr),
+        "run_threshold_pace": run_threshold_pace.strip() or None,
+        "swim_css": swim_css.strip() or None,
+        "threshold_meta": threshold_meta,
+        "weekly_hours": _float_or_none(weekly_hours) or 6,
+        "long_bike_day": long_bike_day or None,
+        "long_run_day": long_run_day or None,
+        "preferred_rest_days": [d for d in rest_days if d in dict(_DAY_LABELS)],
+        "recovery_week_ratio": (
+            recovery_week_ratio if recovery_week_ratio in ("3:1", "2:1") else "3:1"
+        ),
+        "race_carbs_per_hour_g": _int_or_none(race_carbs),
+        "nutrition_notes": nutrition_notes.strip(),
+        "onboarded_at": datetime.now(timezone.utc).isoformat(),
+    }
+
+    # Hälsa — samma jsonb-strukturer som Hälsa-sidan använder
+    if concern_name.strip():
+        update["active_concerns"] = (athlete.get("active_concerns") or []) + [{
+            "name": concern_name.strip(),
+            "location": concern_location or "other",
+            "severity": _int_or_none(concern_severity) or 2,
+            "since_date": today_iso,
+            "needs_followup": False,
+            "follow_up_by": None,
+            "notes": None,
+            "impact_per_discipline": {},
+        }]
+    if condition_name.strip():
+        update["health_conditions"] = (athlete.get("health_conditions") or []) + [{
+            "name": condition_name.strip(),
+            "medication": condition_medication.strip() or None,
+            "dose": None,
+            "diagnosed_year": None,
+            "notes": None,
+        }]
+
+    client.table("athlete_profiles").update(update).eq("id", athlete_id).execute()
+
+    # Nästa tävling → races-kalendern (denormaliserad kopia i race_date behålls
+    # som fallback för äldre läsvägar)
+    if race_name.strip() and race_date.strip():
+        try:
+            client.table("races").insert({
+                "athlete_id": athlete_id,
+                "name": race_name.strip(),
+                "date": race_date.strip(),
+                "distance": race_distance if race_distance in (
+                    "sprint", "olympic", "half", "full"
+                ) else "full",
+                "priority": race_priority if race_priority in ("A", "B", "C") else "A",
+                "target_total": race_target.strip() or None,
+            }).execute()
+            client.table("athlete_profiles").update(
+                {"race_date": race_date.strip(), "race_type": "ironman" if race_distance == "full" else race_distance}
+            ).eq("id", athlete_id).execute()
+        except Exception:  # noqa: BLE001 — tävlingen kan läggas till senare
+            pass
+
+    return RedirectResponse(url="/ui/", status_code=303)
 
 
 @router.get("/settings", response_class=HTMLResponse)

@@ -20,7 +20,7 @@ workouts:
     category: AE
     type_code: AE1
     name: "AE1-mall: kort recovery"
-    parametrized: true
+    parameterized: true
     parameters:
       duration_min: { min: 20, max: 45, default: 30 }
     phase_appropriate: [prep, base_1, base_2, base_3, build_1, build_2, peak, race, recovery]
@@ -53,7 +53,7 @@ workouts:
     category: AE
     type_code: AE1
     name: "Teknikåtervändning"
-    parametrized: true
+    parameterized: true
     parameters:
       duration_min:
         default: 40
@@ -99,7 +99,7 @@ workouts:
     category: AE
     type_code: AE1
     name: "Kick + glid"
-    parametrized: true
+    parameterized: true
     parameters:
       duration_min:
         default: 40
@@ -155,7 +155,7 @@ workouts:
     category: AE
     type_code: AE2
     name: "AE2-mall: kontinuerligt"
-    parametrized: true
+    parameterized: true
     parameters:
       duration_min: { min: 30, max: 90, default: 60 }
     phase_appropriate: [base_1, base_2, base_3, build_1]
@@ -188,7 +188,7 @@ workouts:
     category: AE
     type_code: AE2
     name: "Klassiska 400-or"
-    parametrized: true
+    parameterized: true
     parameters:
       duration_min:
         default: 55
@@ -237,7 +237,7 @@ workouts:
     category: AE
     type_code: AE2
     name: "8×200 kort vila"
-    parametrized: true
+    parameterized: true
     parameters:
       duration_min:
         default: 55
@@ -282,7 +282,7 @@ workouts:
     category: AE
     type_code: AE2
     name: "Lång distans kontinuerligt"
-    parametrized: true
+    parameterized: true
     parameters:
       duration_min:
         default: 45
@@ -324,7 +324,7 @@ workouts:
     category: AE
     type_code: AE2
     name: "Pyramid 100→500→100"
-    parametrized: true
+    parameterized: true
     parameters:
       duration_min:
         default: 55

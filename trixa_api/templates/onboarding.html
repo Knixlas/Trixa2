@@ -1,0 +1,193 @@
+{% extends "base.html" %}
+{% block title %}Kom igång — Trixa{% endblock %}
+{% block content %}
+
+<h1>Kom igång</h1>
+
+<p>Det här är grunden Trixa planerar din träning från. Allt går att ändra
+senare under <a href="/ui/settings">Inställningar</a>. Fyll i det du vet —
+tomma fält går bra, men zonberäkningen blir bättre ju fler tröskelvärden
+som finns.</p>
+
+{% if error %}
+<div class="alert" style="background: var(--coral-soft, #fde8e8); margin-bottom: 16px;">
+  <div class="alert-body"><strong>{{ error }}</strong></div>
+</div>
+{% endif %}
+
+<form method="post" action="/ui/onboarding">
+
+  <fieldset>
+    <legend>Tröskelvärden</legend>
+    <p style="font-size: 0.875rem; color: var(--ink-3); margin-top: 0;">
+      Trixa räknar alla träningszoner från dessa. Ange om värdena kommer
+      från riktiga tester eller är uppskattningar — Trixa påminner när
+      testade värden börjar bli gamla.
+    </p>
+
+    <label for="ftp">FTP cykel (watt)</label>
+    <input type="number" id="ftp" name="ftp" min="50" max="500"
+      value="{{ athlete.ftp or '' }}" placeholder="t.ex. 220">
+
+    <label for="lthr_bike">Tröskelpuls cykel (bpm)</label>
+    <input type="number" id="lthr_bike" name="lthr_bike" min="80" max="220"
+      value="{{ athlete.lthr_bike or '' }}" placeholder="t.ex. 158">
+
+    <label for="run_threshold_pace">Tröskelpace löpning (min:sek per km)</label>
+    <input type="text" id="run_threshold_pace" name="run_threshold_pace"
+      pattern="[0-9]{1,2}:[0-9]{2}" value="{{ athlete.run_threshold_pace or '' }}"
+      placeholder="t.ex. 5:00">
+
+    <label for="lthr">Tröskelpuls löpning (bpm)</label>
+    <input type="number" id="lthr" name="lthr" min="80" max="220"
+      value="{{ athlete.lthr or '' }}" placeholder="t.ex. 165">
+
+    <label for="swim_css">CSS simning (min:sek per 100 m)</label>
+    <input type="text" id="swim_css" name="swim_css"
+      pattern="[0-9]{1,2}:[0-9]{2}" value="{{ athlete.swim_css or '' }}"
+      placeholder="t.ex. 2:00">
+
+    <label for="max_hr">Maxpuls (bpm)</label>
+    <input type="number" id="max_hr" name="max_hr" min="120" max="230"
+      value="{{ athlete.max_hr or '' }}" placeholder="t.ex. 180">
+
+    <label for="resting_hr">Vilopuls (bpm)</label>
+    <input type="number" id="resting_hr" name="resting_hr" min="30" max="100"
+      value="{{ athlete.resting_hr or '' }}" placeholder="t.ex. 50">
+
+    <div class="rating-row" style="margin-top: 8px;">
+      <strong style="min-width: 160px;">Värdenas källa</strong>
+      <label><input type="radio" name="threshold_source" value="estimate" checked> Uppskattning</label>
+      <label><input type="radio" name="threshold_source" value="test"> Test (senaste 3 mån)</label>
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Nästa tävling</legend>
+    <p style="font-size: 0.875rem; color: var(--ink-3); margin-top: 0;">
+      Periodiseringen räknas bakåt från din nästa viktiga tävling.
+      Fler tävlingar kan läggas till senare.
+    </p>
+
+    <label for="race_name">Tävlingens namn</label>
+    <input type="text" id="race_name" name="race_name" placeholder="t.ex. Ironman Kalmar">
+
+    <label for="race_date">Datum</label>
+    <input type="date" id="race_date" name="race_date">
+
+    <label for="race_distance">Distans</label>
+    <select id="race_distance" name="race_distance">
+      <option value="sprint">Sprint</option>
+      <option value="olympic">Olympisk</option>
+      <option value="half">Halv (70.3)</option>
+      <option value="full" selected>Hel (140.6 / Ironman)</option>
+    </select>
+
+    <label for="race_priority">Prioritet</label>
+    <select id="race_priority" name="race_priority">
+      <option value="A" selected>A — huvudtävling</option>
+      <option value="B">B — viktig men inte huvudmål</option>
+      <option value="C">C — genomkörare</option>
+    </select>
+
+    <label for="race_target">Måltid (tim:min:sek, valfritt)</label>
+    <input type="text" id="race_target" name="race_target"
+      pattern="[0-9]{1,2}:[0-9]{2}:[0-9]{2}" placeholder="t.ex. 13:00:00">
+  </fieldset>
+
+  <fieldset>
+    <legend>Din vecka</legend>
+
+    <label for="weekly_hours">Träningstimmar per vecka (mål)</label>
+    <input type="number" id="weekly_hours" name="weekly_hours" min="3" max="30" step="0.5"
+      value="{{ athlete.weekly_hours or 8 }}">
+
+    <label for="long_bike_day">Dag för cykel-långpass</label>
+    <select id="long_bike_day" name="long_bike_day">
+      <option value="">— spelar ingen roll —</option>
+      {% for day, label in days %}
+      <option value="{{ day }}" {% if athlete.long_bike_day == day %}selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+
+    <label for="long_run_day">Dag för löp-långpass</label>
+    <select id="long_run_day" name="long_run_day">
+      <option value="">— spelar ingen roll —</option>
+      {% for day, label in days %}
+      <option value="{{ day }}" {% if athlete.long_run_day == day %}selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+
+    <p style="margin-bottom: 4px;"><strong>Vilodagar</strong></p>
+    {% for day, label in days %}
+    <label>
+      <input type="checkbox" name="rest_days" value="{{ day }}"
+        {% if day in (athlete.preferred_rest_days or []) %}checked{% endif %}>
+      {{ label }}
+    </label>
+    {% endfor %}
+
+    <div class="rating-row" style="margin-top: 12px;">
+      <strong style="min-width: 160px;">Belastningscykel</strong>
+      <label><input type="radio" name="recovery_week_ratio" value="3:1"
+        {% if athlete.recovery_week_ratio != "2:1" %}checked{% endif %}>
+        3:1 — tre veckor belastning, en vilovecka</label>
+      <label><input type="radio" name="recovery_week_ratio" value="2:1"
+        {% if athlete.recovery_week_ratio == "2:1" %}checked{% endif %}>
+        2:1 — tätare viloveckor (rekommenderas 50+)</label>
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Hälsa (valfritt)</legend>
+    <p style="font-size: 0.875rem; color: var(--ink-3); margin-top: 0;">
+      Trixa skalar träningen automatiskt runt skador och besvär.
+      Detaljer kan alltid uppdateras under Hälsa-sidan.
+    </p>
+
+    <label for="concern_name">Aktuellt besvär/skada (lämna tomt om inget)</label>
+    <input type="text" id="concern_name" name="concern_name" placeholder="t.ex. Ömhet i korsryggen">
+
+    <label for="concern_location">Var sitter det?</label>
+    <select id="concern_location" name="concern_location">
+      <option value="">—</option>
+      {% for loc, label in locations %}
+      <option value="{{ loc }}">{{ label }}</option>
+      {% endfor %}
+    </select>
+
+    <label for="concern_severity">Allvarlighetsgrad (1 = knappt märkbart, 5 = kan inte träna)</label>
+    <select id="concern_severity" name="concern_severity">
+      {% for s in [1, 2, 3, 4, 5] %}
+      <option value="{{ s }}" {% if s == 2 %}selected{% endif %}>{{ s }}</option>
+      {% endfor %}
+    </select>
+
+    <label for="condition_name">Kroniskt tillstånd med medicinering (lämna tomt om inget)</label>
+    <input type="text" id="condition_name" name="condition_name" placeholder="t.ex. Hypotyreos">
+
+    <label for="condition_medication">Medicinering</label>
+    <input type="text" id="condition_medication" name="condition_medication" placeholder="t.ex. Levaxin">
+  </fieldset>
+
+  <fieldset>
+    <legend>Nutrition</legend>
+    <p style="font-size: 0.875rem; color: var(--ink-3); margin-top: 0;">
+      Generella riktvärden är {{ nutrition_defaults.race_carbs_per_hour_g }} g kolhydrat/h under
+      tävling och {{ nutrition_defaults.carb_load_g_per_kg_per_day }} g/kg/dag vid laddning.
+      Justera om du vet att din mage kräver annat — och träna alltid
+      tävlingsintaget i långpass först.
+    </p>
+
+    <label for="race_carbs">Kolhydrater under tävling (g/h, lämna tomt för default)</label>
+    <input type="number" id="race_carbs" name="race_carbs" min="40" max="120"
+      value="{{ athlete.race_carbs_per_hour_g or '' }}">
+
+    <label for="nutrition_notes">Noteringar (allergier, mediciner som påverkar intag, etc.)</label>
+    <textarea id="nutrition_notes" name="nutrition_notes" rows="2">{{ athlete.nutrition_notes or '' }}</textarea>
+  </fieldset>
+
+  <button type="submit"><i data-lucide="check"></i> Spara och kom igång</button>
+</form>
+
+{% endblock %}

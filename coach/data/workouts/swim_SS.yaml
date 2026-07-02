@@ -20,7 +20,7 @@ workouts:
     category: SS
     type_code: SS1
     name: "16×25 all-out"
-    parametrized: true
+    parameterized: true
     parameters:
       duration_min:
         default: 45
@@ -73,7 +73,7 @@ workouts:
     category: SS
     type_code: SS1
     name: "Underwater dolphin starts"
-    parametrized: true
+    parameterized: true
     parameters:
       duration_min:
         default: 30
@@ -122,7 +122,7 @@ workouts:
     category: SS
     type_code: SS1
     name: "Sprintstege 12×25 build"
-    parametrized: true
+    parameterized: true
     parameters:
       duration_min:
         default: 35
@@ -182,7 +182,7 @@ workouts:
     category: SS
     type_code: SS2
     name: "Fen-set: snabb och flytande"
-    parametrized: true
+    parameterized: true
     parameters:
       duration_min:
         default: 32
@@ -237,7 +237,7 @@ workouts:
     category: SS
     type_code: SS2
     name: "Snorkel-teknikset"
-    parametrized: true
+    parameterized: true
     parameters:
       duration_min:
         default: 32
@@ -293,7 +293,7 @@ workouts:
     category: SS
     type_code: SS2
     name: "Toy rotation set"
-    parametrized: true
+    parameterized: true
     parameters:
       duration_min:
         default: 30
@@ -351,7 +351,7 @@ workouts:
     category: SS
     type_code: SS2
     name: "Fenor snabbhet (over-speed)"
-    parametrized: true
+    parameterized: true
     parameters:
       duration_min:
         default: 33

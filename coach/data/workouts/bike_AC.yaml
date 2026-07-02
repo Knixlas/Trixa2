@@ -389,9 +389,8 @@ workouts:
       - "Kadens under 80 trots växel-val → backen för brant, sänk watt-target"
     coach_notes: |
       Mer specifik för IM-cykling med vind/backar än indoor VO2. Kräver
-      rätt backe — för Niklas: typ Värmdö (Boo/Stavsnäs-vägen-höjder)
-      eller Lidingö (norra delarna). I peak-fas kan reps reduceras till
-      4 men intensiteten ökas.
+      rätt backe — 2-4 min lång med jämn lutning (4-7 %). I peak-fas kan
+      reps reduceras till 4 men intensiteten ökas.
 
   - code: AC3_bike_02
     discipline: bike

@@ -8,7 +8,8 @@ categories:
   SS: { name_sv: Snabbhetsfärdigheter, name_en: Speed Skills }
   ME: { name_sv: Muskulär Uthållighet, name_en: Muscular Endurance }
   AC: { name_sv: Aerob Kapacitet,      name_en: Aerobic Capacity }
-  SP: { name_sv: Sprintkraft,          name_en: Sprint Power }
+  # SP (Sprint Power) medvetet utelämnad — ingen fas refererar kategorin och
+  # passbanken saknar SP-pass. Återinförs om kortdistans-personas byggs.
   BW: { name_sv: Brickträning,         name_en: Brick Workouts }
   T:  { name_sv: Tester,               name_en: Testing }
 
