@@ -17,7 +17,7 @@ workouts:
     discipline: swim
     category: AC
     type_code: AC1
-    name: "16×50 @ Z5"
+    name: "16×50 stenhårt — pulsen i taket"
     parameterized: true
     parameters:
       duration_min:
@@ -68,7 +68,7 @@ workouts:
     discipline: swim
     category: AC
     type_code: AC1
-    name: "12×75 @ Z5"
+    name: "Halvgrymma 75:or — tolv stycken"
     parameterized: true
     parameters:
       duration_min:
@@ -115,7 +115,7 @@ workouts:
     discipline: swim
     category: AC
     type_code: AC1
-    name: "Tabata-inspired 8×(25 sprint / 15s vila)"
+    name: "Tabata i bassängen — korta smällar"
     parameterized: true
     parameters:
       duration_min:
@@ -173,7 +173,7 @@ workouts:
     discipline: swim
     category: AC
     type_code: AC2
-    name: "8×100 @ Z5 lika vila"
+    name: "8×100 max — vila lika länge som du simmar"
     parameterized: true
     parameters:
       duration_min:
@@ -221,7 +221,7 @@ workouts:
     discipline: swim
     category: AC
     type_code: AC2
-    name: "6×150 @ Z5"
+    name: "6×150 — långa hårda, precis på gränsen"
     parameterized: true
     parameters:
       duration_min:
@@ -268,7 +268,7 @@ workouts:
     discipline: swim
     category: AC
     type_code: AC2
-    name: "10×100 descending från Z4 till Z5"
+    name: "10×100 i två block — hårt, sen hårdare"
     parameterized: true
     parameters:
       duration_min:

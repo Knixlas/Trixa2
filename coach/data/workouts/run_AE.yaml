@@ -17,7 +17,7 @@ workouts:
     discipline: run
     category: AE
     type_code: AE1
-    name: "Recovery — flex duration"
+    name: "Skakapass — lätt jogg"
     phase_appropriate: [prep, base_1, base_2, base_3, build_1, build_2, peak, race, recovery]
     parameterized: true
     parameters:
@@ -65,7 +65,7 @@ workouts:
     discipline: run
     category: AE
     type_code: AE2
-    name: "Aerobic Endurance — flex duration"
+    name: "Lugn distans — arbetshästen"
     phase_appropriate: [prep, base_1, base_2, base_3, build_1, build_2]
     parameterized: true
     parameters:
@@ -113,7 +113,7 @@ workouts:
     discipline: run
     category: AE
     type_code: AE2
-    name: "Långpass progressivt"
+    name: "Långpass med lyft på slutet"
     phase_appropriate: [base_2, base_3, build_1]
     parameterized: true
     parameters:
@@ -155,7 +155,7 @@ workouts:
     discipline: run
     category: AE
     type_code: AE2
-    name: "Trail-pass Z2"
+    name: "Lugn skogsrunda på stig"
     phase_appropriate: [prep, base_1, base_2, base_3]
     parameterized: true
     parameters:
@@ -196,7 +196,7 @@ workouts:
     discipline: run
     category: AE
     type_code: AE2
-    name: "Z2 + strides"
+    name: "Lugn löpning med stegringar"
     phase_appropriate: [base_1, base_2, base_3, build_1]
     parameterized: true
     parameters:
@@ -242,7 +242,7 @@ workouts:
     discipline: run
     category: AE
     type_code: AE2
-    name: "Långpass med IM-pace-block"
+    name: "Långpass med block i målfart"
     phase_appropriate: [build_1, build_2, peak]
     parameterized: false
     intent: |
@@ -293,7 +293,7 @@ workouts:
     discipline: run
     category: AE
     type_code: AE2
-    name: "Walk/run-långpass — 9/1"
+    name: "Nio minuter löpa, en minut gå"
     phase_appropriate: [prep, base_1, base_2, base_3, build_1, build_2, recovery]
     parameterized: true
     parameters:

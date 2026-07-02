@@ -315,12 +315,11 @@ def render_workout(
 
     out: list[str] = []
 
-    # Rubrik
-    out.append(f"## {workout['code']} — {workout['name']}")
+    # Rubrik — passnamnet bär; koden ligger i metaraden för spårbarhet
+    out.append(f"## {workout['name']}")
     out.append(
-        f"*Kategori: {workout['category']} ({workout['type_code']}) | "
-        f"Disciplin: {discipline} | "
-        f"Faser: {', '.join(workout['phase_appropriate'])}*"
+        f"*{workout['code']} · {workout['category']} · "
+        f"faser: {', '.join(workout['phase_appropriate'])}*"
     )
 
     # Bike-specifik info-rad

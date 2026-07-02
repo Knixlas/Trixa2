@@ -11,7 +11,7 @@ workouts:
     discipline: run
     category: TE
     type_code: TE1
-    name: "Klassiskt tempopass — 20 min"
+    name: "Klassiskt tempo — 20 min i sträck"
     phase_appropriate: [base_2, base_3, build_1, build_2]
     parameterized: true
     parameters:
@@ -57,7 +57,7 @@ workouts:
     discipline: run
     category: TE
     type_code: TE1
-    name: "Tempo-broken — 2×12 min"
+    name: "Tempo i två bitar — 2×12 min"
     phase_appropriate: [base_3, build_1, build_2]
     parameterized: true
     parameters:
@@ -98,7 +98,7 @@ workouts:
     discipline: run
     category: TE
     type_code: TE1
-    name: "Progressivt tempo"
+    name: "Tempotrappa — 3×8 min, stigande"
     phase_appropriate: [build_1, build_2, peak]
     parameterized: true
     parameters:

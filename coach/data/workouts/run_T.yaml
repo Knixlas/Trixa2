@@ -10,7 +10,7 @@ workouts:
     discipline: run
     category: T
     type_code: RunTest
-    name: "30-min Tidskörning (TT)"
+    name: "Testlopp: 30 minuter ärlighet"
     phase_appropriate: [prep, base_1, base_2, base_3, build_1, build_2]
     parameterized: true
     parameters:
@@ -71,7 +71,7 @@ workouts:
     discipline: run
     category: T
     type_code: RunTest
-    name: "2×8 min hårt"
+    name: "Testlopp: 2×8 min allt du har"
     phase_appropriate: [base_2, base_3, build_1, build_2]
     parameterized: true
     parameters:

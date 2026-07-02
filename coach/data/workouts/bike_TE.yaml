@@ -11,7 +11,7 @@ workouts:
     discipline: bike
     category: TE
     type_code: TE1
-    name: "Klassiskt tempopass — flex duration"
+    name: "Tempopasset — bekvämt obekvämt"
     phase_appropriate: [base_2, base_3, build_1, build_2]
     parameterized: true
     parameters:
@@ -62,7 +62,7 @@ workouts:
     discipline: bike
     category: TE
     type_code: TE1
-    name: "Tempo intervals — 3×20 min"
+    name: "Tempoblock 3×20 min"
     phase_appropriate: [base_3, build_1, build_2]
     parameterized: true
     parameters:
@@ -111,7 +111,7 @@ workouts:
     discipline: bike
     category: TE
     type_code: TE1
-    name: "Sweet Spot — 4×12 min"
+    name: "Strax under tröskeln — 4×12 min"
     phase_appropriate: [base_3, build_1, build_2]
     parameterized: true
     parameters:
@@ -160,7 +160,7 @@ workouts:
     discipline: bike
     category: TE
     type_code: TE1
-    name: "Long Tempo — 2×30 min"
+    name: "Långa tempoblock 2×30 min"
     phase_appropriate: [build_1, build_2]
     parameterized: true
     parameters:
@@ -208,7 +208,7 @@ workouts:
     discipline: bike
     category: TE
     type_code: TE1
-    name: "Tempo pyramid"
+    name: "Tempopyramid 10/15/20/15/10"
     phase_appropriate: [base_3, build_1]
     parameterized: true
     parameters:

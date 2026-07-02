@@ -18,7 +18,7 @@ workouts:
     discipline: swim
     category: MF
     type_code: MF1
-    name: "8×50 katch-fokus"
+    name: "Teknik-50:or — hitta taget"
     parameterized: true
     parameters:
       duration_min:
@@ -68,7 +68,7 @@ workouts:
     discipline: swim
     category: MF
     type_code: MF1
-    name: "Buoy + paddles styrkeset"
+    name: "Styrkeset med paddlar och boj"
     parameterized: true
     parameters:
       duration_min:
@@ -121,7 +121,7 @@ workouts:
     discipline: swim
     category: MF
     type_code: MF1
-    name: "Band-only pull (ingen kick)"
+    name: "Bara armar — sim med ankelband"
     parameterized: true
     parameters:
       duration_min:
@@ -175,7 +175,7 @@ workouts:
     discipline: swim
     category: MF
     type_code: MF2
-    name: "Älv- eller åmotsim"
+    name: "Motströms — sim i älv eller å"
     parameterized: true
     parameters:
       duration_min:
@@ -223,7 +223,7 @@ workouts:
     discipline: swim
     category: MF
     type_code: MF2
-    name: "Choppy-water-tolerans"
+    name: "Vågsim — lär dig gilla krabb sjö"
     parameterized: true
     parameters:
       duration_min:
@@ -267,7 +267,7 @@ workouts:
     discipline: swim
     category: MF
     type_code: MF2
-    name: "Bassäng-simulering med snurr"
+    name: "Sim på stället — band i bassängkanten"
     parameterized: true
     parameters:
       duration_min:
@@ -315,7 +315,7 @@ workouts:
     discipline: swim
     category: MF
     type_code: MF3
-    name: "8×100 paddles main set"
+    name: "8×100 med paddlar — tunga drag"
     parameterized: true
     parameters:
       duration_min:
@@ -363,7 +363,7 @@ workouts:
     discipline: swim
     category: MF
     type_code: MF3
-    name: "Paddles + buoy descending"
+    name: "Paddlar och boj — allt snabbare"
     parameterized: true
     parameters:
       duration_min:
@@ -413,7 +413,7 @@ workouts:
     discipline: swim
     category: MF
     type_code: MF3
-    name: "Paddel-stege 50-100-150-200-150-100-50"
+    name: "Paddelstegen — upp till 200 och ner"
     parameterized: true
     parameters:
       duration_min:

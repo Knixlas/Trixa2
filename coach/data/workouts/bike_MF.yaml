@@ -21,7 +21,7 @@ workouts:
     discipline: bike
     category: MF
     type_code: MF1
-    name: "Force Reps — 8×30 sek låg kadens"
+    name: "Tunga tramp — 8×30 sek på seg växel"
     phase_appropriate: [base_1, base_2, base_3]
     parameterized: true
     parameters:
@@ -74,7 +74,7 @@ workouts:
     discipline: bike
     category: MF
     type_code: MF1
-    name: "Force Reps — 6×1 min stigande"
+    name: "Tunga tramp 6×1 min — stigande tryck"
     phase_appropriate: [base_2, base_3, build_1]
     parameterized: true
     parameters:
@@ -125,7 +125,7 @@ workouts:
     discipline: bike
     category: MF
     type_code: MF1
-    name: "Force Reps — backe utomhus"
+    name: "Seg växel i backe — 5×3 min"
     phase_appropriate: [base_2, base_3, build_1]
     parameterized: true
     parameters:
@@ -180,7 +180,7 @@ workouts:
     discipline: bike
     category: MF
     type_code: MF2
-    name: "Hilly Ride — naturlig variation"
+    name: "Kuperad runda — backarna gör jobbet"
     phase_appropriate: [base_2, base_3, build_1, build_2]
     parameterized: true
     parameters:
@@ -230,7 +230,7 @@ workouts:
     discipline: bike
     category: MF
     type_code: MF2
-    name: "Hilly Ride med pure climbing block"
+    name: "Kuperad långtur — jaga backarna i mitten"
     phase_appropriate: [base_3, build_1, build_2]
     parameterized: true
     parameters:
@@ -291,7 +291,7 @@ workouts:
     discipline: bike
     category: MF
     type_code: MF3
-    name: "Hill Repeats — 5×4 min Z4"
+    name: "Backintervaller 5×4 min"
     phase_appropriate: [base_3, build_1, build_2]
     parameterized: true
     parameters:
@@ -343,7 +343,7 @@ workouts:
     discipline: bike
     category: MF
     type_code: MF3
-    name: "Hill Repeats — 8×3 min stå/sitt"
+    name: "Backintervaller 8×3 — sitt och stå"
     phase_appropriate: [build_1, build_2]
     parameterized: true
     parameters:
@@ -394,7 +394,7 @@ workouts:
     discipline: bike
     category: MF
     type_code: MF3
-    name: "Hill Repeats — long climbs 3×8 min Z3-Z4"
+    name: "Långa klättringar 3×8 min"
     phase_appropriate: [build_1, build_2]
     parameterized: true
     parameters:

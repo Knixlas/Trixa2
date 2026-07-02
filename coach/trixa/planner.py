@@ -2301,7 +2301,7 @@ def render_plan_markdown(plan: WeekPlan) -> str:
         else:
             lines.append(f"### {day} — {wo.title} ({wo.sport})")
             lines.append(
-                f"`{wo.code}` | {wo.category} | {wo.duration_minutes} min | {wo.intensity}"
+                f"{wo.duration_minutes} min · {wo.intensity} · `{wo.code}`"
             )
             if wo.notes:
                 lines.append("")

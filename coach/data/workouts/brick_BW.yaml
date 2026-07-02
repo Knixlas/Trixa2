@@ -23,7 +23,7 @@ workouts:
     discipline: brick
     category: BW
     type_code: BAE1
-    name: "Klassisk lång brick — Z2 cykel + Z2 löp"
+    name: "Lång brick — lugn cykel, löpning direkt på"
     phase_appropriate: [base_2, base_3, build_1, build_2]
     parameterized: false
     intent: |
@@ -89,7 +89,7 @@ workouts:
     discipline: brick
     category: BW
     type_code: BME1
-    name: "IM Race-Pace brick — race-watt + målpace-löpning"
+    name: "Generalrepetition — tävlingsfart cykel + löp"
     phase_appropriate: [build_1, build_2, peak]
     parameterized: false
     intent: |
@@ -154,7 +154,7 @@ workouts:
     discipline: brick
     category: BW
     type_code: BSS2
-    name: "T2-övning — 4× kort cykel/löp-växling"
+    name: "Växlingslek — fyra snabba cykel/löp-byten"
     phase_appropriate: [build_2, peak, race]
     parameterized: false
     intent: |

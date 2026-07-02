@@ -19,7 +19,7 @@ workouts:
     discipline: swim
     category: AE
     type_code: AE1
-    name: "AE1-mall: kort recovery"
+    name: "Lätt i vattnet — kort återhämtning"
     parameterized: true
     parameters:
       duration_min: { min: 20, max: 45, default: 30 }
@@ -52,7 +52,7 @@ workouts:
     discipline: swim
     category: AE
     type_code: AE1
-    name: "Teknikåtervändning"
+    name: "Teknikvila — driller i lugnt tempo"
     parameterized: true
     parameters:
       duration_min:
@@ -98,7 +98,7 @@ workouts:
     discipline: swim
     category: AE
     type_code: AE1
-    name: "Kick + glid"
+    name: "Kick och glid — lätta ben, långt glid"
     parameterized: true
     parameters:
       duration_min:
@@ -154,7 +154,7 @@ workouts:
     discipline: swim
     category: AE
     type_code: AE2
-    name: "AE2-mall: kontinuerligt"
+    name: "Lugn distans i ett svep"
     parameterized: true
     parameters:
       duration_min: { min: 30, max: 90, default: 60 }
@@ -236,7 +236,7 @@ workouts:
     discipline: swim
     category: AE
     type_code: AE2
-    name: "8×200 kort vila"
+    name: "8×200 — korta pauser, jämnt flyt"
     parameterized: true
     parameters:
       duration_min:
@@ -281,7 +281,7 @@ workouts:
     discipline: swim
     category: AE
     type_code: AE2
-    name: "Lång distans kontinuerligt"
+    name: "Långsimmet — distans utan stopp"
     parameterized: true
     parameters:
       duration_min:
@@ -323,7 +323,7 @@ workouts:
     discipline: swim
     category: AE
     type_code: AE2
-    name: "Pyramid 100→500→100"
+    name: "Pyramiden — 100 upp till 500 och ner"
     parameterized: true
     parameters:
       duration_min:
@@ -398,7 +398,7 @@ workouts:
     discipline: swim
     category: AE
     type_code: AE2
-    name: "Öppet vatten — sikt, drafting och boj-vändningar"
+    name: "Öppet vatten — sikta, drafta, vänd"
     phase_appropriate: [base_3, build_1, build_2, peak]
     parameterized: false
     intent: |
@@ -457,7 +457,7 @@ workouts:
     discipline: swim
     category: AE
     type_code: AE2
-    name: "Broken IM — 3×1000 på race-pace"
+    name: "3×1000 i tävlingsfart — loppet i bitar"
     phase_appropriate: [build_2, peak]
     parameterized: false
     intent: |

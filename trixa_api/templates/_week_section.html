@@ -78,7 +78,10 @@
           {% if w.is_manual %}<span class="badge" style="background: var(--orchid-soft); color: var(--orchid);" title="Adept-skapat pass">✋ Eget pass</span>{% endif %}
         </div>
         <div class="workout-meta">
-          <code>{{ w.code }}</code> <span class="badge info">{{ w.category or w.sport }}</span>
+          {% set catlabels = {"AE": "Distans", "TE": "Tempo", "MF": "Kraft", "SS": "Snabbhet",
+                              "ME": "Tröskel", "AC": "Intervaller", "T": "Test", "BW": "Brick",
+                              "STR": "Styrka", "REST": "Vila"} %}
+          <span class="badge info" title="{{ w.code }}">{{ catlabels.get(w.category, w.category or w.sport) }}</span>
           {% if w.setting == "outdoor" %}<span class="badge" style="background: var(--palm-soft); color: var(--palm-deep);"><i data-lucide="sun"></i>utomhus</span>
           {% elif w.setting == "indoor" %}<span class="badge" style="background: var(--pineapple-soft); color: var(--pineapple-deep);"><i data-lucide="home"></i>inomhus</span>
           {% elif w.setting == "either" %}<span class="badge">inne/ute</span>

@@ -17,7 +17,7 @@ workouts:
     discipline: bike
     category: AE
     type_code: AE1
-    name: "Recovery — flex duration"
+    name: "Lätt rull — bara snurra på benen"
     phase_appropriate: [prep, base_1, base_2, base_3, build_1, build_2, peak, race, recovery]
     parameterized: true
     parameters:
@@ -60,7 +60,7 @@ workouts:
     discipline: bike
     category: AE
     type_code: AE2
-    name: "Aerobic Endurance — flex duration"
+    name: "Lugn distans i samtalsfart"
     phase_appropriate: [prep, base_1, base_2, base_3, build_1, build_2]
     parameterized: true
     parameters:
@@ -115,7 +115,7 @@ workouts:
     discipline: bike
     category: AE
     type_code: AE2
-    name: "Rolling Endurance — kuperat Z2"
+    name: "Böljande långtur — låt backarna styra"
     phase_appropriate: [base_1, base_2, base_3, build_1]
     parameterized: true
     parameters:
@@ -165,7 +165,7 @@ workouts:
     discipline: bike
     category: AE
     type_code: AE2
-    name: "Trainer Z2 — strict watt"
+    name: "Jämn spinn på rullen"
     phase_appropriate: [prep, base_1, base_2, base_3, build_1, build_2]
     parameterized: true
     parameters:
@@ -212,7 +212,7 @@ workouts:
     discipline: bike
     category: AE
     type_code: AE2
-    name: "Z2 + spin-ups"
+    name: "Lugn tur med sex kadensryck"
     phase_appropriate: [base_1, base_2, base_3, build_1]
     parameterized: true
     parameters:
@@ -268,7 +268,7 @@ workouts:
     discipline: bike
     category: AE
     type_code: AE2
-    name: "IM Race-Pace långpass — block på race-watt"
+    name: "Långpass i tävlingsfart — mage och ben"
     phase_appropriate: [build_1, build_2, peak]
     parameterized: false
     intent: |

@@ -19,7 +19,7 @@ workouts:
     discipline: swim
     category: T
     type_code: CSS_Test
-    name: "CSS-test: 400 + 200"
+    name: "Simtest: 400 + 200 för din tröskelfart"
     parameterized: true
     parameters:
       duration_min:
@@ -93,7 +93,7 @@ workouts:
     discipline: swim
     category: T
     type_code: CSS_Test
-    name: "CSS-test: 1500m time trial"
+    name: "Simtest: 1500 m på tid — tävlingsfacit"
     parameterized: true
     parameters:
       duration_min:
