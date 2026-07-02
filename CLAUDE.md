@@ -163,7 +163,7 @@ Trixa2/
 │   │   ├── overtraining.yaml
 │   │   ├── alerts.yaml
 │   │   ├── session_mapping.yaml
-│   │   └── workouts/           ← passbank (116 pass + 25 drills)
+│   │   └── workouts/           ← passbank (124 pass + 27 drills, inkl. brick)
 │   ├── engine/
 │   │   ├── zones.py
 │   │   ├── phases.py
@@ -287,7 +287,7 @@ Projektet (CLAUDE.md + md-källdokument + kod) bär delad kunskap. Tråden är a
 **Komplett:**
 - ✓ Engine: phases, workouts, strength, overtraining
 - ✓ YAML-konfig (phases, phase_details, workouts-koder, strength, overtraining, races, athlete_config — saknar bara mental + näring)
-- ✓ Passbank: **116 pass + 25 drills** fördelat på 21 YAML-filer i `coach/data/workouts/` (3 discipliner × 7 kategorier). Parametriserade mallar OCH konkreta varianter. Validerar mot SCHEMA.md.
+- ✓ Passbank: **124 pass + 27 drills** i `coach/data/workouts/` (swim/bike/run × 7 kategorier + brick_BW.yaml). Parametriserade mallar OCH konkreta varianter. Validerar mot SCHEMA.md.
 - ✓ Renderer (markdown), validator, template-resolver, profile-loader (yaml → AthleteProfile)
 - ✓ Adapter byggd och testad mot live-data
 - ✓ Medicinsk kontext delad, manual_override-mönster etablerat
@@ -368,9 +368,17 @@ Expertgranskning av styrdokument + passbank följdes av refaktorering
   lthr_bike 162, recovery_week_ratio **2:1** (masters), Ozempic-notering) +
   races-seed (Kalmar 2026-08-15, mål **sub-13** — races.yaml:s 11:30 var stale).
   Test-användaren fdcce15c-… verifierar väg 2 (egen plan, egna zoner, 3:1).
-- **Kvar från granskningen (separata trådar)**: brickpass + IM-race-pace-pass +
-  OW-simning i passbanken; sim-TE/ME-pacekollaps + zonluckor i zones.py;
-  felräknade pass-tider; deltoid-`contraindications`-fält; test_zones-omskrivning.
+- **Passbank-luckan stängd senare samma dag**: brick_BW.yaml (BAE1 lång brick,
+  BME1 race-pace-brick, BSS2 T2-övning; discipline=brick med `sport`-fält per
+  segment, per-sport-zonrendering), AE2_bike_04 (IM-race-watt-block 68-73 %
+  FTP + nutrition), AE2_run_04 (IM-pace-block) + AE2_run_05 (walk/run 9/1),
+  AE2_swim_05 (OW-skills; kräver pool_type=open_water) + AE2_swim_06 (broken
+  3×1000 @ CSS+4-6) + drills `sighting`/`deep_water_start`. Loader upptäcker
+  brick_*.yaml; BW→brick i pass-valet; brick VINNER long_bike_day;
+  session_mapping har brick-regler (resolve_session kortslöt tidigare brick).
+- **Kvar från granskningen (separata trådar)**: sim-TE/ME-pacekollaps +
+  zonluckor i zones.py; felräknade pass-tider i äldre pass;
+  deltoid-`contraindications`-fält; test_zones-omskrivning.
 
 ## Nästa checkpoints
 

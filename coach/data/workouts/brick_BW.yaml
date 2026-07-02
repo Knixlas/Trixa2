@@ -1,0 +1,201 @@
+# Brickpass (BW) — cykel följt av löpning i samma pass.
+#
+# Discipline: brick. Varje segment bär ett `sport`-fält (bike|run) som
+# renderaren använder för zonuppslag. Brick planeras på long_bike_day
+# (brick ÄR veckans stora cykeldag + löpning direkt på).
+#
+# Nutrition är förstklassigt träningsinnehåll här — bricken är det
+# närmaste en race-simulering vi kommer före tävling. Adepter med
+# begränsat intag (se athlete_profiles.nutrition_notes) tränar sitt
+# FAKTISKA race-intag, inte generella riktvärden.
+#
+# Nytt 2026-07-02 (expertgranskningen: största enskilda gapet i banken).
+# Byggs inkrementellt: tre pass som täcker base_3 → race. Fler varianter
+# (hilly brick, run-intervals brick) läggs till efter behov.
+
+workouts:
+
+  # ─────────────────────────────────────────────────────────────
+  # BAE1 — Aerobic Endurance Brick (klassikern)
+  # ─────────────────────────────────────────────────────────────
+
+  - code: BAE1_brick_01
+    discipline: brick
+    category: BW
+    type_code: BAE1
+    name: "Klassisk lång brick — Z2 cykel + Z2 löp"
+    phase_appropriate: [base_2, base_3, build_1, build_2]
+    parameterized: false
+    intent: |
+      Veckans stora kombinationspass. Lång lugn cykel följt av löpning
+      direkt på — benen lär sig växlingen från trampcirkel till löpsteg
+      under trötthet. Löpningen SKA kännas konstig första 10 minuterna;
+      det är exakt den anpassningen vi tränar. Håll igen på löpningen —
+      distans är inte målet, växlingen är.
+    setting: outdoor
+    terrain: flat
+    main_set:
+      - segment: warmup
+        sport: bike
+        duration_min: 15
+        zone: 1
+        description: "Rulla igång, hitta positionen"
+      - segment: main
+        sport: bike
+        duration_min: 105
+        zone: 2
+        cadence_rpm: [85, 95]
+        description: |
+          Jämn Z2. Öva intag från minut 20: kolhydrat var 20:e minut
+          enligt din personliga plan — bricken är fel dag att chansa.
+          Sista 15 min: lite lättare växel, högre kadens (95+) för att
+          "tömma" benen inför löpningen.
+      - segment: transition
+        sport: run
+        duration_min: 3
+        effort_descriptor: "Snabb växling — skor, keps, en klunk. Öva som på tävling."
+      - segment: main
+        sport: run
+        duration_min: 30
+        zone: 2
+        description: |
+          Första 10 min MEDVETET långsamt — kortare steg, högre frekvens,
+          låt löpbenen komma. Resten avspänd Z2. Inget tempojagande.
+      - segment: cooldown
+        sport: run
+        duration_min: 5
+        zone: 1
+        description: "Gå/lunka ut, sänk pulsen"
+    total_duration_min:
+      estimated: 158
+      flexible_range: [110, 210]
+    zone_refs: [Z1, Z2]
+    equipment: [power_meter, hr_strap]
+    abort_conditions:
+      - "Yrsel, illamående eller energikrasch → gå, avbryt löpdelen"
+      - "Ryggsmärta som ökar efter växlingen → avsluta med promenad, rapportera"
+      - "HR i löpdelen > Z3 vid Z2-anstängning → du är slut; korta löpningen till 15 min"
+    coach_notes: |
+      Skalning: cykeldelen följer långpasslogiken (upp mot 3-4 h i sen
+      base/build), löpdelen hålls 20-40 min. Det är cykeln som bygger,
+      löpningen som lär. Nutrition-utfall loggas — det är data inför
+      race-planen.
+
+  # ─────────────────────────────────────────────────────────────
+  # BME1 — Race-Pace Brick (tävlingssimulering)
+  # ─────────────────────────────────────────────────────────────
+
+  - code: BME1_brick_01
+    discipline: brick
+    category: BW
+    type_code: BME1
+    name: "IM Race-Pace brick — race-watt + målpace-löpning"
+    phase_appropriate: [build_1, build_2, peak]
+    parameterized: false
+    intent: |
+      Tävlingssimulering i miniatyr: cykla på dina faktiska race-watt,
+      växla, och löp på ditt faktiska målpace. Passet svarar på den enda
+      fråga som betyder något i augusti: håller planen? Race-intag
+      körs fullt ut — mage, watt och pace testas tillsammans.
+    setting: outdoor
+    terrain: flat
+    main_set:
+      - segment: warmup
+        sport: bike
+        duration_min: 15
+        zone: 1
+      - segment: main
+        sport: bike
+        sets: 2
+        duration_min: 30
+        rest_sec: 300
+        effort_descriptor: "IM-race-watt: 68-73 % av FTP, aeroposition om du har"
+        cadence_rpm: [85, 95]
+        description: |
+          2×30 min på race-watt med 5 min lugn Z1-rull emellan.
+          Fullt race-intag: kolhydrat enligt DIN plan var 15-20:e min.
+          Håll positionen — det är den du ska sitta i 180 km.
+      - segment: transition
+        sport: run
+        duration_min: 2
+        effort_descriptor: "Race-växling: allt förberett, öva flödet T2"
+      - segment: main
+        sport: run
+        duration_min: 20
+        effort_descriptor: "IM-målpace — pacen du planerar öppna maran i"
+        description: |
+          Disciplin: INTE snabbare än målpace även om det känns lätt.
+          Lätt ska det kännas — det är poängen. Kolla pace först efter
+          3 min (GPS + växlingsadrenalin ljuger initialt).
+      - segment: cooldown
+        sport: run
+        duration_min: 5
+        zone: 1
+    total_duration_min:
+      estimated: 110
+      flexible_range: [95, 140]
+    zone_refs: [Z1, Z2, Z3]
+    equipment: [power_meter, hr_strap]
+    abort_conditions:
+      - "Magen protesterar mot race-intaget → sänk intensiteten, logga vad som hände — det är passets viktigaste data"
+      - "Race-watt kräver > Z3-puls efter 20 min → dagsform eller fel FTP; sänk 5 % och rapportera"
+      - "Målpace känns som tempolopp → bryt tempot, jogga hem, flagga till coach: målet kan behöva justeras"
+    coach_notes: |
+      Bankens viktigaste pass sista 8 veckorna före IM. Utfallet ska
+      jämföras mot race-planen: klarades watten på rätt puls? Höll magen?
+      Kändes målpacet uthålligt? Tre nej = race-planen revideras, inte
+      adepten. Kör varannan vecka i build, en gång i peak.
+
+  # ─────────────────────────────────────────────────────────────
+  # BSS2 — T2 Practice (växlingsfärdighet)
+  # ─────────────────────────────────────────────────────────────
+
+  - code: BSS2_brick_01
+    discipline: brick
+    category: BW
+    type_code: BSS2
+    name: "T2-övning — 4× kort cykel/löp-växling"
+    phase_appropriate: [build_2, peak, race]
+    parameterized: false
+    intent: |
+      Ren växlingsfärdighet: fyra korta cykel-till-löp-växlingar där
+      själva bytet är träningsinnehållet. Kroppen lär sig hitta löpsteget
+      snabbare för varje rep — och du nöter racets T2-rutin tills den
+      är automatisk. Lätt totalbelastning; passar taper-veckor.
+    setting: outdoor
+    terrain: flat
+    main_set:
+      - segment: warmup
+        sport: bike
+        duration_min: 10
+        zone: 1
+      - segment: main
+        sets: 4
+        sport: bike
+        duration_min: 8
+        effort_descriptor: "Z2, sista 2 min på race-watt — kom in mot 'T2' med tävlingskänsla"
+      - segment: main
+        sets: 4
+        sport: run
+        duration_min: 5
+        rest_sec: 120
+        effort_descriptor: "Direkt ut på IM-målpace — hitta steget inom 90 sekunder"
+        description: |
+          Körs som 4 cykler: cykel 8 min → växling → löp 5 min → tillbaka.
+          Vilan är själva återgången till cykeln. Fokus: exakt samma
+          rutin varje växling (hjälm, skor, nummerlapp — racets ordning).
+      - segment: cooldown
+        sport: run
+        duration_min: 5
+        zone: 1
+    total_duration_min:
+      estimated: 75
+      flexible_range: [55, 90]
+    zone_refs: [Z1, Z2]
+    equipment: [power_meter, hr_strap]
+    abort_conditions:
+      - "Snurrighet vid växling som inte släpper → sitt ner, avbryt, rapportera"
+    coach_notes: |
+      Perfekt taper-pass: race-specifikt, låg dos, hög färdighetsavkastning.
+      Kräver plats där cykel + löpning kan växlas säkert (parkering,
+      motionsspår med cykelställ). I race-veckan: 2-3 cykler räcker.

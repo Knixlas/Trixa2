@@ -393,3 +393,109 @@ workouts:
       flexible_range: [50, 70]
     zone_refs: [Z1, Z2]
     equipment: []
+
+  - code: AE2_swim_05
+    discipline: swim
+    category: AE
+    type_code: AE2
+    name: "Öppet vatten — sikt, drafting och boj-vändningar"
+    phase_appropriate: [base_3, build_1, build_2, peak]
+    parameterized: false
+    intent: |
+      Färdighetspasset som gör poolsimmaren till havssimmare. Sighting
+      utan att tappa rytm, rak simning utan linje i botten, vändning
+      runt boj/märke och (med sällskap) drafting på fötter och höft.
+      Ingen intensitet att jaga — färdigheterna ÄR passet. En simmare
+      som siktar dåligt simmar 200-400 m extra på en IM.
+    main_set:
+      - segment: warmup
+        duration_min: 10
+        zone: 1
+        description: "Simma in längs strand/kant, vänj dig vid vattnet och temperaturen"
+      - segment: main
+        sets: 4
+        duration_min: 6
+        rest_sec: 60
+        zone: 2
+        description: |
+          Sighting-block: lyft blicken var 6-9:e tag ("krokodilögon" —
+          bara ögonen över ytan, andas åt sidan efteråt). Välj ett
+          fast landmärke per block. Kolla efter blocket: hamnade du
+          där du siktade?
+      - segment: main
+        sets: 4
+        duration_min: 3
+        rest_sec: 45
+        zone: 2
+        description: |
+          Boj-vändningar: simma mot märket, vänd tätt runt (armen
+          närmast bojen kort tag, öka bentakten ur vändningen).
+          Med sällskap: ligg på fötter/höft varannan vändning — känn
+          hur draftingen sparar kraft.
+      - segment: cooldown
+        duration_min: 5
+        zone: 1
+        description: "Lugnt in mot land, gärna lite ryggsim"
+    total_distance_m: 2000
+    total_duration_min:
+      estimated: 55
+      flexible_range: [40, 70]
+    zone_refs: [Z1, Z2]
+    equipment: [open_water]
+    abort_conditions:
+      - "Aldrig ensam i öppet vatten — ingen partner/livräddare = passet utgår"
+      - "Kallt nog att påverka motoriken (domnande händer/fötter) → upp direkt"
+      - "Axelsymtom av våtdräktens motstånd → av med dräkten eller avbryt, rapportera"
+    coach_notes: |
+      Kör i våtdräkt om tävlingen är wetsuit-legal — dräkten ändrar
+      vattenläge och armtagsmotstånd och måste vara invand, inte ny på
+      race-dagen. Sighting-drillen (se drill-katalogen) kan förövas i
+      pool. OBS: kräver pool_type=open_water i adeptens utrustning för
+      att väljas av planern.
+
+  - code: AE2_swim_06
+    discipline: swim
+    category: AE
+    type_code: AE2
+    name: "Broken IM — 3×1000 på race-pace"
+    phase_appropriate: [build_2, peak]
+    parameterized: false
+    intent: |
+      Tävlingssimulering av 3,8 km i hanterbara bitar: tre gånger tusen
+      meter på ditt IM-race-pace med kort paus. Race-pace i simning är
+      LUGNARE än CSS — några sekunder per hundring långsammare, farten
+      du kan hålla i över en timme med sighting och trängsel. Passet
+      kalibrerar känslan: efter sista tusningen ska du känna att en
+      till hade gått.
+    main_set:
+      - segment: warmup
+        duration_min: 10
+        zone: 1
+        description: "Inkl. 4×50 med stegring till race-känsla"
+      - segment: main
+        sets: 3
+        distance_m: 1000
+        rest_sec: 90
+        effort_descriptor: "IM-race-pace: CSS + 4-6 s/100m — kontrollerat, andas 2/3 efter behov"
+        description: |
+          I öppet vatten: sikta var 8:e tag. I pool: minimera väggfrånskjuten
+          (mjuk vändning, ingen undervattensfas) så farten liknar OW.
+          Våtdräkt om tävlingen är wetsuit-legal.
+      - segment: cooldown
+        duration_min: 5
+        zone: 1
+    total_distance_m: 3600
+    total_duration_min:
+      estimated: 90
+      flexible_range: [75, 100]
+    zone_refs: [Z1, Z2]
+    equipment: []
+    abort_conditions:
+      - "Pace faller > 5 s/100m i set 3 → avsluta setet lugnt; race-pacet är för ambitiöst satt"
+      - "Axelsymtom (särskilt i våtdräkt) → avbryt, rapportera"
+      - "I öppet vatten: aldrig ensam"
+    coach_notes: |
+      Bankens race-kalibrator för sim. Snittpacet per tusning + hur set 3
+      kändes är direkt input till race-planens simsplit. Körs 2-3 gånger
+      totalt i build_2/peak — sista gången senast 2 veckor före race.
+      Väljs med fördel som OW-pass i våtdräkt när vattnet tillåter.

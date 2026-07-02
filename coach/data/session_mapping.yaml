@@ -54,6 +54,9 @@ rules:
     any_keywords: ["kontrollerad", "strict", "erg", "trainer"]
     codes: [AE2_bike_02]
   - sport: bike
+    any_keywords: ["race pace", "race-pace", "racefart", "im-pace", "im pace", "tävlingsfart", "race-watt"]
+    codes: [AE2_bike_04]
+  - sport: bike
     any_keywords: ["långpass", "lång distans", "långdistans", "ankare", "endurance", "kuperat"]
     codes: [AE2_bike_template, AE2_bike_01]
   - sport: bike
@@ -92,6 +95,12 @@ rules:
     any_keywords: ["trail", "stig", "terräng"]
     codes: [AE2_run_02]
   - sport: run
+    any_keywords: ["race pace", "race-pace", "racefart", "im-pace", "im pace", "målpace", "tävlingsfart"]
+    codes: [AE2_run_04]
+  - sport: run
+    any_keywords: ["walk/run", "walk run", "run/walk", "9/1", "gå/löp", "gålöp"]
+    codes: [AE2_run_05]
+  - sport: run
     any_keywords: ["långpass", "lång distans", "långdistans", "progressiv"]
     codes: [AE2_run_01, AE2_run_template]
   - sport: run
@@ -127,8 +136,25 @@ rules:
     any_keywords: ["paddle", "paddles", "pull", "styrka", "kraft"]
     codes: [MF1_swim_02, MF3_swim_01]
   - sport: swim
+    any_keywords: ["öppet vatten", "open water", "ow", "sighting", "sikt", "våtdräkt", "wetsuit", "boj"]
+    codes: [AE2_swim_05]
+  - sport: swim
+    any_keywords: ["broken", "race pace", "race-pace", "im-pace", "3x1000", "3×1000"]
+    codes: [AE2_swim_06]
+  - sport: swim
     any_keywords: ["recovery", "återhämtning", "lätt"]
     codes: [AE1_swim_template_01, AE1_swim_01]
   - sport: swim   # Z2-skyddsnät
     any_keywords: ["z2", "aerob", "lugn", "distans", "lång", "kontinuerligt", "sim", "400"]
     codes: [AE2_swim_03, AE2_swim_01, AE2_swim_template_01]
+
+  # ───────────────────────── BRICK ─────────────────────────
+  - sport: brick
+    any_keywords: ["t2", "växling", "vaxling", "transition"]
+    codes: [BSS2_brick_01]
+  - sport: brick
+    any_keywords: ["race pace", "race-pace", "racefart", "im-pace", "im pace", "race-watt", "simulering"]
+    codes: [BME1_brick_01]
+  - sport: brick   # brick-skyddsnät
+    any_keywords: ["brick", "kombination", "cykel+löp", "bike+run"]
+    codes: [BAE1_brick_01, BME1_brick_01]

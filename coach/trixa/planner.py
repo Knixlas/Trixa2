@@ -1302,11 +1302,12 @@ def _schedule_workouts(
         else:
             candidates = [target_day] + [d for d in _DAYS if d != target_day]
 
-        # Om brick-pass finns och disciplin är bike — föredra brick istället
-        bike_options = volume + (brick_pool if discipline == "bike" else [])
-        run_options = volume
-
-        pool = bike_options if discipline == "bike" else run_options
+        # Om brick-pass finns och disciplin är bike — brick VINNER långdagen
+        # (brick ÄR veckans stora cykeldag + löpning på), annars största AE.
+        if discipline == "bike" and brick_pool:
+            pool = brick_pool
+        else:
+            pool = volume
         disc_pool = [w for w in pool if w.get("discipline") in (discipline, "brick")]
         if not disc_pool:
             return
@@ -1867,11 +1868,17 @@ def generate_week(
                     # Lägg ändå till AE-pass — engine sa inte AE men skada kräver det
                     pass
                 continue
-            # BW (brick) finns bara som disciplin "brick" eller "bike"+"run"-kombination
-            if cat == "BW" and disc != "bike":
-                continue
+            # BW (brick) är sin egen disciplin i passbanken (brick_*.yaml).
+            # Väljs en gång per vecka (via bike-iterationen) och kräver att
+            # både bike och run är aktiva — det ÄR bike följt av run.
+            if cat == "BW":
+                if disc != "bike" or "run" not in active_sports:
+                    continue
+                lookup_disc = "brick"
+            else:
+                lookup_disc = disc
             chosen = _select_workout_for(
-                cat, disc, phase_filter, workouts_pool, recent_codes, rng,
+                cat, lookup_disc, phase_filter, workouts_pool, recent_codes, rng,
                 equipment=equipment, preferred_settings=preferred_settings,
             )
             if chosen is None:

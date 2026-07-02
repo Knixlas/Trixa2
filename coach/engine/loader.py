@@ -57,7 +57,7 @@ def discover_workout_files(workout_dir: Path | None = None) -> dict[str, list[Pa
     if not workout_dir.exists():
         raise FileNotFoundError(f"Workout-katalog saknas: {workout_dir}")
 
-    result: dict[str, list[Path]] = {"swim": [], "bike": [], "run": []}
+    result: dict[str, list[Path]] = {"swim": [], "bike": [], "run": [], "brick": []}
     for path in sorted(workout_dir.glob("*.yaml")):
         name = path.name
         # Hoppa över drill-filer och övriga konfigfiler
