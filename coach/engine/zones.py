@@ -49,12 +49,16 @@ def _swim_zones(css_sec_per_100m: float) -> ZoneSet:
 
     Offset-mönstret är välanvänt i tritränarlitteratur. Z1 = recovery,
     Z3 = CSS-pace (tröskel), Z5 = sprint.
+
+    Gränserna är heltäckande i hela sekunder: varje zons snabba kant
+    ligger exakt 1 sek under nästa långsammare zons. Offsetsen är fasta
+    sekunder och skalar inte med CSS-nivå — känd förenkling.
     """
     offsets = {
         1: (6, 10),     # Z1: CSS+6 till CSS+10
-        2: (3, 5),
+        2: (2, 5),
         3: (-1, 1),
-        4: (-5, -3),
+        4: (-5, -2),
         5: (-10, -6),
     }
     zones: dict[int, ZoneRange] = {}
