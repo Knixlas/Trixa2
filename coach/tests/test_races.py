@@ -2,7 +2,8 @@
 
 from datetime import date
 
-from coach.trixa.races import fetch_next_a_race, fetch_upcoming_races
+from coach.trixa.planner import _days_since_last_race
+from coach.trixa.races import fetch_last_race, fetch_next_a_race, fetch_upcoming_races
 
 
 class _FakeResult:
@@ -24,8 +25,16 @@ class _FakeQuery:
         self._data = [r for r in self._data if r["date"] >= value]
         return self
 
-    def order(self, _col, **_k):
-        self._data = sorted(self._data, key=lambda r: r["date"])
+    def lt(self, _col, value):
+        self._data = [r for r in self._data if r["date"] < value]
+        return self
+
+    def order(self, _col, desc=False, **_k):
+        self._data = sorted(self._data, key=lambda r: r["date"], reverse=desc)
+        return self
+
+    def limit(self, n):
+        self._data = self._data[:n]
         return self
 
     def execute(self):
@@ -73,3 +82,21 @@ def test_empty_calendar():
 def test_upcoming_sorted_by_priority_then_date():
     upcoming = fetch_upcoming_races(_FakeClient(RACES), "athlete-x", TODAY)
     assert [r["priority"] for r in upcoming] == ["A", "B", "C"]
+
+
+def test_last_race_is_most_recent_past():
+    race = fetch_last_race(_FakeClient(RACES), "athlete-x", date(2026, 8, 17))
+    assert race["name"] == "Ironman Kalmar"
+
+
+def test_last_race_none_when_no_history():
+    assert fetch_last_race(_FakeClient([]), "athlete-x", TODAY) is None
+
+
+def test_days_since_last_race_feeds_transition_rule():
+    # IM 2026-08-15, idag 2026-08-17 → 2 dagar → engine går i transition (≤14).
+    days = _days_since_last_race(
+        {"id": "athlete-x"}, date(2026, 8, 17), _FakeClient(RACES)
+    )
+    assert days == 2
+    assert _days_since_last_race({"id": "x"}, TODAY, None) is None

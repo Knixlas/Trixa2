@@ -912,6 +912,12 @@ def _week_analysis(w: dict) -> str:
     phase = (w.get("phase_label") or "").lower()
     planned = w.get("optimal_source") == "plan"
     rec = " Vilovecka — medvetet lägre volym." if w.get("is_recovery") else ""
+    if w.get("phase") == "transition":
+        base = (f"Återhämtning efter tävling — lätt, valfri träning, "
+                f"riktvolym max {opt} h.")
+        if not w.get("future") and act:
+            base += f" {act} h loggat."
+        return base
     if w.get("future"):
         if planned:
             return f"Planerad vecka ({phase}) — {opt} h enligt lagd plan.{rec}"
@@ -946,13 +952,20 @@ def _build_season_context(client, athlete, today, this_monday) -> dict | None:
     """
     race_raw = None
     race_name = None
+    last_race_d = None
     try:
-        from coach.trixa.races import fetch_next_a_race
+        from coach.trixa.races import fetch_last_race, fetch_next_a_race
 
         race = fetch_next_a_race(client, athlete.get("id"), today)
         if race:
             race_raw = race.get("date")
             race_name = race.get("name")
+        last = fetch_last_race(client, athlete.get("id"), today)
+        if last:
+            try:
+                last_race_d = date_type.fromisoformat(str(last.get("date"))[:10])
+            except (ValueError, TypeError):
+                last_race_d = None
     except Exception:  # noqa: BLE001 — races-tabell saknas/fel → fallback
         race_raw = None
     if not race_raw:
@@ -987,6 +1000,7 @@ def _build_season_context(client, athlete, today, this_monday) -> dict | None:
     plan = season.build_season_plan(
         today, race_d, peak_hours, actual_by_week, comp_map,
         athlete=athlete, planned_by_week=planned_by_week,
+        last_race_date=last_race_d,
     )
     if not plan:
         return None

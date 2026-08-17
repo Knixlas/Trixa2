@@ -31,6 +31,25 @@ def fetch_upcoming_races(client: Any, athlete_id: str, today: date) -> list[dict
     )
 
 
+def fetch_last_race(client: Any, athlete_id: str, today: date) -> dict | None:
+    """Senast genomförda race (date < today), oavsett prioritet.
+
+    Används för transition-logiken: engine går in i återhämtningsfas om ett
+    lopp genomförts nyligen (last_race_completed_within_days).
+    """
+    res = (
+        client.table("races")
+        .select("*")
+        .eq("athlete_id", athlete_id)
+        .lt("date", today.isoformat())
+        .order("date", desc=True)
+        .limit(1)
+        .execute()
+    )
+    rows = res.data or []
+    return rows[0] if rows else None
+
+
 def fetch_next_a_race(client: Any, athlete_id: str, today: date) -> dict | None:
     """Nästa A-race (närmast i datum). Fallback: närmaste B, sedan C.
 
