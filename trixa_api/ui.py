@@ -833,6 +833,32 @@ def _actual_hours_by_week(client, user_id, start, today) -> dict:
     return out
 
 
+def _planned_hours_by_week(client, user_id, start, end) -> dict:
+    """Planerad veckovolym (h) ur MASTER planned_sessions. {(iso_year, iso_week): h}.
+
+    Alla origins (nils/trixa2/manual) — det som faktiskt lagts i planen.
+    Veckor utan plan saknas i mappen; säsongsvyn faller då tillbaka på
+    projektionskurvan. Vila-rader (duration 0) påverkar inte summan.
+    """
+    out: dict[tuple[int, int], float] = {}
+    if not user_id:
+        return out
+    try:
+        res = (
+            client.table("planned_sessions")
+            .select("date, duration_min")
+            .eq("user_id", user_id)
+            .gte("date", start.isoformat())
+            .lte("date", end.isoformat())
+            .execute()
+        )
+    except Exception:  # noqa: BLE001
+        return out
+    for r in res.data or []:
+        _add_week_hours(out, r.get("date") or "", (_fnum(r.get("duration_min")) or 0) / 60.0)
+    return out
+
+
 def _season_actuals(client, user_id, start, today):
     """Deduppade training_log-pass per ISO-vecka för säsongsvyn.
 
@@ -884,12 +910,18 @@ def _week_analysis(w: dict) -> str:
     act = w.get("actual_hours")
     n = len(w.get("sessions") or [])
     phase = (w.get("phase_label") or "").lower()
+    planned = w.get("optimal_source") == "plan"
+    rec = " Vilovecka — medvetet lägre volym." if w.get("is_recovery") else ""
     if w.get("future"):
-        return f"Planerad vecka ({phase}) — optimal riktvolym {opt} h."
+        if planned:
+            return f"Planerad vecka ({phase}) — {opt} h enligt lagd plan.{rec}"
+        label = phase + (", underhållsnivå" if w.get("is_maintenance") else "")
+        return f"Planerad vecka ({label}) — optimal riktvolym {opt} h.{rec}"
     if not act:
-        return (f"Ingen träning loggad. Optimalt {opt} h ({phase})."
+        ref = "Planerat" if planned else "Optimalt"
+        return (f"Ingen träning loggad. {ref} {opt} h ({phase}).{rec}"
                 if opt else "Ingen träning loggad den veckan.")
-    txt = f"{act} h utfört mot {opt} h optimalt"
+    txt = f"{act} h utfört mot {opt} h {'planerat' if planned else 'optimalt'}"
     if opt:
         pct = round((act / opt - 1) * 100)
         txt += f" ({'+' if pct > 0 else ''}{pct}%)"
@@ -903,7 +935,7 @@ def _week_analysis(w: dict) -> str:
         txt += " Delvis enligt plan."
     elif comp == "red":
         txt += " Avvek tydligt från plan."
-    return txt
+    return txt + rec
 
 
 def _build_season_context(client, athlete, today, this_monday) -> dict | None:
@@ -947,8 +979,14 @@ def _build_season_context(client, athlete, today, this_monday) -> dict | None:
     except Exception:  # noqa: BLE001
         comp_map = {}
 
+    # Veckor med en faktisk plan visar plannerns/Nils beslut som "optimal"
+    # istället för projektionskurvan — framåt till race så nästa genererade
+    # vecka också syns.
+    planned_by_week = _planned_hours_by_week(client, user_id, window_start, race_d)
+
     plan = season.build_season_plan(
         today, race_d, peak_hours, actual_by_week, comp_map,
+        athlete=athlete, planned_by_week=planned_by_week,
     )
     if not plan:
         return None
