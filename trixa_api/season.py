@@ -17,6 +17,7 @@ from __future__ import annotations
 from datetime import date, timedelta
 
 from coach.engine._loader import load_yaml
+from coach.engine.phases import transition_days_for
 from coach.trixa.planner import _resolve_period_position
 
 
@@ -51,11 +52,7 @@ SEASON_LOOKBACK_WEEKS = 12
 # visar sågtandsmönstret som faktiskt planeras, inte en oavbruten ramp.
 _VOL_START_FRAC = 0.45        # tidig prep ≈ 45% av kapacitet
 _VOL_TAPER_FRAC = 0.40        # tävlingsveckan ≈ 40% (tapering)
-_VOL_TRANSITION_FRAC = 0.25   # veckorna efter genomfört lopp: lätt, valfri träning
-
-# Engine-regeln (phases.determine_phase): genomfört lopp inom så här många
-# dagar → transition. Projektionen speglar samma gräns.
-_TRANSITION_DAYS = 14
+_VOL_TRANSITION_FRAC = 0.25   # fallback om phase_details saknar volume_factor
 
 
 def _recovery_markers(
@@ -163,6 +160,7 @@ def build_season_plan(
     athlete: dict | None = None,
     planned_by_week: dict[tuple[int, int], float] | None = None,
     last_race_date: date | None = None,
+    last_race_distance: str | None = None,
 ) -> dict | None:
     """Hela träningsperioden: optimal fas + optimal volym per vecka, mot utfall.
 
@@ -178,8 +176,9 @@ def build_season_plan(
     planneraren/Nils faktiskt beslutade slår projektionskurvan. Övriga veckor
     faller tillbaka på kurvan (optimal_source='projektion').
 
-    ``last_race_date`` = senast genomförda tävling. Veckor inom
-    _TRANSITION_DAYS efter loppet blir återhämtningsfas (transition) med låg
+    ``last_race_date``/``last_race_distance`` = senast genomförda tävling.
+    Veckor inom distansens transition-fönster (IM 3 v, half 2 v, kortare 1 v;
+    phase_details.post_race_recovery_days) blir återhämtningsfas med låg
     volym — samma regel som engine.phases.determine_phase.
 
     Returnerar None om tävling saknas/passerat.
@@ -191,6 +190,13 @@ def build_season_plan(
     planned_by_week = planned_by_week or {}
 
     phases = load_yaml("phases.yaml")["phases"]
+    try:
+        trans_vol_frac = float(
+            (load_yaml("phase_details.yaml")["phase_details"].get("transition") or {})
+            .get("volume_factor", _VOL_TRANSITION_FRAC)
+        )
+    except Exception:  # noqa: BLE001
+        trans_vol_frac = _VOL_TRANSITION_FRAC
     this_monday = _monday_of(today)
     race_monday = _monday_of(race_date)
     weeks_to_race = (race_monday - this_monday).days // 7
@@ -221,13 +227,14 @@ def build_season_plan(
 
     # Fas per vecka först — vilovecko-cykeln räknas per sammanhängande fas-band.
     phase_seq = [_optimal_phase_for(race_idx - i) for i in range(total_weeks)]
-    # Nyss genomfört lopp → transition-veckor (samma regel som engine: inom
-    # _TRANSITION_DAYS efter loppet). Läggs på INNAN vilovecko-cykeln räknas
-    # så transition inte räknas in i prep-bandets cykel.
+    # Nyss genomfört lopp → transition-veckor. Fönstret beror på distansen
+    # (samma regel som engine: transition_days_for). Läggs på INNAN vilovecko-
+    # cykeln räknas så transition inte räknas in i prep-bandets cykel.
     if last_race_date:
+        trans_window = transition_days_for(last_race_distance)
         for i in range(total_weeks):
             days_since = (season_start + timedelta(weeks=i) - last_race_date).days
-            if 0 <= days_since <= _TRANSITION_DAYS:
+            if 0 <= days_since <= trans_window:
                 phase_seq[i] = "transition"
     cur_idx = (this_monday - season_start).days // 7
     week_pos, week_recovery, rec_factor = _recovery_markers(
@@ -249,7 +256,7 @@ def build_season_plan(
             opt_source = "plan"
         elif ph == "transition":
             # Efter genomfört lopp: lätt, valfri träning — ingen kurva.
-            opt_h = round(peak_hours * _VOL_TRANSITION_FRAC, 1)
+            opt_h = round(peak_hours * trans_vol_frac, 1)
             opt_source = "projektion"
         else:
             opt_h = _optimal_volume(

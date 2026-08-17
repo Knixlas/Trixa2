@@ -29,6 +29,7 @@ class AthleteState:
     has_overtraining_signs: bool = False
     weeks_until_next_race: int | None = None
     last_race_completed_within_days: int | None = None
+    last_race_distance: str | None = None  # races.distance-enum (sprint/olympic/half/full)
     current_phase: PhaseCode | None = None
     weeks_in_current_phase: int | None = None
     athlete_feels_rested: bool = False
@@ -48,6 +49,28 @@ class PhaseRecommendation:
 
 
 # ---------- Publika funktioner ----------
+
+
+def transition_days_for(distance: str | None) -> int:
+    """Transition-fönster (dagar) efter genomfört lopp, anpassat efter distans.
+
+    Läser phase_details.transition.post_race_recovery_days: en Ironman kräver
+    längre återhämtning (3 v) än en sprint (1 v). Okänd/saknad distans →
+    default-värdet.
+    """
+    try:
+        mapping = (
+            load_yaml("phase_details.yaml")["phase_details"]
+            .get("transition", {})
+            .get("post_race_recovery_days")
+            or {}
+        )
+    except Exception:  # noqa: BLE001 — trasig yaml ska inte fälla fasbeslutet
+        mapping = {}
+    default = int(mapping.get("default", 14))
+    if not distance:
+        return default
+    return int(mapping.get(str(distance).strip().lower(), default))
 
 
 def get_phase_info(phase: PhaseCode) -> dict[str, Any]:
@@ -179,15 +202,18 @@ def determine_phase(state: AthleteState) -> PhaseRecommendation:
        Ligger nuläget under optimalt → behind=True (planen anpassas nedåt, och
        avvikelsen exponeras för coach/Nils).
     """
-    # 1. Nyligen genomförd tävling
-    if (
-        state.last_race_completed_within_days is not None
-        and state.last_race_completed_within_days <= 14
-    ):
-        return PhaseRecommendation(
-            phase="transition", period=None, optimal_phase="transition",
-            reason="Tävling nyligen genomförd — återhämtning prioriterad",
-        )
+    # 1. Nyligen genomförd tävling — fönstret beror på distansen (IM 3 v,
+    #    half 2 v, olympic/sprint 1 v; phase_details.post_race_recovery_days).
+    if state.last_race_completed_within_days is not None:
+        window = transition_days_for(state.last_race_distance)
+        if state.last_race_completed_within_days <= window:
+            return PhaseRecommendation(
+                phase="transition", period=None, optimal_phase="transition",
+                reason=(
+                    "Tävling nyligen genomförd — återhämtning prioriterad "
+                    f"({window // 7} v fönster för distansen)"
+                ),
+            )
 
     optimal = _optimal_phase_for_race(state.weeks_until_next_race)
 

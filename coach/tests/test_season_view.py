@@ -86,22 +86,34 @@ def test_capacity_plateau_through_build():
     assert vols == sorted(vols) and vols[0] < vols[-1]
 
 
-def test_transition_after_completed_race():
-    # IM genomförd 2026-08-15 (2 dagar före TODAY) → de två första veckorna
-    # är återhämtningsfas med låg volym, sedan återgår projektionen.
+def test_transition_after_completed_ironman_is_three_weeks():
+    # IM (full) genomförd 2026-08-15 (2 dagar före TODAY) → tre veckors
+    # återhämtningsfas med låg volym, sedan återgår projektionen.
     plan = build_season_plan(
-        TODAY, RACE, peak_hours=14.0, last_race_date=date(2026, 8, 15),
+        TODAY, RACE, peak_hours=14.0,
+        last_race_date=date(2026, 8, 15), last_race_distance="full",
     )
     cur = next(w for w in plan["weeks"] if w["is_current"])
     assert cur["phase"] == "transition"
     assert cur["optimal_hours"] == round(14.0 * 0.25, 1)
     assert not cur["is_recovery"] and not cur["is_maintenance"]
-    nxt = plan["weeks"][cur["index"] + 1]
-    assert nxt["phase"] == "transition"
-    after = plan["weeks"][cur["index"] + 2]
-    assert after["phase"] != "transition"
+    i = cur["index"]
+    assert [w["phase"] for w in plan["weeks"][i:i + 4]] == [
+        "transition", "transition", "transition", "prep",
+    ]
     # Fas-bandet visar Återhämtningsfas (phases.yaml name_sv).
     assert cur["phase_label"] == "Återhämtningsfas"
+
+
+def test_transition_window_scales_with_distance():
+    # Sprint 2 dagar sedan → bara innevarande vecka är transition (7 d fönster).
+    plan = build_season_plan(
+        TODAY, RACE, peak_hours=14.0,
+        last_race_date=date(2026, 8, 15), last_race_distance="sprint",
+    )
+    cur = next(w for w in plan["weeks"] if w["is_current"])
+    assert cur["phase"] == "transition"
+    assert plan["weeks"][cur["index"] + 1]["phase"] != "transition"
 
 
 def test_planned_hours_override_projection():

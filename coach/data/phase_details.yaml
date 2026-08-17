@@ -159,6 +159,17 @@ phase_details:
       - Mental återhämtning och reflektion
       - Skadeprevention (stretching, lätta övningar)
       - Gradvis uppbyggnad inför nästa cykel
+    # Veckovolym under transition som andel av kapaciteten. Under plannerns
+    # 5h-golv är OK här — vila är poängen.
+    volume_factor: 0.25
+    # Transition-fönster efter genomfört lopp, per distans (races.distance-enum).
+    # Engine går i transition-fas tills så här många dagar passerat.
+    post_race_recovery_days:
+      full: 21      # Ironman → 3 veckor
+      half: 14      # 70.3 → 2 veckor
+      olympic: 7
+      sprint: 7
+      default: 14   # okänd distans / distans saknas
     max_session_minutes: null
     discipline_split: null  # flexibel, baserad på adeptens preferenser
     hard_training_rule:
