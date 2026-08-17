@@ -58,7 +58,7 @@
       {% for w in timeline.weeks %}
       {% set opx = (w.optimal_hours / timeline.max_hours * H) | round | int %}
       {% set apx = ((w.actual_hours or 0) / timeline.max_hours * H) | round | int %}
-      <div title="v{{ w.iso_week }} ({{ w.monday_iso }}) — klicka för detaljer" onclick="trixaDetail('w{{ loop.index0 }}')"
+      <div title="v{{ w.iso_week }} ({{ w.monday_iso }}){% if w.is_recovery %} · vilovecka{% endif %} — klicka för detaljer" onclick="trixaDetail('w{{ loop.index0 }}')"
            style="flex: 1; min-width: 0; position: relative; height: {{ H }}px; cursor: pointer;
                   {% if w.is_current %}outline: 2px solid var(--ink); outline-offset: 1px; border-radius: 2px;{% endif %}">
         {% if w.future %}
@@ -113,7 +113,7 @@
       {% for w in timeline.weeks %}
       <div class="trixa-dpanel" id="td-w{{ loop.index0 }}" hidden
            style="margin-top: 8px; padding: 12px 14px; background: var(--bg-sand); border-radius: var(--r-sm);">
-        <strong style="font-size: 14px;">v{{ w.iso_week }} ({{ w.monday_iso }}) · {{ w.phase_label }}{% if w.is_current %} · nu{% endif %}</strong>
+        <strong style="font-size: 14px;">v{{ w.iso_week }} ({{ w.monday_iso }}) · {{ w.phase_label }}{% if w.is_recovery %} · vilovecka{% endif %}{% if w.is_current %} · nu{% endif %}</strong>
         <p style="margin: 6px 0 0; font-size: 13px;">{{ w.analysis }}</p>
         {% if w.sessions %}
         <table style="width: 100%; margin-top: 8px; font-size: 12.5px; border-collapse: collapse;">
@@ -153,8 +153,8 @@
     {# Avstämning innevarande vecka #}
     {% if timeline.now %}{% set n = timeline.now %}
     <div style="margin-top: 12px; padding: 10px 12px; background: var(--bg-sand); border-radius: var(--r-sm); font-size: 13.5px;">
-      <strong>Denna vecka ({{ n.phase_label }}):</strong>
-      optimal <strong>{{ n.optimal_hours }} h</strong> · faktiskt <strong>{{ n.actual_hours }} h</strong>
+      <strong>Denna vecka ({{ n.phase_label }}{% if n.is_recovery %} · vilovecka{% endif %}):</strong>
+      {{ 'planerat' if n.optimal_source == 'plan' else 'optimal' }} <strong>{{ n.optimal_hours }} h</strong> · faktiskt <strong>{{ n.actual_hours }} h</strong>
       {% if n.gap_pct is not none %}
       <span class="badge" style="background: {{ 'var(--palm-soft)' if n.gap_pct >= -15 else 'var(--coral-soft)' }};
             color: {{ 'var(--palm-deep)' if n.gap_pct >= -15 else 'var(--coral)' }};">
@@ -167,8 +167,8 @@
     <p style="margin: 10px 0 0; font-size: 11px; color: var(--ink-3);">
       Staplar = faktisk volym (<span style="color: var(--palm-deep);">grön</span>/<span style="color: var(--mango);">gul</span>/<span style="color: var(--coral);">röd</span> = följsamhet,
       <span style="color: #94a3b8;">grå</span> = ingen plan den veckan) ·
-      <span style="border-top: 2px solid var(--ink-3); padding-top: 1px;">streck</span> = optimal volym den veckan ·
-      <span style="color: var(--lagoon);">ljusa</span> = planen framåt. Fas-banden är en projektion — engine omprövar varje vecka.
+      <span style="border-top: 2px solid var(--ink-3); padding-top: 1px;">streck</span> = optimal volym den veckan (lagd plan där en finns) ·
+      <span style="color: var(--lagoon);">ljusa</span> = planen framåt (regelbundna dippar = viloveckor). Fas-banden är en projektion — engine omprövar varje vecka.
     </p>
 
     {% if timeline.readiness %}{% set r = timeline.readiness %}

@@ -17,6 +17,7 @@ from __future__ import annotations
 from datetime import date, timedelta
 
 from coach.engine._loader import load_yaml
+from coach.trixa.planner import _resolve_period_position
 
 
 # Framåt-ordning fram till tävling (transition är efter loppet, ingår ej här).
@@ -44,9 +45,55 @@ SEASON_LOOKBACK_WEEKS = 12
 
 # Optimal veckovolym som ANDEL av peak-målet (peak = build-fasens volym).
 # Deterministisk kurva: ramp upp till peak (slutet av build), tapering ner mot
-# loppet. Faserna färgar banden; den här kurvan ger volym-linjen.
+# loppet. Faserna färgar banden; den här kurvan ger volym-linjen. Ovanpå rampen
+# läggs vilovecko-cykeln (samma regler som planner) så kurvan visar sågtands-
+# mönstret som faktiskt planeras, inte en oavbruten ramp.
 _VOL_START_FRAC = 0.45   # tidig prep ≈ 45% av peak
 _VOL_TAPER_FRAC = 0.40   # tävlingsveckan ≈ 40% (tapering)
+
+
+def _recovery_markers(
+    phase_seq: list[str],
+    cur_idx: int,
+    athlete: dict | None,
+    cur_monday: date,
+) -> tuple[list[int], list[bool], float]:
+    """Vilovecko-cykel per vecka: (week_in_period, is_recovery, volume_factor).
+
+    Samma regler som planner: cykellängden kommer från adeptens
+    recovery_week_ratio och sista veckan i varje cykel inom prep/base/build
+    är återhämtningsvecka (phase_details.recovery_week). Innevarande fas-band
+    ankras via _resolve_period_position (phase_state) så projektionen visar
+    samma cykelposition som planneraren kommer besluta; övriga fas-band
+    räknas från bandets första vecka.
+    """
+    try:
+        rec_rule = load_yaml("phase_details.yaml").get("recovery_week") or {}
+    except Exception:  # noqa: BLE001
+        rec_rule = {}
+    applies = set(rec_rule.get("applies_to_phases") or [])
+    factor = float(rec_rule.get("volume_factor", 0.6))
+
+    anchor_pos, cycle_len, _ = _resolve_period_position(
+        athlete or {}, phase_seq[cur_idx], cur_monday
+    )
+
+    n = len(phase_seq)
+    band_start = [0] * n
+    for i in range(1, n):
+        band_start[i] = band_start[i - 1] if phase_seq[i] == phase_seq[i - 1] else i
+    cur_band = band_start[cur_idx]
+
+    positions: list[int] = []
+    recovery: list[bool] = []
+    for i in range(n):
+        if band_start[i] == cur_band:
+            pos = ((anchor_pos - 1 + (i - cur_idx)) % cycle_len) + 1
+        else:
+            pos = ((i - band_start[i]) % cycle_len) + 1
+        positions.append(pos)
+        recovery.append(phase_seq[i] in applies and pos == cycle_len)
+    return positions, recovery, factor
 
 
 def _optimal_phase_for(weeks_until_race: int) -> str:
@@ -63,18 +110,33 @@ def _optimal_phase_for(weeks_until_race: int) -> str:
     return "prep"
 
 
-def _optimal_volume(week_idx: int, race_idx: int, peak_idx: int, peak_hours: float) -> float:
-    """Optimal veckovolym (h) för en vecka: ramp till peak_idx, sen tapering.
+def _optimal_volume(
+    week_idx: int,
+    ramp_start_idx: int,
+    race_idx: int,
+    peak_idx: int,
+    peak_hours: float,
+) -> float:
+    """Optimal veckovolym (h): platå → ramp till peak_idx → tapering.
+
+    Finns mer tid än den ideala periodiseringen ligger veckorna före
+    ramp_start_idx på underhållsnivå (_VOL_START_FRAC) — ingen träningsfilosofi
+    rampar oavbrutet i ett år. Rampen börjar där ideal-perioden börjar.
 
     peak_idx = veckan där volymen toppar (sista byggveckan före toppning).
     """
     if peak_hours <= 0:
         return 0.0
     if week_idx <= peak_idx:
-        # Ramp _VOL_START_FRAC → 1.0
-        frac = 1.0 if peak_idx <= 0 else (
-            _VOL_START_FRAC + (1.0 - _VOL_START_FRAC) * (week_idx / peak_idx)
-        )
+        span = peak_idx - ramp_start_idx
+        if span <= 0:
+            frac = 1.0 if week_idx >= peak_idx else _VOL_START_FRAC
+        elif week_idx <= ramp_start_idx:
+            frac = _VOL_START_FRAC  # underhållsplatå före ideal-perioden
+        else:
+            frac = _VOL_START_FRAC + (1.0 - _VOL_START_FRAC) * (
+                (week_idx - ramp_start_idx) / span
+            )
     else:
         # Tapering 1.0 → _VOL_TAPER_FRAC fram till loppet
         span = max(race_idx - peak_idx, 1)
@@ -89,6 +151,8 @@ def build_season_plan(
     actual_by_week: dict[tuple[int, int], float] | None = None,
     compliance_by_week: dict[tuple[int, int], str] | None = None,
     lookback_weeks: int = SEASON_LOOKBACK_WEEKS,
+    athlete: dict | None = None,
+    planned_by_week: dict[tuple[int, int], float] | None = None,
 ) -> dict | None:
     """Hela träningsperioden: optimal fas + optimal volym per vecka, mot utfall.
 
@@ -96,12 +160,21 @@ def build_season_plan(
     vecka får optimal fas, optimal volym (h) och — för passerade veckor —
     faktisk volym + följsamhet. Ren funktion; DB-aggregaten skickas in.
 
+    ``athlete`` (rad ur athlete_profiles) styr vilovecko-cykeln via
+    recovery_week_ratio + phase_state; utan den antas default 3:1.
+
+    ``planned_by_week`` = planerad veckovolym (h) ur planned_sessions. Veckor
+    som HAR en plan visar den som "optimal" (optimal_source='plan') — det
+    planneraren/Nils faktiskt beslutade slår projektionskurvan. Övriga veckor
+    faller tillbaka på kurvan (optimal_source='projektion').
+
     Returnerar None om tävling saknas/passerat.
     """
     if not race_date or race_date <= today:
         return None
     actual_by_week = actual_by_week or {}
     compliance_by_week = compliance_by_week or {}
+    planned_by_week = planned_by_week or {}
 
     phases = load_yaml("phases.yaml")["phases"]
     this_monday = _monday_of(today)
@@ -123,6 +196,15 @@ def build_season_plan(
         (i for i in range(total_weeks) if (race_idx - i) == 5),
         max(0, race_idx - 3),
     )
+    # Rampen börjar där ideal-perioden börjar; dessförinnan underhållsplatå.
+    ramp_start_idx = max(0, (ideal_start - season_start).days // 7)
+
+    # Fas per vecka först — vilovecko-cykeln räknas per sammanhängande fas-band.
+    phase_seq = [_optimal_phase_for(race_idx - i) for i in range(total_weeks)]
+    cur_idx = (this_monday - season_start).days // 7
+    week_pos, week_recovery, rec_factor = _recovery_markers(
+        phase_seq, cur_idx, athlete, this_monday
+    )
 
     weeks: list[dict] = []
     max_hours = peak_hours
@@ -130,9 +212,18 @@ def build_season_plan(
         wm = season_start + timedelta(weeks=i)
         iso = wm.isocalendar()
         wur = race_idx - i
-        ph = _optimal_phase_for(wur)
-        opt_h = _optimal_volume(i, race_idx, peak_idx, peak_hours)
+        ph = phase_seq[i]
         key = (iso[0], iso[1])
+        planned_h = planned_by_week.get(key)
+        if planned_h is not None:
+            # Veckan har en faktisk plan (planner/Nils) — den ÄR optimalt.
+            opt_h = round(planned_h, 1)
+            opt_source = "plan"
+        else:
+            opt_h = _optimal_volume(i, ramp_start_idx, race_idx, peak_idx, peak_hours)
+            if week_recovery[i]:
+                opt_h = round(opt_h * rec_factor, 1)
+            opt_source = "projektion"
         is_past = wm < this_monday
         is_current = wm == this_monday
         act_h = actual_by_week.get(key)
@@ -141,7 +232,9 @@ def build_season_plan(
             "index": i, "monday": wm, "monday_iso": wm.isoformat(),
             "iso_year": iso[0], "iso_week": iso[1], "weeks_until_race": wur,
             "phase": ph, "phase_label": phases[ph]["name_sv"],
-            "optimal_hours": opt_h,
+            "optimal_hours": opt_h, "optimal_source": opt_source,
+            "week_in_period": week_pos[i], "is_recovery": week_recovery[i],
+            "is_maintenance": i < ramp_start_idx,
             "actual_hours": round(act_h, 1) if act_h is not None else None,
             "compliance": compliance_by_week.get(key),
             "is_past": is_past, "is_current": is_current, "future": wm > this_monday,
@@ -182,6 +275,8 @@ def build_season_plan(
             "actual_hours": act,
             "gap_pct": round((act / opt - 1) * 100) if opt > 0 else None,
             "phase_label": cur["phase_label"],
+            "is_recovery": cur["is_recovery"],
+            "optimal_source": cur["optimal_source"],
         }
 
     return {
