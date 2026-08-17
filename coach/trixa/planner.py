@@ -494,6 +494,30 @@ def _weeks_until_race(
     return delta_days // 7
 
 
+def _days_since_last_race(
+    athlete: dict, today: date, client: Any | None = None
+) -> int | None:
+    """Dagar sedan senast genomförda race (public.races), None om inget finns.
+
+    Matar engine-regeln: genomfört lopp inom 14 dagar → transition-fas.
+    """
+    if client is None:
+        return None
+    try:
+        from coach.trixa.races import fetch_last_race
+
+        race = fetch_last_race(client, athlete.get("id"), today)
+    except Exception:  # noqa: BLE001 — races-tabell saknas/fel → ingen signal
+        return None
+    if not race:
+        return None
+    try:
+        race_date = date.fromisoformat(str(race.get("date"))[:10])
+    except (ValueError, TypeError):
+        return None
+    return (today - race_date).days
+
+
 # Planera alltid minst så här många timmar/vecka, oavsett faktisk historik.
 MIN_PLANNED_WEEKLY_HOURS = 5.0
 
@@ -544,7 +568,7 @@ def _build_athlete_state(
         has_injury=_has_significant_injury(athlete),
         has_overtraining_signs=has_ot,
         weeks_until_next_race=_weeks_until_race(athlete, today, client),
-        last_race_completed_within_days=None,
+        last_race_completed_within_days=_days_since_last_race(athlete, today, client),
         current_phase=phase_state.get("current_phase"),
         weeks_in_current_phase=phase_state.get("weeks_in_phase"),
         athlete_feels_rested=feels_rested,

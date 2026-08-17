@@ -62,10 +62,46 @@ def test_maintenance_plateau_before_ideal_period():
     assert len(maint) > 4
     assert len({w["optimal_hours"] for w in maint}) == 1  # platt nivå
     assert maint[0]["optimal_hours"] == round(14.0 * 0.45, 1)
-    # Rampen tar vid efter platån och når nära peak-målet (peak-veckan kan
-    # själv råka vara en vilovecka i cykeln, därav "nära").
+    # Rampen tar vid efter platån och når kapaciteten.
     ramped = [w for w in plan["weeks"] if not w["is_maintenance"]]
-    assert max(w["optimal_hours"] for w in ramped) >= 14.0 * 0.9
+    assert max(w["optimal_hours"] for w in ramped) == 14.0
+
+
+def test_capacity_plateau_through_build():
+    # Kapaciteten (peak-målet) är inte en enstaka toppvecka: hela build utom
+    # viloveckorna ligger på maxvolym — progressionen där är intensitet.
+    plan = _plan()
+    build = [
+        w for w in plan["weeks"]
+        if w["phase"] == "build" and not w["is_recovery"]
+    ]
+    assert len(build) >= 4
+    assert all(w["optimal_hours"] == 14.0 for w in build)
+    # Base rampar upp mot kapaciteten (progression genom grundträningen).
+    base = [
+        w for w in plan["weeks"]
+        if w["phase"] == "base" and not w["is_recovery"]
+    ]
+    vols = [w["optimal_hours"] for w in base]
+    assert vols == sorted(vols) and vols[0] < vols[-1]
+
+
+def test_transition_after_completed_race():
+    # IM genomförd 2026-08-15 (2 dagar före TODAY) → de två första veckorna
+    # är återhämtningsfas med låg volym, sedan återgår projektionen.
+    plan = build_season_plan(
+        TODAY, RACE, peak_hours=14.0, last_race_date=date(2026, 8, 15),
+    )
+    cur = next(w for w in plan["weeks"] if w["is_current"])
+    assert cur["phase"] == "transition"
+    assert cur["optimal_hours"] == round(14.0 * 0.25, 1)
+    assert not cur["is_recovery"] and not cur["is_maintenance"]
+    nxt = plan["weeks"][cur["index"] + 1]
+    assert nxt["phase"] == "transition"
+    after = plan["weeks"][cur["index"] + 2]
+    assert after["phase"] != "transition"
+    # Fas-bandet visar Återhämtningsfas (phases.yaml name_sv).
+    assert cur["phase_label"] == "Återhämtningsfas"
 
 
 def test_planned_hours_override_projection():

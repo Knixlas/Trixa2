@@ -30,6 +30,7 @@ _PHASE_COLORS = {
     "build": {"bg": "#fef3c7", "fg": "#92400e"},  # bärnsten
     "peak":  {"bg": "#fed7aa", "fg": "#9a3412"},  # orange
     "race":  {"bg": "#fee2e2", "fg": "#991b1b"},  # röd
+    "transition": {"bg": "#e2e8f0", "fg": "#334155"},  # grå — vila efter lopp
 }
 
 
@@ -43,13 +44,18 @@ def _monday_of(d: date) -> date:
 # perioden om den är lång). Framåt visas alltid hela vägen till loppet.
 SEASON_LOOKBACK_WEEKS = 12
 
-# Optimal veckovolym som ANDEL av peak-målet (peak = build-fasens volym).
-# Deterministisk kurva: ramp upp till peak (slutet av build), tapering ner mot
-# loppet. Faserna färgar banden; den här kurvan ger volym-linjen. Ovanpå rampen
-# läggs vilovecko-cykeln (samma regler som planner) så kurvan visar sågtands-
-# mönstret som faktiskt planeras, inte en oavbruten ramp.
-_VOL_START_FRAC = 0.45   # tidig prep ≈ 45% av peak
-_VOL_TAPER_FRAC = 0.40   # tävlingsveckan ≈ 40% (tapering)
+# Optimal veckovolym som ANDEL av peak-målet. Peak-målet är adeptens KAPACITET
+# (h/v), inte en enstaka toppvecka: kurvan rampar genom base upp till kapacitet
+# och HÅLLER den genom build — där är det intensiteten som progredierar, inte
+# volymen. Ovanpå läggs vilovecko-cykeln (samma regler som planner) så kurvan
+# visar sågtandsmönstret som faktiskt planeras, inte en oavbruten ramp.
+_VOL_START_FRAC = 0.45        # tidig prep ≈ 45% av kapacitet
+_VOL_TAPER_FRAC = 0.40        # tävlingsveckan ≈ 40% (tapering)
+_VOL_TRANSITION_FRAC = 0.25   # veckorna efter genomfört lopp: lätt, valfri träning
+
+# Engine-regeln (phases.determine_phase): genomfört lopp inom så här många
+# dagar → transition. Projektionen speglar samma gräns.
+_TRANSITION_DAYS = 14
 
 
 def _recovery_markers(
@@ -113,34 +119,37 @@ def _optimal_phase_for(weeks_until_race: int) -> str:
 def _optimal_volume(
     week_idx: int,
     ramp_start_idx: int,
+    plateau_start_idx: int,
     race_idx: int,
     peak_idx: int,
     peak_hours: float,
 ) -> float:
-    """Optimal veckovolym (h): platå → ramp till peak_idx → tapering.
+    """Optimal veckovolym (h): underhåll → ramp → kapacitetsplatå → tapering.
 
-    Finns mer tid än den ideala periodiseringen ligger veckorna före
-    ramp_start_idx på underhållsnivå (_VOL_START_FRAC) — ingen träningsfilosofi
-    rampar oavbrutet i ett år. Rampen börjar där ideal-perioden börjar.
-
-    peak_idx = veckan där volymen toppar (sista byggveckan före toppning).
+    - Före ramp_start_idx (ideal-periodens start): underhållsnivå
+      (_VOL_START_FRAC) — ingen träningsfilosofi rampar oavbrutet i ett år.
+    - Ramp genom prep/base upp till kapaciteten vid plateau_start_idx
+      (första byggveckan).
+    - plateau_start_idx..peak_idx: kapacitetsplatå — flera veckor på max-
+      volym; progressionen i build är intensitet, inte timmar.
+    - Efter peak_idx: tapering ner mot loppet.
     """
     if peak_hours <= 0:
         return 0.0
-    if week_idx <= peak_idx:
-        span = peak_idx - ramp_start_idx
-        if span <= 0:
-            frac = 1.0 if week_idx >= peak_idx else _VOL_START_FRAC
-        elif week_idx <= ramp_start_idx:
+    if week_idx > peak_idx:
+        # Tapering 1.0 → _VOL_TAPER_FRAC fram till loppet
+        span = max(race_idx - peak_idx, 1)
+        frac = 1.0 - (1.0 - _VOL_TAPER_FRAC) * ((week_idx - peak_idx) / span)
+    elif week_idx >= plateau_start_idx:
+        frac = 1.0  # kapacitetsplatå genom build
+    else:
+        span = plateau_start_idx - ramp_start_idx
+        if span <= 0 or week_idx <= ramp_start_idx:
             frac = _VOL_START_FRAC  # underhållsplatå före ideal-perioden
         else:
             frac = _VOL_START_FRAC + (1.0 - _VOL_START_FRAC) * (
                 (week_idx - ramp_start_idx) / span
             )
-    else:
-        # Tapering 1.0 → _VOL_TAPER_FRAC fram till loppet
-        span = max(race_idx - peak_idx, 1)
-        frac = 1.0 - (1.0 - _VOL_TAPER_FRAC) * ((week_idx - peak_idx) / span)
     return round(peak_hours * frac, 1)
 
 
@@ -153,6 +162,7 @@ def build_season_plan(
     lookback_weeks: int = SEASON_LOOKBACK_WEEKS,
     athlete: dict | None = None,
     planned_by_week: dict[tuple[int, int], float] | None = None,
+    last_race_date: date | None = None,
 ) -> dict | None:
     """Hela träningsperioden: optimal fas + optimal volym per vecka, mot utfall.
 
@@ -167,6 +177,10 @@ def build_season_plan(
     som HAR en plan visar den som "optimal" (optimal_source='plan') — det
     planneraren/Nils faktiskt beslutade slår projektionskurvan. Övriga veckor
     faller tillbaka på kurvan (optimal_source='projektion').
+
+    ``last_race_date`` = senast genomförda tävling. Veckor inom
+    _TRANSITION_DAYS efter loppet blir återhämtningsfas (transition) med låg
+    volym — samma regel som engine.phases.determine_phase.
 
     Returnerar None om tävling saknas/passerat.
     """
@@ -198,9 +212,23 @@ def build_season_plan(
     )
     # Rampen börjar där ideal-perioden börjar; dessförinnan underhållsplatå.
     ramp_start_idx = max(0, (ideal_start - season_start).days // 7)
+    # Kapacitetsplatån börjar vid första byggveckan (wur == 12): rampen går
+    # genom base, build håller maxvolym medan intensiteten ökar.
+    plateau_start_idx = next(
+        (i for i in range(total_weeks) if (race_idx - i) == 12),
+        peak_idx,
+    )
 
     # Fas per vecka först — vilovecko-cykeln räknas per sammanhängande fas-band.
     phase_seq = [_optimal_phase_for(race_idx - i) for i in range(total_weeks)]
+    # Nyss genomfört lopp → transition-veckor (samma regel som engine: inom
+    # _TRANSITION_DAYS efter loppet). Läggs på INNAN vilovecko-cykeln räknas
+    # så transition inte räknas in i prep-bandets cykel.
+    if last_race_date:
+        for i in range(total_weeks):
+            days_since = (season_start + timedelta(weeks=i) - last_race_date).days
+            if 0 <= days_since <= _TRANSITION_DAYS:
+                phase_seq[i] = "transition"
     cur_idx = (this_monday - season_start).days // 7
     week_pos, week_recovery, rec_factor = _recovery_markers(
         phase_seq, cur_idx, athlete, this_monday
@@ -219,8 +247,14 @@ def build_season_plan(
             # Veckan har en faktisk plan (planner/Nils) — den ÄR optimalt.
             opt_h = round(planned_h, 1)
             opt_source = "plan"
+        elif ph == "transition":
+            # Efter genomfört lopp: lätt, valfri träning — ingen kurva.
+            opt_h = round(peak_hours * _VOL_TRANSITION_FRAC, 1)
+            opt_source = "projektion"
         else:
-            opt_h = _optimal_volume(i, ramp_start_idx, race_idx, peak_idx, peak_hours)
+            opt_h = _optimal_volume(
+                i, ramp_start_idx, plateau_start_idx, race_idx, peak_idx, peak_hours
+            )
             if week_recovery[i]:
                 opt_h = round(opt_h * rec_factor, 1)
             opt_source = "projektion"
@@ -234,7 +268,7 @@ def build_season_plan(
             "phase": ph, "phase_label": phases[ph]["name_sv"],
             "optimal_hours": opt_h, "optimal_source": opt_source,
             "week_in_period": week_pos[i], "is_recovery": week_recovery[i],
-            "is_maintenance": i < ramp_start_idx,
+            "is_maintenance": i < ramp_start_idx and ph != "transition",
             "actual_hours": round(act_h, 1) if act_h is not None else None,
             "compliance": compliance_by_week.get(key),
             "is_past": is_past, "is_current": is_current, "future": wm > this_monday,
