@@ -38,7 +38,7 @@ from coach.engine.overtraining import (
     assess_overtraining,
     recommend_adjustment,
 )
-from coach.engine.phases import AthleteState, determine_phase
+from coach.engine.phases import AthleteState, determine_phase, transition_days_for
 from coach.engine.profile import profile_from_athlete_row
 from coach.engine.renderer import render_workout
 from coach.engine.strength import current_strength_protocol
@@ -494,28 +494,29 @@ def _weeks_until_race(
     return delta_days // 7
 
 
-def _days_since_last_race(
+def _last_race_info(
     athlete: dict, today: date, client: Any | None = None
-) -> int | None:
-    """Dagar sedan senast genomförda race (public.races), None om inget finns.
+) -> tuple[int | None, str | None]:
+    """(dagar sedan, distans) för senast genomförda race, (None, None) om inget.
 
-    Matar engine-regeln: genomfört lopp inom 14 dagar → transition-fas.
+    Matar engine-regeln: genomfört lopp inom distansens transition-fönster
+    (phase_details.post_race_recovery_days) → transition-fas.
     """
     if client is None:
-        return None
+        return None, None
     try:
         from coach.trixa.races import fetch_last_race
 
         race = fetch_last_race(client, athlete.get("id"), today)
     except Exception:  # noqa: BLE001 — races-tabell saknas/fel → ingen signal
-        return None
+        return None, None
     if not race:
-        return None
+        return None, None
     try:
         race_date = date.fromisoformat(str(race.get("date"))[:10])
     except (ValueError, TypeError):
-        return None
-    return (today - race_date).days
+        return None, None
+    return (today - race_date).days, race.get("distance")
 
 
 # Planera alltid minst så här många timmar/vecka, oavsett faktisk historik.
@@ -548,7 +549,15 @@ def _build_athlete_state(
         weekly_hours = declared
     # Golv: planera ALLTID minst 5 h/v, oavsett vad historiken visar. Att fördela
     # 1,7 h över en vecka blir meningslöst — minst en base-nivå (5 h) prescriberas.
-    weekly_hours = max(weekly_hours, MIN_PLANNED_WEEKLY_HOURS)
+    # UNDANTAG: inom transition-fönstret efter ett genomfört lopp är låg volym
+    # poängen — där får planen gå under golvet.
+    last_race_days, last_race_dist = _last_race_info(athlete, today, client)
+    in_transition_window = (
+        last_race_days is not None
+        and last_race_days <= transition_days_for(last_race_dist)
+    )
+    if not in_transition_window:
+        weekly_hours = max(weekly_hours, MIN_PLANNED_WEEKLY_HOURS)
 
     # OT-tecken från TP-matad kompatibilitetscache (snabb-koll innan full assessment)
     has_ot = False
@@ -568,7 +577,8 @@ def _build_athlete_state(
         has_injury=_has_significant_injury(athlete),
         has_overtraining_signs=has_ot,
         weeks_until_next_race=_weeks_until_race(athlete, today, client),
-        last_race_completed_within_days=_days_since_last_race(athlete, today, client),
+        last_race_completed_within_days=last_race_days,
+        last_race_distance=last_race_dist,
         current_phase=phase_state.get("current_phase"),
         weeks_in_current_phase=phase_state.get("weeks_in_phase"),
         athlete_feels_rested=feels_rested,
@@ -713,6 +723,14 @@ def _apply_week_volume_scaling(
             "week_in_phase": weeks_in_phase,
             "factor": round(factor, 3),
         }
+    elif phase == "transition":
+        # Efter genomfört lopp: lätt, valfri träning — får gå under 5h-golvet.
+        factor = float(
+            (details["phase_details"].get("transition") or {}).get(
+                "volume_factor", 0.25
+            )
+        )
+        decisions["transition"] = {"volume_factor": factor}
     else:
         rec_rule = details.get("recovery_week") or {}
         if (

@@ -953,6 +953,7 @@ def _build_season_context(client, athlete, today, this_monday) -> dict | None:
     race_raw = None
     race_name = None
     last_race_d = None
+    last_race_dist = None
     try:
         from coach.trixa.races import fetch_last_race, fetch_next_a_race
 
@@ -962,6 +963,7 @@ def _build_season_context(client, athlete, today, this_monday) -> dict | None:
             race_name = race.get("name")
         last = fetch_last_race(client, athlete.get("id"), today)
         if last:
+            last_race_dist = last.get("distance")
             try:
                 last_race_d = date_type.fromisoformat(str(last.get("date"))[:10])
             except (ValueError, TypeError):
@@ -1000,7 +1002,7 @@ def _build_season_context(client, athlete, today, this_monday) -> dict | None:
     plan = season.build_season_plan(
         today, race_d, peak_hours, actual_by_week, comp_map,
         athlete=athlete, planned_by_week=planned_by_week,
-        last_race_date=last_race_d,
+        last_race_date=last_race_d, last_race_distance=last_race_dist,
     )
     if not plan:
         return None
