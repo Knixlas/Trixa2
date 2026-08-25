@@ -165,10 +165,24 @@ phase_details:
     # Transition-fönster efter genomfört lopp, per distans (races.distance-enum).
     # Engine går i transition-fas tills så här många dagar passerat.
     post_race_recovery_days:
+      # Triathlon
       full: 21      # Ironman → 3 veckor
       half: 14      # 70.3 → 2 veckor
       olympic: 7
       sprint: 7
+      # Löpning — maraton sliter som en halv-IM, kortare lopp betydligt mindre
+      ultra: 21
+      marathon: 14
+      half_marathon: 7
+      10k: 4
+      5k: 3
+      # Cykel — lägre excentrisk belastning än löpning på samma tid
+      stage_race: 14
+      gran_fondo: 7
+      time_trial: 3
+      # Simning — minst nedbrytande av de tre grenarna
+      open_water: 4
+      swim_meet: 3
       default: 14   # okänd distans / distans saknas
     max_session_minutes: null
     discipline_split: null  # flexibel, baserad på adeptens preferenser

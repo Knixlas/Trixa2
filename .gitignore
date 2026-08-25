@@ -37,3 +37,6 @@ desktop.ini
 # Output / logs
 *.log
 RENDERED_EXAMPLES.md
+
+# Claude Code lokala arbetsfiler (worktrees, launch-config)
+.claude/

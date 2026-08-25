@@ -22,10 +22,28 @@ sön för löpning, mån som vila).</p>
           <select name="race_type">
             {% set rt = athlete.race_type or "" %}
             <option value="" {% if not rt %}selected{% endif %}>—</option>
-            <option value="sprint" {% if rt == "sprint" %}selected{% endif %}>Sprint</option>
-            <option value="olympic" {% if rt == "olympic" %}selected{% endif %}>Olympisk</option>
-            <option value="half" {% if rt == "half" %}selected{% endif %}>Halv (70.3)</option>
-            <option value="ironman" {% if rt in ("ironman", "full") %}selected{% endif %}>Ironman (140.6)</option>
+            <optgroup label="Triathlon">
+              <option value="sprint" {% if rt == "sprint" %}selected{% endif %}>Sprint</option>
+              <option value="olympic" {% if rt == "olympic" %}selected{% endif %}>Olympisk</option>
+              <option value="half" {% if rt == "half" %}selected{% endif %}>Halv (70.3)</option>
+              <option value="ironman" {% if rt in ("ironman", "full") %}selected{% endif %}>Ironman (140.6)</option>
+            </optgroup>
+            <optgroup label="Löpning">
+              <option value="5k" {% if rt == "5k" %}selected{% endif %}>5 km</option>
+              <option value="10k" {% if rt == "10k" %}selected{% endif %}>10 km</option>
+              <option value="half_marathon" {% if rt == "half_marathon" %}selected{% endif %}>Halvmaraton</option>
+              <option value="marathon" {% if rt == "marathon" %}selected{% endif %}>Maraton</option>
+              <option value="ultra" {% if rt == "ultra" %}selected{% endif %}>Ultralopp</option>
+            </optgroup>
+            <optgroup label="Cykel">
+              <option value="gran_fondo" {% if rt == "gran_fondo" %}selected{% endif %}>Långlopp</option>
+              <option value="time_trial" {% if rt == "time_trial" %}selected{% endif %}>Tempolopp</option>
+              <option value="stage_race" {% if rt == "stage_race" %}selected{% endif %}>Etapplopp</option>
+            </optgroup>
+            <optgroup label="Simning">
+              <option value="open_water" {% if rt == "open_water" %}selected{% endif %}>Öppet vatten</option>
+              <option value="swim_meet" {% if rt == "swim_meet" %}selected{% endif %}>Bassängtävling</option>
+            </optgroup>
             <option value="other" {% if rt == "other" %}selected{% endif %}>Annat</option>
           </select>
         </label>
@@ -58,6 +76,11 @@ sön för löpning, mån som vila).</p>
           </select>
         </label>
       </div>
+      <label>Vad din coach heter
+        <input type="text" name="coach_name" maxlength="40"
+               value="{{ athlete.coach_name or '' }}"
+               placeholder="lämna tomt för neutralt &quot;din coach&quot;">
+      </label>
       <label>Övergripande mål
         <select name="goal">
           {% set g = athlete.goal or "" %}
@@ -105,7 +128,7 @@ sön för löpning, mån som vila).</p>
   </p>
   <form method="post" action="/ui/settings/connections">
     <label><input type="checkbox" name="conn_ai" value="1" {% if athlete.conn_ai %}checked{% endif %}>
-      AI-coach (Nils) — personlig tolkning och plan ovanpå motorn</label>
+      AI-coach — personlig tolkning och plan ovanpå motorn</label>
     <label><input type="checkbox" name="conn_tp" value="1" {% if athlete.conn_tp %}checked{% endif %}>
       TrainingPeaks — pass + återhämtning från klockan via TP</label>
     <label><input type="checkbox" name="conn_strava" value="1" {% if athlete.conn_strava %}checked{% endif %}>
@@ -221,13 +244,18 @@ sön för löpning, mån som vila).</p>
 {% endif %}
 
 <section>
-  <h2>AI-åtkomst (Nils)</h2>
+  <h2>AI-åtkomst</h2>
   <p style="font-size: 0.875rem; color: var(--ink-3); margin-top: 0;">
-    Vill du att en AI (t.ex. Nils i ett Claude-projekt) ska läsa din plan och
-    skriva pass åt dig? Skapa en <strong>token</strong> och lägg in den i AI:ns
-    projekt. Token låser AI:n till <strong>just din</strong> data — den ser ingen
-    annans. Basadress: <code>/agent</code> (t.ex. <code>GET /agent/week/current</code>),
-    Authorization: <code>Bearer &lt;token&gt;</code>.
+    Vill du att din AI-coach ska läsa din plan och skriva pass åt dig? Skapa en
+    <strong>token</strong> och lägg in den i AI-klienten. Token låser AI:n till
+    <strong>just din</strong> data — den ser ingen annans, och du kan återkalla
+    den när som helst.
+  </p>
+  <p style="font-size: 0.875rem; color: var(--ink-3);">
+    I Claude Code kopplar du in Trixa med ett kommando:<br>
+    <code style="user-select: all;">claude mcp add --transport http trixa {{ base_url }}/mcp --header "Authorization: Bearer &lt;token&gt;"</code><br>
+    Andra klienter tar samma adress (<code>{{ base_url }}/mcp</code>) och samma header.
+    Behöver du ett vanligt REST-API istället finns det på <code>/agent</code>.
   </p>
 
   {% if new_token %}
@@ -266,7 +294,7 @@ sön för löpning, mån som vila).</p>
 
   <form method="post" action="/ui/api-tokens" style="margin-top: 10px;">
     <label>Namn (för att känna igen den)
-      <input type="text" name="name" placeholder="t.ex. Nils i Claude" maxlength="60">
+      <input type="text" name="name" placeholder="t.ex. Claude på jobbdatorn" maxlength="60">
     </label>
     <button type="submit"><i data-lucide="key"></i> Skapa token</button>
   </form>

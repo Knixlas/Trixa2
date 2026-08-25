@@ -6,8 +6,7 @@
 
 <p>Det här är grunden Trixa planerar din träning från. Allt går att ändra
 senare under <a href="/ui/settings">Inställningar</a>. Fyll i det du vet —
-tomma fält går bra, men zonberäkningen blir bättre ju fler tröskelvärden
-som finns.</p>
+tomma fält går bra.</p>
 
 {% if error %}
 <div class="alert" style="background: var(--coral-soft, #fde8e8); margin-bottom: 16px;">
@@ -15,14 +14,33 @@ som finns.</p>
 </div>
 {% endif %}
 
-<form method="post" action="/ui/onboarding">
+<form method="post" action="/ui/onboarding" id="onboarding-form">
 
   <fieldset>
-    <legend>Ditt mål</legend>
+    <legend>Vad du tränar</legend>
     <p style="font-size: 0.875rem; color: var(--ink-3); margin-top: 0;">
-      Styr hur Trixa väger upplägget — hur hårt det rampas och hur mycket
-      kvalitet veckan tål.
+      Börja här — svaren styr vilka frågor som är relevanta längre ner.
+      Trixa fungerar lika bra för en ren löpare som för en triatlet.
     </p>
+
+    <p style="margin-bottom: 4px;"><strong>Aktiva discipliner</strong></p>
+    {% set active = athlete.sports or ["swim", "bike", "run"] %}
+    {% for sport, label in sports_options %}
+    <label>
+      <input type="checkbox" name="sports" value="{{ sport }}" class="sport-toggle"
+        {% if sport in active %}checked{% endif %}>
+      {{ label }}
+    </label>
+    {% endfor %}
+
+    {% set ex = athlete.experience_level or "" %}
+    <label for="experience_level">Var ligger du i dag?</label>
+    <select id="experience_level" name="experience_level" required>
+      <option value="beginner" {% if ex == "beginner" %}selected{% endif %}>Nybörjare — bygger grundvana</option>
+      <option value="intermediate" {% if ex == "intermediate" or not ex %}selected{% endif %}>Medel — tränar regelbundet, har tävlat</option>
+      <option value="advanced" {% if ex == "advanced" %}selected{% endif %}>Avancerad — flera säsonger med strukturerad träning</option>
+      <option value="elite" {% if ex == "elite" %}selected{% endif %}>Elit — tävlar på hög nivå</option>
+    </select>
 
     {% set g = athlete.goal or "" %}
     <label for="goal">Vad tränar du mot?</label>
@@ -33,117 +51,76 @@ som finns.</p>
       <option value="health" {% if g == "health" %}selected{% endif %}>Hälsa och form</option>
       <option value="comeback" {% if g == "comeback" %}selected{% endif %}>Comeback efter uppehåll</option>
     </select>
-
-    {% set ex = athlete.experience_level or "" %}
-    <label for="experience_level">Var ligger du i dag?</label>
-    <select id="experience_level" name="experience_level" required>
-      <option value="beginner" {% if ex == "beginner" %}selected{% endif %}>Nybörjare — bygger grundvana</option>
-      <option value="intermediate" {% if ex == "intermediate" %}selected{% endif %}>Medel — tränar regelbundet, har tävlat</option>
-      <option value="advanced" {% if ex == "advanced" %}selected{% endif %}>Avancerad — flera säsonger med strukturerad träning</option>
-      <option value="elite" {% if ex == "elite" %}selected{% endif %}>Elit — tävlar på hög nivå</option>
-    </select>
   </fieldset>
 
   <fieldset>
-    <legend>Tröskelvärden</legend>
+    <legend>Din coach</legend>
     <p style="font-size: 0.875rem; color: var(--ink-3); margin-top: 0;">
-      Trixa räknar alla träningszoner från dessa. Ange om värdena kommer
-      från riktiga tester eller är uppskattningar — Trixa påminner när
-      testade värden börjar bli gamla.
+      Träningsläran är densamma oavsett vem du väljer — det är tonen som skiljer.
+      Går att byta när som helst.
     </p>
 
-    <label for="ftp">FTP cykel (watt)</label>
-    <input type="number" id="ftp" name="ftp" min="50" max="500"
-      value="{{ athlete.ftp or '' }}" placeholder="t.ex. 220">
+    <label for="coach_name">Vem vill du att coachen ska vara?</label>
+    <select id="coach_name" name="coach_name">
+      {% for name, blurb in coach_names %}
+      <option value="{{ name }}" {% if athlete.coach_name == name %}selected{% endif %}>{{ name }} — {{ blurb }}</option>
+      {% endfor %}
+      <option value="">Eget namn</option>
+    </select>
 
-    <label for="lthr_bike">Tröskelpuls cykel (bpm)</label>
-    <input type="number" id="lthr_bike" name="lthr_bike" min="80" max="220"
-      value="{{ athlete.lthr_bike or '' }}" placeholder="t.ex. 158">
-
-    <label for="run_threshold_pace">Tröskelpace löpning (min:sek per km)</label>
-    <input type="text" id="run_threshold_pace" name="run_threshold_pace"
-      pattern="[0-9]{1,2}:[0-9]{2}" value="{{ athlete.run_threshold_pace or '' }}"
-      placeholder="t.ex. 5:00">
-
-    <label for="lthr">Tröskelpuls löpning (bpm)</label>
-    <input type="number" id="lthr" name="lthr" min="80" max="220"
-      value="{{ athlete.lthr or '' }}" placeholder="t.ex. 165">
-
-    <label for="swim_css">CSS simning (min:sek per 100 m)</label>
-    <input type="text" id="swim_css" name="swim_css"
-      pattern="[0-9]{1,2}:[0-9]{2}" value="{{ athlete.swim_css or '' }}"
-      placeholder="t.ex. 2:00">
-
-    <label for="max_hr">Maxpuls (bpm)</label>
-    <input type="number" id="max_hr" name="max_hr" min="120" max="230"
-      value="{{ athlete.max_hr or '' }}" placeholder="t.ex. 180">
-
-    <label for="resting_hr">Vilopuls (bpm)</label>
-    <input type="number" id="resting_hr" name="resting_hr" min="30" max="100"
-      value="{{ athlete.resting_hr or '' }}" placeholder="t.ex. 50">
-
-    <div class="rating-row" style="margin-top: 8px;">
-      <strong style="min-width: 160px;">Värdenas källa</strong>
-      <label><input type="radio" name="threshold_source" value="estimate" checked> Uppskattning</label>
-      <label><input type="radio" name="threshold_source" value="test"> Test (senaste 3 mån)</label>
-    </div>
+    <label for="coach_name_custom">…eller skriv ett eget namn</label>
+    <input type="text" id="coach_name_custom" name="coach_name_custom" maxlength="40"
+      placeholder="lämna tomt för att använda valet ovan">
   </fieldset>
 
   <fieldset>
-    <legend>Nästa tävling</legend>
+    <legend>Ditt mål</legend>
     <p style="font-size: 0.875rem; color: var(--ink-3); margin-top: 0;">
-      Periodiseringen räknas bakåt från din nästa viktiga tävling.
-      Fler tävlingar kan läggas till senare.
+      Periodiseringen räknas bakåt från din nästa viktiga tävling. Har du ingen
+      inbokad? Hoppa över — Trixa bygger då mot allmän form och du lägger in
+      loppet när det är klart.
     </p>
 
     <label for="race_name">Tävlingens namn</label>
-    <input type="text" id="race_name" name="race_name" placeholder="t.ex. Ironman Kalmar">
+    <input type="text" id="race_name" name="race_name" placeholder="t.ex. Stockholm Marathon">
 
     <label for="race_date">Datum</label>
     <input type="date" id="race_date" name="race_date">
 
     <label for="race_distance">Distans</label>
-    <select id="race_distance" name="race_distance">
-      <option value="sprint">Sprint</option>
-      <option value="olympic">Olympisk</option>
-      <option value="half">Halv (70.3)</option>
-      <option value="full" selected>Hel (140.6 / Ironman)</option>
-    </select>
+    <select id="race_distance" name="race_distance"
+      data-options='{{ race_distances | tojson }}'></select>
 
-    <label for="race_priority">Prioritet</label>
+    <label for="race_priority">Hur viktig är den?</label>
     <select id="race_priority" name="race_priority">
-      <option value="A" selected>A — huvudtävling</option>
-      <option value="B">B — viktig men inte huvudmål</option>
-      <option value="C">C — genomkörare</option>
+      <option value="A" selected>A — huvudmål, allt annat anpassas efter den</option>
+      <option value="B">B — viktig, men inte säsongens mål</option>
+      <option value="C">C — genomkörare eller träningstävling</option>
     </select>
 
     <label for="race_target">Måltid (tim:min:sek, valfritt)</label>
     <input type="text" id="race_target" name="race_target"
-      pattern="[0-9]{1,2}:[0-9]{2}:[0-9]{2}" placeholder="t.ex. 13:00:00">
+      pattern="[0-9]{1,2}:[0-9]{2}:[0-9]{2}" placeholder="t.ex. 3:45:00">
   </fieldset>
 
   <fieldset>
-    <legend>Din vecka</legend>
+    <legend>Din träningsvecka</legend>
 
     <label for="weekly_hours">Träningstimmar per vecka (mål)</label>
     <input type="number" id="weekly_hours" name="weekly_hours" min="3" max="30" step="0.5"
       value="{{ athlete.weekly_hours or 8 }}">
 
-    <label for="long_bike_day">Dag för cykel-långpass</label>
-    <select id="long_bike_day" name="long_bike_day">
-      <option value="">— spelar ingen roll —</option>
-      {% for day, label in days %}
-      <option value="{{ day }}" {% if athlete.long_bike_day == day %}selected{% endif %}>{{ label }}</option>
-      {% endfor %}
-    </select>
-
-    <label for="long_run_day">Dag för löp-långpass</label>
-    <select id="long_run_day" name="long_run_day">
-      <option value="">— spelar ingen roll —</option>
-      {% for day, label in days %}
-      <option value="{{ day }}" {% if athlete.long_run_day == day %}selected{% endif %}>{{ label }}</option>
-      {% endfor %}
-    </select>
+    {% for field, sport, label in long_day_fields %}
+    <div data-needs-sport="{{ sport }}">
+      <label for="{{ field }}">{{ label }}</label>
+      <select id="{{ field }}" name="{{ field }}">
+        <option value="">— spelar ingen roll —</option>
+        {% for day, day_label in days %}
+        <option value="{{ day }}" {% if athlete[field] == day %}selected{% endif %}>{{ day_label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    {% endfor %}
 
     <p style="margin-bottom: 4px;"><strong>Vilodagar</strong></p>
     {% for day, label in days %}
@@ -158,55 +135,124 @@ som finns.</p>
       <strong style="min-width: 160px;">Belastningscykel</strong>
       <label><input type="radio" name="recovery_week_ratio" value="3:1"
         {% if athlete.recovery_week_ratio != "2:1" %}checked{% endif %}>
-        3:1 — tre veckor belastning, en vilovecka</label>
+        3:1 — tre veckor belastning, en lugnare</label>
       <label><input type="radio" name="recovery_week_ratio" value="2:1"
         {% if athlete.recovery_week_ratio == "2:1" %}checked{% endif %}>
-        2:1 — tätare viloveckor (rekommenderas 50+)</label>
+        2:1 — tätare lugna veckor (rekommenderas 50+)</label>
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Testvärden</legend>
+    <p style="font-size: 0.875rem; color: var(--ink-3); margin-top: 0;">
+      Har du testat FTP, tröskelpuls eller CSS räknar Trixa dina zoner exakt
+      från dem. Har du inte det gör det ingenting — zonerna uppskattas från
+      puls och passdata istället, och du kan fylla i värdena senare.
+    </p>
+
+    <label style="display: block; margin-bottom: 8px;" data-threshold-optin>
+      <input type="checkbox" id="show_thresholds">
+      Jag har testvärden och vill fylla i dem nu
+    </label>
+
+    <div data-threshold-block hidden>
+      {% for field, sport, label, placeholder, kind in threshold_fields %}
+      <div data-needs-sport="{{ sport }}">
+        <label for="{{ field }}">{{ label }}</label>
+        {% if kind == "pace" %}
+        <input type="text" id="{{ field }}" name="{{ field }}"
+          pattern="[0-9]{1,2}:[0-9]{2}" value="{{ athlete[field] or '' }}"
+          placeholder="{{ placeholder }}">
+        {% else %}
+        <input type="number" id="{{ field }}" name="{{ field }}" min="50" max="500"
+          value="{{ athlete[field] or '' }}" placeholder="{{ placeholder }}">
+        {% endif %}
+      </div>
+      {% endfor %}
+
+      <label for="max_hr">Maxpuls (bpm)</label>
+      <input type="number" id="max_hr" name="max_hr" min="120" max="230"
+        value="{{ athlete.max_hr or '' }}" placeholder="t.ex. 180">
+
+      <label for="resting_hr">Vilopuls (bpm)</label>
+      <input type="number" id="resting_hr" name="resting_hr" min="30" max="100"
+        value="{{ athlete.resting_hr or '' }}" placeholder="t.ex. 50">
+
+      <div class="rating-row" style="margin-top: 8px;">
+        <strong style="min-width: 160px;">Var kommer värdena ifrån?</strong>
+        <label><input type="radio" name="threshold_source" value="estimate" checked> Uppskattning</label>
+        <label><input type="radio" name="threshold_source" value="test"> Test (senaste 3 mån)</label>
+      </div>
     </div>
   </fieldset>
 
   <fieldset>
     <legend>Hälsa (valfritt)</legend>
     <p style="font-size: 0.875rem; color: var(--ink-3); margin-top: 0;">
-      Trixa skalar träningen automatiskt runt skador och besvär.
-      Detaljer kan alltid uppdateras under Hälsa-sidan.
+      Trixa skalar träningen runt skador och besvär automatiskt. Sitter något
+      på flera ställen — bägge knäna, båda hälsenorna — markera alla. Kan
+      alltid uppdateras under <a href="/ui/health">Hälsa</a>.
     </p>
 
-    <label for="concern_name">Aktuellt besvär/skada (lämna tomt om inget)</label>
-    <input type="text" id="concern_name" name="concern_name" placeholder="t.ex. Ömhet i korsryggen">
+    {% for slot in [1, 2, 3] %}
+    <div data-concern-slot="{{ slot }}" {% if slot > 1 %}hidden{% endif %}>
+      <label for="concern_name_{{ slot }}">
+        {% if slot == 1 %}Aktuellt besvär eller skada (lämna tomt om inget){% else %}Besvär {{ slot }}{% endif %}
+      </label>
+      <input type="text" id="concern_name_{{ slot }}" name="concern_name_{{ slot }}"
+        placeholder="t.ex. Ömhet i korsryggen">
 
-    <label for="concern_location">Var sitter det?</label>
-    <select id="concern_location" name="concern_location">
-      <option value="">—</option>
-      {% for loc, label in locations %}
-      <option value="{{ loc }}">{{ label }}</option>
-      {% endfor %}
-    </select>
+      <label for="concern_locations_{{ slot }}">Var sitter det? (markera alla som gäller)</label>
+      <select id="concern_locations_{{ slot }}" name="concern_locations_{{ slot }}" multiple size="6">
+        {% for loc, label in locations %}
+        <option value="{{ loc }}">{{ label }}</option>
+        {% endfor %}
+      </select>
 
-    <label for="concern_severity">Allvarlighetsgrad (1 = knappt märkbart, 5 = kan inte träna)</label>
-    <select id="concern_severity" name="concern_severity">
-      {% for s in [1, 2, 3, 4, 5] %}
-      <option value="{{ s }}" {% if s == 2 %}selected{% endif %}>{{ s }}</option>
-      {% endfor %}
-    </select>
+      <label for="concern_severity_{{ slot }}">Hur mycket stör det?</label>
+      <select id="concern_severity_{{ slot }}" name="concern_severity_{{ slot }}">
+        <option value="1">1 — knappt märkbart</option>
+        <option value="2" selected>2 — irriterande</option>
+        <option value="3">3 — påverkar träningen</option>
+        <option value="4">4 — kraftigt begränsande</option>
+        <option value="5">5 — kan inte träna</option>
+      </select>
+    </div>
+    {% endfor %}
 
-    <label for="condition_name">Kroniskt tillstånd med medicinering (lämna tomt om inget)</label>
-    <input type="text" id="condition_name" name="condition_name" placeholder="t.ex. Hypotyreos">
+    <button type="button" class="outline" data-add-concern style="margin-bottom: 14px;">
+      <i data-lucide="plus"></i> Lägg till ett besvär till
+    </button>
 
-    <label for="condition_medication">Medicinering</label>
-    <input type="text" id="condition_medication" name="condition_medication" placeholder="t.ex. Levaxin">
+    {% for slot in [1, 2] %}
+    <div data-condition-slot="{{ slot }}" {% if slot > 1 %}hidden{% endif %}>
+      <label for="condition_name_{{ slot }}">
+        {% if slot == 1 %}Kroniskt tillstånd med medicinering (lämna tomt om inget){% else %}Tillstånd {{ slot }}{% endif %}
+      </label>
+      <input type="text" id="condition_name_{{ slot }}" name="condition_name_{{ slot }}"
+        placeholder="t.ex. Hypotyreos">
+
+      <label for="condition_medication_{{ slot }}">Medicinering</label>
+      <input type="text" id="condition_medication_{{ slot }}" name="condition_medication_{{ slot }}"
+        placeholder="t.ex. Levaxin">
+    </div>
+    {% endfor %}
+
+    <button type="button" class="outline" data-add-condition>
+      <i data-lucide="plus"></i> Lägg till ett tillstånd till
+    </button>
   </fieldset>
 
-  <fieldset>
-    <legend>Nutrition</legend>
+  <fieldset data-needs-sport="tri" data-needs-level="advanced elite">
+    <legend>Tävlingsnutrition</legend>
     <p style="font-size: 0.875rem; color: var(--ink-3); margin-top: 0;">
-      Generella riktvärden är {{ nutrition_defaults.race_carbs_per_hour_g }} g kolhydrat/h under
+      Riktvärden är {{ nutrition_defaults.race_carbs_per_hour_g }} g kolhydrat/h under
       tävling och {{ nutrition_defaults.carb_load_g_per_kg_per_day }} g/kg/dag vid laddning.
       Justera om du vet att din mage kräver annat — och träna alltid
       tävlingsintaget i långpass först.
     </p>
 
-    <label for="race_carbs">Kolhydrater under tävling (g/h, lämna tomt för default)</label>
+    <label for="race_carbs">Kolhydrater under tävling (g/h, lämna tomt för riktvärdet)</label>
     <input type="number" id="race_carbs" name="race_carbs" min="40" max="120"
       value="{{ athlete.race_carbs_per_hour_g or '' }}">
 
@@ -216,5 +262,114 @@ som finns.</p>
 
   <button type="submit"><i data-lucide="check"></i> Spara och kom igång</button>
 </form>
+
+<script>
+(function () {
+  var form = document.getElementById("onboarding-form");
+  if (!form) return;
+
+  var levelSelect = document.getElementById("experience_level");
+  var thresholdOptIn = document.getElementById("show_thresholds");
+  var distanceSelect = document.getElementById("race_distance");
+  var allDistances = JSON.parse(distanceSelect.getAttribute("data-options") || "[]");
+
+  function activeSports() {
+    return Array.prototype.filter
+      .call(form.querySelectorAll(".sport-toggle"), function (cb) { return cb.checked; })
+      .map(function (cb) { return cb.value; });
+  }
+
+  // "tri" = alla tre uthållighetsgrenarna igång. Annars matchar vi grenkod.
+  function sportMatches(requirement, sports) {
+    if (requirement === "any") return true;
+    if (requirement === "tri") {
+      return ["swim", "bike", "run"].every(function (s) { return sports.indexOf(s) !== -1; });
+    }
+    return requirement.split(" ").some(function (s) { return sports.indexOf(s) !== -1; });
+  }
+
+  // Distansvalet byggs om från grunden — att dölja <option> är inte pålitligt
+  // i alla webbläsare, och en tom lista är bättre än ett felaktigt val.
+  function rebuildDistances() {
+    var sports = activeSports();
+    var previous = distanceSelect.value;
+    distanceSelect.innerHTML = "";
+    allDistances.forEach(function (row) {
+      var value = row[0], label = row[1], requires = row[2];
+      if (!sportMatches(requires, sports)) return;
+      var option = document.createElement("option");
+      option.value = value;
+      option.textContent = label;
+      distanceSelect.appendChild(option);
+    });
+    if (Array.prototype.some.call(distanceSelect.options, function (o) { return o.value === previous; })) {
+      distanceSelect.value = previous;
+    }
+  }
+
+  var EXPERIENCED = ["advanced", "elite"];
+
+  function applyVisibility() {
+    var sports = activeSports();
+    var level = levelSelect.value;
+
+    // Ett element kan kräva både gren och nivå — båda villkoren i samma pass,
+    // annars skriver den ena loopen över den andras beslut.
+    form.querySelectorAll("[data-needs-sport], [data-needs-level]").forEach(function (el) {
+      var needsSport = el.getAttribute("data-needs-sport");
+      var needsLevel = el.getAttribute("data-needs-level");
+      var ok = true;
+      if (needsSport) ok = ok && sportMatches(needsSport, sports);
+      if (needsLevel) ok = ok && needsLevel.split(" ").indexOf(level) !== -1;
+      el.hidden = !ok;
+    });
+
+    // Testvärden visas för den erfarne — och för alla andra som säger att de
+    // har siffrorna. Kryssrutan behövs bara när nivån inte redan öppnat blocket.
+    var levelGrantsThresholds = EXPERIENCED.indexOf(level) !== -1;
+    var optInRow = form.querySelector("[data-threshold-optin]");
+    var block = form.querySelector("[data-threshold-block]");
+    if (optInRow) optInRow.hidden = levelGrantsThresholds;
+    if (block) {
+      block.hidden = !(levelGrantsThresholds || (thresholdOptIn && thresholdOptIn.checked));
+      // Grenfälten inuti blocket följer aktiva discipliner även när blocket
+      // öppnas av kryssrutan.
+      block.querySelectorAll("[data-needs-sport]").forEach(function (el) {
+        el.hidden = !sportMatches(el.getAttribute("data-needs-sport"), sports);
+      });
+    }
+
+    rebuildDistances();
+  }
+
+  function revealNext(selector) {
+    var hidden = Array.prototype.filter.call(
+      form.querySelectorAll(selector), function (el) { return el.hidden; });
+    if (hidden.length) hidden[0].hidden = false;
+    return hidden.length > 1;
+  }
+
+  form.querySelectorAll(".sport-toggle").forEach(function (cb) {
+    cb.addEventListener("change", applyVisibility);
+  });
+  levelSelect.addEventListener("change", applyVisibility);
+  if (thresholdOptIn) thresholdOptIn.addEventListener("change", applyVisibility);
+
+  var addConcern = form.querySelector("[data-add-concern]");
+  if (addConcern) {
+    addConcern.addEventListener("click", function () {
+      addConcern.hidden = !revealNext("[data-concern-slot]");
+    });
+  }
+  var addCondition = form.querySelector("[data-add-condition]");
+  if (addCondition) {
+    addCondition.addEventListener("click", function () {
+      addCondition.hidden = !revealNext("[data-condition-slot]");
+    });
+  }
+
+  applyVisibility();
+})();
+</script>
 
 {% endblock %}

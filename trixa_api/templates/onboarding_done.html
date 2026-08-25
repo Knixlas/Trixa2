@@ -1,0 +1,141 @@
+{% extends "base.html" %}
+{% block title %}Klart — Trixa{% endblock %}
+{% block content %}
+
+<h1>Klart. Det här vet Trixa nu.</h1>
+
+<p>Kolla att det stämmer — allt går att ändra, och du behöver inte gå igenom
+formuläret igen för att göra det.</p>
+
+<section>
+  <h2>Din träning</h2>
+  <table style="width: 100%; font-size: 0.9375rem; border-collapse: collapse;">
+    <tbody>
+      <tr style="border-top: 1px solid var(--line);">
+        <th style="text-align: left; padding: 8px 0; width: 40%;">Discipliner</th>
+        <td>{{ sport_labels | join(", ") if sport_labels else "—" }}</td>
+      </tr>
+      <tr style="border-top: 1px solid var(--line);">
+        <th style="text-align: left; padding: 8px 0;">Nivå</th>
+        <td>
+          {% set levels = {"beginner": "Nybörjare", "intermediate": "Medel",
+                           "advanced": "Avancerad", "elite": "Elit"} %}
+          {{ levels.get(athlete.experience_level, athlete.experience_level or "—") }}
+        </td>
+      </tr>
+      <tr style="border-top: 1px solid var(--line);">
+        <th style="text-align: left; padding: 8px 0;">Mål</th>
+        <td>
+          {% set goals = {"first_race": "Min första tävling", "pr": "Slå personbästa",
+                          "ironman": "Ironman", "health": "Hälsa och form",
+                          "comeback": "Comeback efter uppehåll"} %}
+          {{ goals.get(athlete.goal, athlete.goal or "—") }}
+        </td>
+      </tr>
+      <tr style="border-top: 1px solid var(--line);">
+        <th style="text-align: left; padding: 8px 0;">Veckoram</th>
+        <td>
+          {{ athlete.weekly_hours or "—" }} h/vecka,
+          belastningscykel {{ athlete.recovery_week_ratio or "3:1" }}
+          {% if athlete.preferred_rest_days %}
+          · vilodagar:
+          {%- for day in athlete.preferred_rest_days %}
+            {{ day_labels.get(day, day) }}{{ "," if not loop.last }}
+          {%- endfor %}
+          {% endif %}
+        </td>
+      </tr>
+      <tr style="border-top: 1px solid var(--line);">
+        <th style="text-align: left; padding: 8px 0;">Din coach</th>
+        <td>{{ coach_name }}</td>
+      </tr>
+    </tbody>
+  </table>
+  <p style="font-size: 0.875rem;"><a href="/ui/settings">Ändra under Inställningar</a></p>
+</section>
+
+<section>
+  <h2>Ditt mål</h2>
+  {% if races %}
+  <table style="width: 100%; font-size: 0.9375rem; border-collapse: collapse;">
+    <thead><tr style="text-align: left; color: var(--ink-3);">
+      <th>Tävling</th><th>Datum</th><th>Distans</th><th>Prio</th><th>Måltid</th>
+    </tr></thead>
+    <tbody>
+      {% for r in races %}
+      <tr style="border-top: 1px solid var(--line);">
+        <td>{{ r.name }}</td>
+        <td>{{ r.date }}</td>
+        <td>{{ distance_labels.get(r.distance, r.distance) }}</td>
+        <td>{{ r.priority }}</td>
+        <td>{{ r.target_total or "—" }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <p style="font-size: 0.875rem; color: var(--ink-3);">
+    Periodiseringen räknas bakåt från din närmaste A-tävling.
+  </p>
+  {% else %}
+  <p>Ingen tävling inlagd. Trixa bygger då mot allmän form — lägg in ett lopp
+  under <a href="/ui/settings">Inställningar</a> när det är bokat, så läggs
+  periodiseringen om.</p>
+  {% endif %}
+</section>
+
+<section>
+  <h2>Zoner</h2>
+  {% if has_thresholds %}
+  <p>Testvärden finns, så dina zoner räknas exakt från dem. Trixa säger till när
+  värdena börjar bli gamla.</p>
+  {% else %}
+  <p>Inga testvärden angivna. Zonerna uppskattas från puls och genomförda pass
+  tills du testar — planen fungerar, men blir träffsäkrare med riktiga siffror.
+  Fyll i dem under <a href="/ui/settings">Inställningar</a> när du har dem.</p>
+  {% endif %}
+</section>
+
+{% if concerns or conditions %}
+<section>
+  <h2>Hälsa</h2>
+  <ul>
+    {% for c in concerns %}
+    <li>
+      <strong>{{ c.name }}</strong>
+      {% set where = location_text(c) %}
+      {% if where %} — {{ where }}{% endif %}
+      {% if c.severity %} (grad {{ c.severity }}/5){% endif %}
+    </li>
+    {% endfor %}
+    {% for c in conditions %}
+    <li>
+      <strong>{{ c.name }}</strong>
+      {% if c.medication %} — {{ c.medication }}{% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+  <p style="font-size: 0.875rem; color: var(--ink-3);">
+    Trixa skalar belastningen runt det här automatiskt. Uppdatera läget under
+    <a href="/ui/health">Hälsa</a> när något ändras — det är den enskilt
+    viktigaste signalen för att planen ska hålla.
+  </p>
+</section>
+{% endif %}
+
+<section>
+  <h2>Nästa steg</h2>
+  <ol>
+    <li><strong>Koppla din klocka.</strong> Trixa läser genomförda pass, sömn och
+      HRV via TrainingPeaks. Utan den kopplingen planerar Trixa i blindo.
+      <a href="/ui/settings">Koppla under Inställningar</a>.</li>
+    <li><strong>Titta på veckan.</strong> Din första plan ligger redan på
+      <a href="/ui/">startsidan</a>.</li>
+    <li><strong>Rapportera in hur det går.</strong> En kort
+      <a href="/ui/report">veckorapport</a> är det som gör att planen justeras
+      istället för att bara rulla på.</li>
+  </ol>
+</section>
+
+<a href="/ui/" role="button"><i data-lucide="arrow-right"></i> Till min vecka</a>
+
+{% endblock %}

@@ -28,7 +28,8 @@ Partial impact byter hårda pass mot lugna AE-pass i den disciplinen.</p>
   </div>
 
   <p style="margin: 8px 0 0; font-size: 13.5px;">
-    {% if c.location %}<strong>Kroppsdel:</strong> {{ c.location }}{% endif %}
+    {% set where = location_text(c) %}
+    {% if where %}<strong>Kroppsdel:</strong> {{ where }}{% endif %}
     {% if c.since_date %} &nbsp;·&nbsp; <strong>Sedan:</strong> {{ c.since_date }}{% endif %}
     {% if c.follow_up_by %} &nbsp;·&nbsp; <strong>Följs upp av:</strong> {{ c.follow_up_by }}{% endif %}
   </p>
@@ -67,9 +68,8 @@ Partial impact byter hårda pass mot lugna AE-pass i den disciplinen.</p>
 
     <div class="grid">
       <div>
-        <label for="location">Kroppsdel</label>
-        <select id="location" name="location">
-          <option value="">— ej angiven —</option>
+        <label for="locations">Kroppsdel (markera alla som gäller)</label>
+        <select id="locations" name="locations" multiple size="6">
           {% for loc, label in locations %}
           <option value="{{ loc }}">{{ label }}</option>
           {% endfor %}
