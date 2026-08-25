@@ -18,6 +18,33 @@ som finns.</p>
 <form method="post" action="/ui/onboarding">
 
   <fieldset>
+    <legend>Ditt mål</legend>
+    <p style="font-size: 0.875rem; color: var(--ink-3); margin-top: 0;">
+      Styr hur Trixa väger upplägget — hur hårt det rampas och hur mycket
+      kvalitet veckan tål.
+    </p>
+
+    {% set g = athlete.goal or "" %}
+    <label for="goal">Vad tränar du mot?</label>
+    <select id="goal" name="goal" required>
+      <option value="first_race" {% if g == "first_race" %}selected{% endif %}>Min första tävling</option>
+      <option value="pr" {% if g == "pr" %}selected{% endif %}>Slå mitt personbästa</option>
+      <option value="ironman" {% if g == "ironman" %}selected{% endif %}>Ironman</option>
+      <option value="health" {% if g == "health" %}selected{% endif %}>Hälsa och form</option>
+      <option value="comeback" {% if g == "comeback" %}selected{% endif %}>Comeback efter uppehåll</option>
+    </select>
+
+    {% set ex = athlete.experience_level or "" %}
+    <label for="experience_level">Var ligger du i dag?</label>
+    <select id="experience_level" name="experience_level" required>
+      <option value="beginner" {% if ex == "beginner" %}selected{% endif %}>Nybörjare — bygger grundvana</option>
+      <option value="intermediate" {% if ex == "intermediate" %}selected{% endif %}>Medel — tränar regelbundet, har tävlat</option>
+      <option value="advanced" {% if ex == "advanced" %}selected{% endif %}>Avancerad — flera säsonger med strukturerad träning</option>
+      <option value="elite" {% if ex == "elite" %}selected{% endif %}>Elit — tävlar på hög nivå</option>
+    </select>
+  </fieldset>
+
+  <fieldset>
     <legend>Tröskelvärden</legend>
     <p style="font-size: 0.875rem; color: var(--ink-3); margin-top: 0;">
       Trixa räknar alla träningszoner från dessa. Ange om värdena kommer

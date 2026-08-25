@@ -1841,6 +1841,8 @@ def onboarding_form(request: Request, error: str = "") -> HTMLResponse:
 @router.post("/onboarding")
 def onboarding_submit(
     request: Request,
+    goal: str = Form(""),
+    experience_level: str = Form(""),
     ftp: str = Form(""),
     lthr_bike: str = Form(""),
     run_threshold_pace: str = Form(""),
@@ -1914,6 +1916,13 @@ def onboarding_submit(
         "nutrition_notes": nutrition_notes.strip(),
         "onboarded_at": datetime.now(timezone.utc).isoformat(),
     }
+
+    # goal och experience_level är NOT NULL + CHECK i DB: skriv bara giltiga
+    # värden, annars behålls raden's defaults (ironman/intermediate).
+    if (goal or "").strip() in _GOALS:
+        update["goal"] = goal.strip()
+    if experience_level in _EXPERIENCE_LEVELS:
+        update["experience_level"] = experience_level
 
     # Hälsa — samma jsonb-strukturer som Hälsa-sidan använder
     if concern_name.strip():
