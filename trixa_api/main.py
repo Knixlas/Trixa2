@@ -70,10 +70,16 @@ app.add_middleware(
 # Mounta UI-routes (publikt — egen auth kommer i framtid)
 app.include_router(ui_router)
 
-# Mounta agent-API:t (/agent/*) — per-adept Bearer-token (extern AI: Nils m.fl.)
+# Mounta agent-API:t (/agent/*) — per-adept Bearer-token (extern AI: coachen m.fl.)
 from trixa_api.agent_api import router as agent_router  # noqa: E402
 
 app.include_router(agent_router)
+
+# Mounta MCP-servern (/mcp) — samma per-adept-token, men talat som MCP så en
+# AI-klient kan koppla upp sig direkt. Se docs/11_MCP_CONNECTOR.md.
+from trixa_api.mcp_server import router as mcp_router  # noqa: E402
+
+app.include_router(mcp_router)
 
 # Servera temat (trixa.css m.m.) — tropical-temats stylesheet ligger i trixa_api/static
 app.mount(

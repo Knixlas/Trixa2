@@ -178,7 +178,9 @@ Trixa2/
 │   │   └── nils.yml               ← Nils-persona (uppladdad i projektkunskap)
 │   └── trixa/                  ← planner, cron, races, alerts, db
 ├── trixa_api/                  ← FastAPI + /ui (login, signup, onboarding, settings)
-├── db/migrations/              ← 001-009 (008 user-fält, 009 races)
+│   ├── agent_api.py            ← /agent/* REST, per-adept Bearer-token
+│   └── mcp_server.py           ← /mcp MCP-server (samma token, MCP-protokoll)
+├── db/migrations/              ← 001-010 (008 user-fält, 009 races, 010 coach_name + grendistanser)
 └── coach/tests/
 ```
 
@@ -306,6 +308,33 @@ Projektet (CLAUDE.md + md-källdokument + kod) bär delad kunskap. Tråden är a
 - ✓ **Go-live läs-väg (2026-06-07):** TP Premium ✓, Garmin↔TP AutoSync ✓, cookie i `public.tp_auth` ✓ (RLS på). Garmin-synken var redan **död** sedan 1 juni (MFA-token, "CI utan TTY"); TP tog vid rent vid gapet (skarp `run_sync` 2–7 juni). Verifierat: TP-matad RHR/HRV/sömn + **`load_ratio` nu fylld** (0.81–1.20, var alltid NULL). Engine läser TP-datan (`tunga_lastveckor` lever). Live-fält-fixar: faktisk passtid = `totalTime` (h), sporttyp = `workoutTypeValueId`, `garmin_activity_id` = bigint (TP workoutId).
 - ✓ **Garmin pensionerad (2026-06-07):** GitHub-workflowen "Garmin Sync" `disabled_manually` via `gh`, och `schedule`-triggern borttagen i `sync.yml` (workflow_dispatch kvar för rollback). Strava-resolvern lämnad som vilande fallback (läser `strava_activities`, får ingen ny data).
 - ☐ Kvar (Niklas, Railway): sätt `TRIXA_TP_SYNC=1` + `TRIXA_PUSH_TO_TP=1` på workern för automatisk daglig sync + pass-push (körs manuellt tills dess); ev. Railway-garmin-worker tas bort om en sådan service finns; live-test av skriv-vägen (pass→klocka).
+
+**AI-uppkoppling (2026-08-25):**
+- ✓ `/mcp` — MCP-server (streamable HTTP, JSON-RPC 2.0) ovanpå `/agent/*`.
+  Stateless, per-adept-Bearer-token, 8 verktyg. Verifierad end-to-end mot
+  live-data (handskakning, tools/list, whoami, get_week, get_recovery,
+  get_training_log, revoke → 401). 12 tester i `coach/tests/test_mcp_server.py`.
+  Setup: `docs/11_MCP_CONNECTOR.md`.
+- ✓ Claude Code / Claude Desktop / Cursor kan koppla in sig i dag
+  (`claude mcp add --transport http trixa <url>/mcp --header "Authorization: Bearer …"`).
+- ☐ **claude.ai (webb/mobil) kan INTE** — custom connectors där kan inte sätta
+  egen Authorization-header, de förhandlar OAuth. Nästa etapp: OAuth 2.1 + DCR
+  + PKCE framför `/mcp`, med Supabase Auth som identitet. Verktygsytan ändras
+  inte av det. Token i URL är INTE ett alternativ (läcker i loggar).
+
+**Onboarding generaliserad (2026-08-25):**
+- Formuläret antog erfaren triatlet. Nu: aktiva discipliner + erfarenhetsnivå
+  frågas först och styr resten. Tröskelvärden visas för advanced/elite (eller
+  via kryssrutan "jag har testvärden"), nutrition bara för tri-erfarna,
+  långpassdagar bara för aktiva grenar, distanslistan byggs per gren.
+- Coachnamn är adeptens val (vallista + eget namn) — "Nils" är borta ur all
+  adept-vänd text. Personan lever kvar i `coach/personas/nils.yml` och som
+  `origin='nils'` i datamodellen.
+- Besvär kan sitta på flera kroppsdelar (`locations`-lista; `location` kvar för
+  äldre läsvägar) och adepten kan ange upp till 3 besvär + 2 tillstånd direkt.
+- Ny kvittenssida `/ui/onboarding/klart` speglar svaren + nästa steg.
+- Migration 010: `coach_name`, `onboarding_version`, vidgad `races.distance`.
+  **Applicerad i Supabase 2026-08-25.**
 
 **Pågående (Trixa-go-live-spår startat 2026-05-25):**
 - ☐ Supabase: strukturerad datamodell (injuries-jsonb, health_conditions, weekly_reports, coach_overrides)

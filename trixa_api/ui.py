@@ -484,7 +484,14 @@ _EXPERIENCE_LEVELS = {"beginner", "intermediate", "advanced", "elite"}
 _GOALS = {"first_race", "pr", "ironman", "health", "comeback"}
 # Tävlingsdistanser (athlete_profiles.race_type lagras som fritext men styrs
 # av en lista så motorns label blir konsekvent). "ironman" = full 140.6.
-_RACE_TYPES = {"sprint", "olympic", "half", "full", "ironman", "other"}
+# Enkelgrensdistanserna kom med migration 010 — Trixa är inte bara för triatleter.
+_RACE_TYPES = {
+    "sprint", "olympic", "half", "full", "ironman",
+    "5k", "10k", "half_marathon", "marathon", "ultra",
+    "gran_fondo", "time_trial", "stage_race",
+    "open_water", "swim_meet",
+    "other",
+}
 
 
 def _clean_pace(v: str | None) -> str | None:
@@ -497,6 +504,7 @@ def _clean_pace(v: str | None) -> str | None:
 @router.post("/settings/profile")
 def settings_profile(
     request: Request,
+    coach_name: str = Form(""),
     goal: str = Form(""),
     experience_level: str = Form(""),
     weekly_hours: float | None = Form(None),
@@ -520,6 +528,7 @@ def settings_profile(
     if not uid:
         raise HTTPException(401, "Inte inloggad")
     update: dict = {
+        "coach_name": (coach_name or "").strip()[:40] or None,
         "weekly_hours": weekly_hours if weekly_hours and weekly_hours > 0 else None,
         "weekly_days": weekly_days if weekly_days and 1 <= weekly_days <= 7 else None,
         "race_type": race_type if race_type in _RACE_TYPES else None,
@@ -1808,6 +1817,87 @@ _DISCIPLINES_FOR_IMPACT = [
     ("strength", "Styrka"),
 ]
 
+_LOCATION_LABELS = dict(_BODY_LOCATIONS)
+
+
+def _public_base_url(request: Request) -> str:
+    """Adressen adepten ska peka sin AI-klient på.
+
+    Bakom Railways proxy stämmer inte alltid ``request.base_url`` (den kan bli
+    http:// eller den interna porten), så TRIXA_PUBLIC_URL vinner när den är satt.
+    """
+    configured = os.environ.get("TRIXA_PUBLIC_URL", "").strip()
+    if configured:
+        return configured.rstrip("/")
+    return str(request.base_url).rstrip("/")
+
+
+def _location_text(concern: dict) -> str:
+    """Kroppsdelar för ett besvär som läsbar svensk text.
+
+    Besvär kan sitta på flera ställen samtidigt (bägge knäna, båda hälsenorna).
+    Nya rader bär ``locations`` som lista; äldre rader har bara ``location``
+    som enskild nyckel — båda ska visas.
+    """
+    keys = concern.get("locations") or ([concern["location"]] if concern.get("location") else [])
+    labels = [_LOCATION_LABELS.get(k, k) for k in keys if k]
+    return ", ".join(labels)
+
+
+# ---------- Onboarding: valen som styr hur formuläret ser ut ----------
+
+# Coachens namn är adeptens val, inte ett produktnamn. Personligheterna skiljer
+# sig i ton, inte i träningslära — motorn är densamma bakom alla.
+_COACH_NAMES = [
+    ("Nils", "lugn och rak, förklarar sällan två gånger"),
+    ("Maja", "driver på, tar i när du har marginal"),
+    ("Anders", "teknikfokuserad, bryr sig om detaljerna"),
+    ("Elin", "pedagogisk, motiverar varje pass"),
+    ("Sam", "kort och konkret, inga utsvävningar"),
+]
+
+# Tävlingsdistanser per gren. ``requires`` styr när alternativet visas:
+# "tri" = adepten har sim + cykel + löpning igång, annars grenens egen kod.
+# Speglar CHECK-constraint på races.distance (migration 010).
+_RACE_DISTANCES = [
+    ("sprint", "Triathlon sprint", "tri"),
+    ("olympic", "Triathlon olympisk", "tri"),
+    ("half", "Triathlon halv (70.3)", "tri"),
+    ("full", "Triathlon hel (140.6)", "tri"),
+    ("5k", "5 km", "run"),
+    ("10k", "10 km", "run"),
+    ("half_marathon", "Halvmaraton", "run"),
+    ("marathon", "Maraton", "run"),
+    ("ultra", "Ultralopp", "run"),
+    ("gran_fondo", "Långlopp", "bike"),
+    ("time_trial", "Tempolopp", "bike"),
+    ("stage_race", "Etapplopp", "bike"),
+    ("open_water", "Öppet vatten", "swim"),
+    ("swim_meet", "Bassängtävling", "swim"),
+    ("other", "Annat", "any"),
+]
+
+_RACE_DISTANCE_VALUES = {value for value, _label, _req in _RACE_DISTANCES}
+
+# Långpassdag är bara meningsfull för uthållighetsgrenarna.
+_LONG_DAY_FIELDS = [
+    ("long_bike_day", "bike", "Dag för långt cykelpass"),
+    ("long_run_day", "run", "Dag för långt löppass"),
+]
+
+# Tröskelfält per gren — en simmare ska inte mötas av FTP-rutan.
+_THRESHOLD_FIELDS = [
+    ("ftp", "bike", "FTP cykel (watt)", "t.ex. 220", "number"),
+    ("lthr_bike", "bike", "Tröskelpuls cykel (bpm)", "t.ex. 158", "number"),
+    ("run_threshold_pace", "run", "Tröskelpace löpning (min:sek per km)", "t.ex. 5:00", "pace"),
+    ("lthr", "run", "Tröskelpuls löpning (bpm)", "t.ex. 165", "number"),
+    ("swim_css", "swim", "CSS simning (min:sek per 100 m)", "t.ex. 2:00", "pace"),
+]
+
+# Bumpas när formuläret får nya frågor, så vi kan efterfråga bara det som
+# saknas istället för att köra om hela onboardingen.
+ONBOARDING_VERSION = 1
+
 
 # ---------- Onboarding (första inloggningen — grunddata för planeringen) ----------
 
@@ -1832,6 +1922,12 @@ def onboarding_form(request: Request, error: str = "") -> HTMLResponse:
             "athlete": athlete,
             "days": _DAY_LABELS,
             "locations": _BODY_LOCATIONS,
+            "sports_options": _SPORT_OPTIONS,
+            "base_url": _public_base_url(request),
+            "coach_names": _COACH_NAMES,
+            "race_distances": _RACE_DISTANCES,
+            "long_day_fields": _LONG_DAY_FIELDS,
+            "threshold_fields": _THRESHOLD_FIELDS,
             "nutrition_defaults": nutrition_defaults,
             "error": error,
         },
@@ -1841,6 +1937,9 @@ def onboarding_form(request: Request, error: str = "") -> HTMLResponse:
 @router.post("/onboarding")
 def onboarding_submit(
     request: Request,
+    coach_name: str = Form(""),
+    coach_name_custom: str = Form(""),
+    sports: list[str] = Form(default=[]),
     goal: str = Form(""),
     experience_level: str = Form(""),
     ftp: str = Form(""),
@@ -1853,7 +1952,7 @@ def onboarding_submit(
     threshold_source: str = Form("estimate"),
     race_name: str = Form(""),
     race_date: str = Form(""),
-    race_distance: str = Form("full"),
+    race_distance: str = Form(""),
     race_priority: str = Form("A"),
     race_target: str = Form(""),
     weekly_hours: str = Form("8"),
@@ -1861,11 +1960,19 @@ def onboarding_submit(
     long_run_day: str = Form(""),
     rest_days: list[str] = Form(default=[]),
     recovery_week_ratio: str = Form("3:1"),
-    concern_name: str = Form(""),
-    concern_location: str = Form(""),
-    concern_severity: str = Form("2"),
-    condition_name: str = Form(""),
-    condition_medication: str = Form(""),
+    concern_name_1: str = Form(""),
+    concern_locations_1: list[str] = Form(default=[]),
+    concern_severity_1: str = Form("2"),
+    concern_name_2: str = Form(""),
+    concern_locations_2: list[str] = Form(default=[]),
+    concern_severity_2: str = Form("2"),
+    concern_name_3: str = Form(""),
+    concern_locations_3: list[str] = Form(default=[]),
+    concern_severity_3: str = Form("2"),
+    condition_name_1: str = Form(""),
+    condition_medication_1: str = Form(""),
+    condition_name_2: str = Form(""),
+    condition_medication_2: str = Form(""),
     race_carbs: str = Form(""),
     nutrition_notes: str = Form(""),
 ) -> Any:
@@ -1896,7 +2003,16 @@ def onboarding_submit(
         if str(filled).strip()
     }
 
+    # Aktiva discipliner styr resten av formuläret. Tom lista = adepten kryssade
+    # ur allt; då är sim/cykel/löpning en rimligare utgångspunkt än ingenting.
+    valid_sports = [s for s, _label in _SPORT_OPTIONS]
+    active_sports = [s for s in sports if s in valid_sports] or ["swim", "bike", "run"]
+
+    chosen_coach = (coach_name_custom.strip() or coach_name.strip())[:40] or None
+
     update: dict = {
+        "coach_name": chosen_coach,
+        "sports": active_sports,
         "ftp": _int_or_none(ftp),
         "lthr_bike": _int_or_none(lthr_bike),
         "lthr": _int_or_none(lthr),
@@ -1906,8 +2022,10 @@ def onboarding_submit(
         "swim_css": swim_css.strip() or None,
         "threshold_meta": threshold_meta,
         "weekly_hours": _float_or_none(weekly_hours) or 6,
-        "long_bike_day": long_bike_day or None,
-        "long_run_day": long_run_day or None,
+        # Långpassdagar hör till grenar adepten faktiskt kör — en ren simmare
+        # ska inte få ett cykel-långpass inbokat för att fältet råkade skickas.
+        "long_bike_day": (long_bike_day or None) if "bike" in active_sports else None,
+        "long_run_day": (long_run_day or None) if "run" in active_sports else None,
         "preferred_rest_days": [d for d in rest_days if d in dict(_DAY_LABELS)],
         "recovery_week_ratio": (
             recovery_week_ratio if recovery_week_ratio in ("3:1", "2:1") else "3:1"
@@ -1915,6 +2033,7 @@ def onboarding_submit(
         "race_carbs_per_hour_g": _int_or_none(race_carbs),
         "nutrition_notes": nutrition_notes.strip(),
         "onboarded_at": datetime.now(timezone.utc).isoformat(),
+        "onboarding_version": ONBOARDING_VERSION,
     }
 
     # goal och experience_level är NOT NULL + CHECK i DB: skriv bara giltiga
@@ -1924,50 +2043,128 @@ def onboarding_submit(
     if experience_level in _EXPERIENCE_LEVELS:
         update["experience_level"] = experience_level
 
-    # Hälsa — samma jsonb-strukturer som Hälsa-sidan använder
-    if concern_name.strip():
-        update["active_concerns"] = (athlete.get("active_concerns") or []) + [{
-            "name": concern_name.strip(),
-            "location": concern_location or "other",
-            "severity": _int_or_none(concern_severity) or 2,
+    # Hälsa — samma jsonb-strukturer som Hälsa-sidan använder. Ett besvär kan
+    # sitta på flera ställen (bägge knäna) och adepten kan ha flera besvär
+    # samtidigt, så både platser och rader är listor.
+    concerns = []
+    for name, locations, severity in (
+        (concern_name_1, concern_locations_1, concern_severity_1),
+        (concern_name_2, concern_locations_2, concern_severity_2),
+        (concern_name_3, concern_locations_3, concern_severity_3),
+    ):
+        if not name.strip():
+            continue
+        locs = [loc for loc in locations if loc in _LOCATION_LABELS] or ["other"]
+        concerns.append({
+            "name": name.strip(),
+            # location (singular) behålls för äldre läsvägar; locations är sanningen
+            "location": locs[0],
+            "locations": locs,
+            "severity": _int_or_none(severity) or 2,
             "since_date": today_iso,
             "needs_followup": False,
             "follow_up_by": None,
             "notes": None,
             "impact_per_discipline": {},
-        }]
-    if condition_name.strip():
-        update["health_conditions"] = (athlete.get("health_conditions") or []) + [{
-            "name": condition_name.strip(),
-            "medication": condition_medication.strip() or None,
+        })
+    if concerns:
+        update["active_concerns"] = (athlete.get("active_concerns") or []) + concerns
+
+    conditions = []
+    for name, medication in (
+        (condition_name_1, condition_medication_1),
+        (condition_name_2, condition_medication_2),
+    ):
+        if not name.strip():
+            continue
+        conditions.append({
+            "name": name.strip(),
+            "medication": medication.strip() or None,
             "dose": None,
             "diagnosed_year": None,
             "notes": None,
-        }]
+        })
+    if conditions:
+        update["health_conditions"] = (athlete.get("health_conditions") or []) + conditions
 
     client.table("athlete_profiles").update(update).eq("id", athlete_id).execute()
 
-    # Nästa tävling → races-kalendern (denormaliserad kopia i race_date behålls
-    # som fallback för äldre läsvägar)
+    # Målet → races-kalendern (denormaliserad kopia i race_date behålls som
+    # fallback för äldre läsvägar). Distansen är grenberoende sedan migration
+    # 010 — en löpare lägger in "marathon", inte en triathlondistans.
+    distance = race_distance if race_distance in _RACE_DISTANCE_VALUES else "other"
     if race_name.strip() and race_date.strip():
         try:
             client.table("races").insert({
                 "athlete_id": athlete_id,
                 "name": race_name.strip(),
                 "date": race_date.strip(),
-                "distance": race_distance if race_distance in (
-                    "sprint", "olympic", "half", "full"
-                ) else "full",
+                "distance": distance,
                 "priority": race_priority if race_priority in ("A", "B", "C") else "A",
                 "target_total": race_target.strip() or None,
             }).execute()
-            client.table("athlete_profiles").update(
-                {"race_date": race_date.strip(), "race_type": "ironman" if race_distance == "full" else race_distance}
-            ).eq("id", athlete_id).execute()
+            client.table("athlete_profiles").update({
+                "race_date": race_date.strip(),
+                "race_type": "ironman" if distance == "full" else distance,
+            }).eq("id", athlete_id).execute()
         except Exception:  # noqa: BLE001 — tävlingen kan läggas till senare
-            pass
+            logger.exception("Kunde inte spara tävlingen från onboardingen")
 
-    return RedirectResponse(url="/ui/", status_code=303)
+    return RedirectResponse(url="/ui/onboarding/klart", status_code=303)
+
+
+@router.get("/onboarding/klart", response_class=HTMLResponse)
+def onboarding_done(request: Request) -> HTMLResponse:
+    """Kvittens efter onboardingen: vad Trixa nu vet, och vad som händer sedan.
+
+    Formuläret är långt och en rak redirect till dashboarden gjorde det omöjligt
+    att se om något faktiskt fastnade. Här speglas svaren tillbaka, med länkar
+    till där de ändras.
+    """
+    user_id = _current_user_id(request)
+    client = get_postgrest()
+    athlete = _ensure_athlete_profile(client, user_id)
+
+    races = []
+    try:
+        res = (
+            client.table("races")
+            .select("name, date, distance, priority, target_total")
+            .eq("athlete_id", athlete["id"])
+            # Kvittensen ska visa vad adepten tränar MOT, inte gamla lopp som
+            # råkar ligga kvar i kalendern.
+            .gte("date", date_type.today().isoformat())
+            .order("date")
+            .execute()
+        )
+        races = res.data or []
+    except Exception:  # noqa: BLE001 — kvittensen får inte falla på en tom kalender
+        logger.exception("Kunde inte läsa races till onboarding-kvittensen")
+
+    sport_labels = dict(_SPORT_OPTIONS)
+    distance_labels = {value: label for value, label, _req in _RACE_DISTANCES}
+    active = athlete.get("sports") or []
+
+    return _render(
+        "onboarding_done.html",
+        {
+            "request": request,
+            "athlete": athlete,
+            "coach_name": athlete.get("coach_name") or "Din coach",
+            "sport_labels": [sport_labels.get(s, s) for s in active],
+            "active_sports": active,
+            "races": races,
+            "distance_labels": distance_labels,
+            "day_labels": dict(_DAY_LABELS),
+            "concerns": athlete.get("active_concerns") or [],
+            "conditions": athlete.get("health_conditions") or [],
+            "location_text": _location_text,
+            "has_thresholds": any(
+                athlete.get(field)
+                for field in ("ftp", "lthr", "lthr_bike", "swim_css", "run_threshold_pace")
+            ),
+        },
+    )
 
 
 @router.get("/settings", response_class=HTMLResponse)
@@ -1982,7 +2179,7 @@ def settings_view(
         .select(
             "sports, long_bike_day, long_run_day, preferred_rest_days,"
             " equipment, preferred_settings, use_strava, garmin_athlete_id,"
-            " conn_ai, conn_tp, conn_strava,"
+            " conn_ai, conn_tp, conn_strava, coach_name,"
             " goal, experience_level, weekly_hours, weekly_days, race_type,"
             " race_date, time_goal, ftp, lthr, swim_css, run_threshold_pace"
         )
@@ -2041,6 +2238,7 @@ def settings_view(
             "athlete": athlete,
             "days": _DAY_LABELS,
             "sports_options": _SPORT_OPTIONS,
+            "base_url": _public_base_url(request),
             "disciplines_for_setting": [
                 ("swim", "Simning"),
                 ("bike", "Cykel"),
@@ -2432,6 +2630,7 @@ def health_view(request: Request, added: bool = False) -> HTMLResponse:
             "request": request,
             "concerns": concerns,
             "locations": _BODY_LOCATIONS,
+            "location_text": _location_text,
             "disciplines": _DISCIPLINES_FOR_IMPACT,
             "added": added,
         },
@@ -2442,7 +2641,7 @@ def health_view(request: Request, added: bool = False) -> HTMLResponse:
 def health_add(
     request: Request,
     name: str = Form(...),
-    location: str = Form(""),
+    locations: list[str] = Form(default=[]),
     severity: int = Form(2),
     since_date: str = Form(""),
     impact_swim: str = Form("none"),
@@ -2466,9 +2665,13 @@ def health_add(
     athlete_id = a_res.data[0]["id"]
     concerns = a_res.data[0].get("active_concerns") or []
 
+    # Ett besvär kan sitta på flera ställen samtidigt (bägge knäna). location
+    # (singular) skrivs kvar för äldre läsvägar; locations är sanningen.
+    locs = [loc for loc in locations if loc in _LOCATION_LABELS]
     new_concern = {
         "name": name,
-        "location": location or None,
+        "location": locs[0] if locs else None,
+        "locations": locs,
         "severity": severity,
         "since_date": since_date or None,
         "needs_followup": needs_followup == "1",

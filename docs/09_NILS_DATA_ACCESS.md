@@ -112,9 +112,10 @@ values
 
 Planeraren kvitterar respekterad override med `honored_by_planner=true` + `honored_at`.
 
-## Via Trixa-API (alternativ till MCP)
+## Via Trixa-API (alternativ till Supabase-MCP)
 
-Två ytor:
+Tre ytor. Vill du bara koppla in en AI-klient (Claude Code, Claude Desktop,
+Cursor) — hoppa direkt till `/mcp` och läs `docs/11_MCP_CONNECTOR.md`.
 
 ### `/agent/*` — per-adept-token (REKOMMENDERAS för extern AI)
 
@@ -141,6 +142,20 @@ en gång vid skapande. Återkalla när som helst i Inställningar.
 `POST /agent/plan/session`-body: `{date, sport (bike/run/swim/strength/rest),
 title, duration_min, intensity, details, workout_code}`. Läs-svar normaliserar
 sport till engelska; lagring sker svenska.
+
+### `/mcp` — MCP-server (REKOMMENDERAS för AI-klienter)
+
+Samma per-adept-token som `/agent/*`, men talad som MCP så en AI-klient kan
+koppla upp sig utan mellanled. Verktyg: `whoami`, `get_athlete`, `get_week`,
+`get_training_log`, `get_recovery`, `plan_session`, `delete_planned_session`,
+`log_override`. Setup och felsökning: `docs/11_MCP_CONNECTOR.md`.
+
+```bash
+claude mcp add --transport http trixa https://<trixa-url>/mcp --header "Authorization: Bearer trixa_..."
+```
+
+Fungerar inte i claude.ai (webb/mobil) än — custom connectors där kräver OAuth,
+vilket är nästa etapp.
 
 ### `/api/*` — delad token (intern/admin/dev)
 

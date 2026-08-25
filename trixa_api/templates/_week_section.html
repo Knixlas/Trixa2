@@ -30,10 +30,10 @@
       {% if week.phase %}<strong>Fas:</strong> {{ week.phase }} | {% endif %}<strong>Pass:</strong> {{ week.workouts | length }}
       {% if week.plan_source == "coach" and conn_ai|default(true) %}
       <span class="badge" style="background: var(--lagoon-soft); color: var(--lagoon-deep);"
-            title="Planen kommer från din coach (Nils), inte den automatiska generatorn">coachens plan</span>
+            title="Planen kommer från din coach, inte den automatiska generatorn">coachens plan</span>
       {% elif week.plan_source == "mixed" %}
       <span class="badge" style="background: var(--lagoon-soft); color: var(--lagoon-deep);"
-            title="Nils och Trixa delar på veckan">Nils + Trixa</span>
+            title="Din coach och Trixa delar på veckan">coach + Trixa</span>
       {% else %}
       <span class="badge" title="Automatiskt genererad av Trixa-motorn">genererad</span>
       {% endif %}
@@ -45,7 +45,7 @@
       <article style="margin-top: 0.5rem;">
         <p style="font-size: 0.875rem;">
           Bygger om Trixas pass utifrån aktuell status och inställningar.
-          Pass från Nils och egna pass lämnas orörda.
+          Pass från din coach och egna pass lämnas orörda.
         </p>
         <form method="post" action="/ui/plan/regenerate"
               onsubmit="return confirm('Skriv över hela veckans plan?');">
