@@ -151,9 +151,13 @@ def _ensure_athlete_profile(client, user_id: str, name: str | None = None) -> di
     if res.data:
         return res.data[0]
 
+    # goal och experience_level är NOT NULL med CHECK-constraint i DB och frågas
+    # inte i onboardingen — sätt giltiga platshållare (ändras i Inställningar).
+    # goal ∈ first_race|pr|ironman|health|comeback, experience_level ∈ _EXPERIENCE_LEVELS.
     defaults = {
         "user_id": user_id,
-        "goal": "triathlon",
+        "goal": "ironman",
+        "experience_level": "intermediate",
         "sports": ["swim", "bike", "run"],
         "weekly_hours": 6,
         "preferred_rest_days": ["monday"],
@@ -170,7 +174,11 @@ def _ensure_athlete_profile(client, user_id: str, name: str | None = None) -> di
         .limit(1)
         .execute()
     )
-    return res.data[0] if res.data else defaults
+    if not res.data:
+        # Tyst retur av defaults (utan "id") gav KeyError längre ned i kedjan —
+        # bättre att felet syns här än som mystisk 500 i onboardingen.
+        raise RuntimeError(f"Kunde inte skapa athlete_profiles-rad för {user_id}")
+    return res.data[0]
 
 
 @router.get("/signup", response_class=HTMLResponse)
@@ -208,7 +216,7 @@ def signup_submit(
     try:
         _ensure_athlete_profile(get_postgrest(), session["user_id"], name.strip() or None)
     except Exception:  # noqa: BLE001 — säkerhetsnätet i dashboard tar det annars
-        pass
+        logger.exception("Kunde inte skapa athlete_profiles-rad vid signup")
     resp = RedirectResponse(url="/ui/onboarding", status_code=303)
     set_session_cookies(resp, session, secure=is_secure_request(request))
     return resp
@@ -471,7 +479,9 @@ def api_token_revoke(request: Request, token_id: str) -> Any:
     return RedirectResponse("/ui/settings?saved=1", status_code=303)
 
 
-_EXPERIENCE_LEVELS = {"beginner", "intermediate", "advanced"}
+_EXPERIENCE_LEVELS = {"beginner", "intermediate", "advanced", "elite"}
+# Speglar CHECK-constraint på athlete_profiles.goal — andra värden avvisas av DB.
+_GOALS = {"first_race", "pr", "ironman", "health", "comeback"}
 # Tävlingsdistanser (athlete_profiles.race_type lagras som fritext men styrs
 # av en lista så motorns label blir konsekvent). "ironman" = full 140.6.
 _RACE_TYPES = {"sprint", "olympic", "half", "full", "ironman", "other"}
@@ -510,8 +520,6 @@ def settings_profile(
     if not uid:
         raise HTTPException(401, "Inte inloggad")
     update: dict = {
-        "goal": (goal or "").strip() or None,
-        "experience_level": experience_level if experience_level in _EXPERIENCE_LEVELS else None,
         "weekly_hours": weekly_hours if weekly_hours and weekly_hours > 0 else None,
         "weekly_days": weekly_days if weekly_days and 1 <= weekly_days <= 7 else None,
         "race_type": race_type if race_type in _RACE_TYPES else None,
@@ -522,6 +530,12 @@ def settings_profile(
         "swim_css": _clean_pace(swim_css),
         "run_threshold_pace": _clean_pace(run_threshold_pace),
     }
+    # goal och experience_level är NOT NULL + CHECK i DB: skriv dem bara när
+    # formuläret skickar ett giltigt värde, annars behålls befintligt.
+    if (goal or "").strip() in _GOALS:
+        update["goal"] = goal.strip()
+    if experience_level in _EXPERIENCE_LEVELS:
+        update["experience_level"] = experience_level
     client = get_postgrest()
     client.table("athlete_profiles").update(update).eq("user_id", uid).execute()
     return RedirectResponse("/ui/settings?saved=1", status_code=303)

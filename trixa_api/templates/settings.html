@@ -59,8 +59,15 @@ sön för löpning, mån som vila).</p>
         </label>
       </div>
       <label>Övergripande mål
-        <input type="text" name="goal" value="{{ athlete.goal or '' }}"
-               placeholder="t.ex. ironman, viktnedgång, komma igång">
+        <select name="goal">
+          {% set g = athlete.goal or "" %}
+          <option value="" {% if not g %}selected{% endif %}>—</option>
+          <option value="first_race" {% if g == "first_race" %}selected{% endif %}>Första tävlingen</option>
+          <option value="pr" {% if g == "pr" %}selected{% endif %}>Slå personbästa</option>
+          <option value="ironman" {% if g == "ironman" %}selected{% endif %}>Ironman</option>
+          <option value="health" {% if g == "health" %}selected{% endif %}>Hälsa och form</option>
+          <option value="comeback" {% if g == "comeback" %}selected{% endif %}>Comeback</option>
+        </select>
       </label>
     </fieldset>
 
