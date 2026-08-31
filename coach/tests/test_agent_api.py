@@ -25,6 +25,45 @@ class _R:
         self.data = d
 
 
+# Kolumner som FAKTISKT finns i Supabase, per tabell. Utan den här kontrollen
+# svalde den fejkade klienten vilket fältnamn som helst — och lät ett anrop som
+# skriver week_id/workout_id (kolumner som inte finns) passera som grönt test
+# medan det kastade PGRST204 i drift. Tabeller som inte listas kontrolleras inte.
+_REAL_COLUMNS = {
+    "coach_overrides": {
+        "id", "athlete_id", "coach_user_id", "scope", "week_start",
+        "planned_session_id", "engine_recommendation", "override_decision",
+        "motivation", "medical_context_disclosed", "athlete_explicit_request",
+        "is_active", "created_at", "honored_by_planner", "honored_at",
+    },
+    "planned_sessions": {
+        "id", "user_id", "date", "sport", "title", "workout_code", "intensity",
+        "duration_min", "details", "purpose", "status", "origin", "created_at",
+        "updated_at", "distance_km", "tp_workout_id",
+    },
+}
+
+# UNIQUE-constraints som databasen faktiskt upprätthåller.
+_UNIQUE_KEYS = {
+    "planned_sessions": ("user_id", "date", "sport"),
+}
+
+
+class UniqueViolation(Exception):
+    """Speglar det postgrest kastar vid krock mot ett unikt index."""
+
+
+def _check_columns(table, payload):
+    known = _REAL_COLUMNS.get(table)
+    if known is None:
+        return
+    unknown = set(payload) - known
+    if unknown:
+        raise KeyError(
+            f"PGRST204: kolumnerna {sorted(unknown)} finns inte i {table}"
+        )
+
+
 class _Q:
     def __init__(self, t, st):
         self.t, self.st, self._f, self._u, self._ins, self._del, self._isnull = t, st, {}, None, None, False, None
@@ -82,11 +121,20 @@ class _Q:
     def execute(self):
         rows = self.st.setdefault(self.t, [])
         if self._ins is not None:
+            _check_columns(self.t, self._ins)
             new = dict(self._ins)
+            key = _UNIQUE_KEYS.get(self.t)
+            if key and any(
+                all(r.get(k) == new.get(k) for k in key) for r in rows
+            ):
+                raise UniqueViolation(
+                    f"duplicate key value violates unique constraint på {self.t}{key}"
+                )
             new.setdefault("id", f"id-{len(rows)+1}")
             rows.append(new)
             return _R([new])
         if self._u is not None:
+            _check_columns(self.t, self._u)
             for r in rows:
                 if self._match(r):
                     r.update(self._u)

@@ -116,6 +116,7 @@ def _tool_delete_planned_session(scope: AgentScope, args: dict) -> Any:
 
 
 def _tool_log_override(scope: AgentScope, args: dict) -> Any:
+    week_start = (args.get("week_start") or "").strip()
     body = agent_api.OverrideIn(
         scope=args.get("scope", ""),
         engine_recommendation=args.get("engine_recommendation") or {},
@@ -123,6 +124,8 @@ def _tool_log_override(scope: AgentScope, args: dict) -> Any:
         motivation=args.get("motivation", ""),
         medical_context_disclosed=bool(args.get("medical_context_disclosed")),
         athlete_explicit_request=bool(args.get("athlete_explicit_request")),
+        week_start=_parse_date(week_start, "week_start") if week_start else None,
+        planned_session_id=(args.get("planned_session_id") or "").strip() or None,
     )
     return agent_api.write_override(body=body, scope=scope)
 
@@ -253,7 +256,8 @@ _TOOLS: list[tuple[str, str, dict, Callable[[AgentScope, dict], Any]]] = [
         "Dokumentera att du medvetet frångår motorns rekommendation. Krav enligt "
         "coach-praxis: vad motorn sa, vad du valde istället, och varför. Flagga "
         "om beslutet vilar på medicinsk information eller adeptens uttryckliga "
-        "önskemål — motorn tar hänsyn till overriden när nästa vecka genereras.",
+        "önskemål — motorn tar hänsyn till overriden när nästa vecka genereras. "
+        "scope='week' kräver week_start, scope='workout' kräver planned_session_id.",
         {
             "type": "object",
             "properties": {
@@ -276,6 +280,14 @@ _TOOLS: list[tuple[str, str, dict, Callable[[AgentScope, dict], Any]]] = [
                 },
                 "medical_context_disclosed": {"type": "boolean"},
                 "athlete_explicit_request": {"type": "boolean"},
+                "week_start": {
+                    "type": "string",
+                    "description": "Veckans måndag, YYYY-MM-DD. Krävs när scope='week'.",
+                },
+                "planned_session_id": {
+                    "type": "string",
+                    "description": "Passets id från get_week. Krävs när scope='workout'.",
+                },
             },
             "required": [
                 "scope",

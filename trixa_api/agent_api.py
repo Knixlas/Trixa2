@@ -205,8 +205,18 @@ class PlanSessionIn(BaseModel):
 def write_plan_session(
     body: PlanSessionIn, scope: AgentScope = Depends(resolve_agent_scope)
 ) -> dict:
-    """Skriv ett pass i planen (origin='nils'). Upsert på (adept, datum, gren) —
-    samma dag+gren skrivs över så Nils kan korrigera utan dubbletter."""
+    """Skriv ett pass i planen (origin='nils'). Upsert på (adept, datum, gren).
+
+    Databasen har UNIQUE (user_id, date, sport) — två pass för samma gren samma
+    dag kan alltså inte existera. Därför matchar vi på hela nyckeln, **oavsett
+    origin**: ligger motorns eller adeptens egen rad där tar coachen över den.
+    Att bara leta efter egna rader (origin='nils') gjorde att varje krock med en
+    genererad vecka slog i unik-indexet och kastade ett rått databasfel, trots
+    att endpointen dokumenterats som upsert.
+
+    Att ta över raden är också rätt semantik: plannerns grind hoppar över dagar
+    som redan har mänskligt skapade rader, så en övertagen rad blir skyddad.
+    """
     client = get_postgrest()
     sport_sv = _norm_sport_sv(body.sport)
     row = {
@@ -221,18 +231,43 @@ def write_plan_session(
         "status": "planned",
         "origin": "nils",
     }
-    existing = (
-        client.table("planned_sessions").select("id")
-        .eq("user_id", scope.user_id).eq("date", row["date"]).eq("sport", sport_sv)
-        .eq("origin", "nils").limit(1).execute()
-    )
-    if existing.data:
-        sid = existing.data[0]["id"]
-        client.table("planned_sessions").update(row).eq("id", sid).execute()
-    else:
+
+    def _existing() -> dict | None:
+        res = (
+            client.table("planned_sessions").select("id, origin")
+            .eq("user_id", scope.user_id).eq("date", row["date"]).eq("sport", sport_sv)
+            .limit(1).execute()
+        )
+        return (res.data or [None])[0]
+
+    def _took_over(found: dict) -> dict:
+        # Läs av vad som stod där INNAN uppdateringen — annars rapporterar vi
+        # tillbaka vårt eget origin och adepten får aldrig veta att motorns
+        # eller hens eget pass skrevs över.
+        previous = found.get("origin")
+        session_id = found["id"]
+        client.table("planned_sessions").update(row).eq("id", session_id).execute()
+        return {
+            "status": "ok", "id": session_id, "sport": sport_sv, "origin": "nils",
+            "replaced_origin": previous,
+        }
+
+    found = _existing()
+    if found is not None:
+        return _took_over(found)
+
+    try:
         res = client.table("planned_sessions").insert(row).execute()
-        sid = res.data[0]["id"] if res.data else None
-    return {"status": "ok", "id": sid, "sport": sport_sv, "origin": "nils"}
+    except Exception:  # noqa: BLE001
+        # Kapplöpning: någon hann skriva raden mellan uppslaget och insert:en.
+        # Unik-indexet gjorde sitt jobb — läs om och uppdatera i stället.
+        found = _existing()
+        if found is None:
+            raise
+        return _took_over(found)
+    sid = res.data[0]["id"] if res.data else None
+    return {"status": "ok", "id": sid, "sport": sport_sv, "origin": "nils",
+            "replaced_origin": None}
 
 
 @router.delete("/plan/session/{session_id}")
@@ -263,16 +298,27 @@ class OverrideIn(BaseModel):
     motivation: str = Field(..., min_length=10)
     medical_context_disclosed: bool = False
     athlete_explicit_request: bool = False
-    week_id: str | None = None
-    workout_id: str | None = None
+    # Namnen speglar kolumnerna i coach_overrides. Hette week_id/workout_id
+    # förut, kolumner som aldrig funnits, så varje skrivning mot skarp DB gav
+    # PGRST204. CHECK-constraintet scope_matches_target kräver dessutom
+    # week_start när scope=week och planned_session_id när scope=workout.
+    week_start: date_type | None = None
+    planned_session_id: str | None = None
 
 
 @router.post("/override")
 def write_override(
     body: OverrideIn, scope: AgentScope = Depends(resolve_agent_scope)
 ) -> dict:
-    """Skapa en manual_override (Nils åsidosätter engine). athlete_id =
-    athlete_profiles.id, coach_user_id slås upp via coach_athletes."""
+    """Skapa en manual_override (coachen åsidosätter engine).
+
+    athlete_id = athlete_profiles.id. coach_user_id slås upp via coach_athletes,
+    men **faller tillbaka på adepten själv** när ingen mänsklig coach är kopplad.
+    Tidigare gav det 404, vilket gjorde verktyget oanvändbart för varje
+    självcoachad adept, trots att spårbarheten behövs mest just då: det är en
+    språkmodell som avviker från motorn, och beslutet måste gå att granska
+    efteråt.
+    """
     client = get_postgrest()
     a = (
         client.table("athlete_profiles").select("id")
@@ -286,14 +332,22 @@ def write_override(
         .eq("athlete_id", scope.user_id).in_("status", ["accepted", "active"])
         .limit(1).execute()
     )
-    if not coach.data:
-        raise HTTPException(404, "Ingen aktiv coach kopplad till adepten.")
+    coach_user_id = coach.data[0]["coach_id"] if coach.data else scope.user_id
+    self_coached = not coach.data
+
+    # scope_matches_target i DB: week kräver week_start, workout kräver
+    # planned_session_id. Fånga det här i stället för som ett rått CHECK-fel.
+    if body.scope == "week" and not body.week_start:
+        raise HTTPException(400, "scope=week kräver week_start (veckans måndag).")
+    if body.scope == "workout" and not body.planned_session_id:
+        raise HTTPException(400, "scope=workout kräver planned_session_id.")
+
     row = {
         "athlete_id": athlete_id,
-        "coach_user_id": coach.data[0]["coach_id"],
+        "coach_user_id": coach_user_id,
         "scope": body.scope,
-        "week_id": body.week_id,
-        "workout_id": body.workout_id,
+        "week_start": body.week_start.isoformat() if body.week_start else None,
+        "planned_session_id": body.planned_session_id,
         "engine_recommendation": body.engine_recommendation,
         "override_decision": body.override_decision,
         "motivation": body.motivation,
@@ -303,4 +357,4 @@ def write_override(
     res = client.table("coach_overrides").insert(row).execute()
     if not res.data:
         raise HTTPException(500, "Override-insert gav ingen data.")
-    return {"status": "ok", "id": res.data[0]["id"]}
+    return {"status": "ok", "id": res.data[0]["id"], "self_coached": self_coached}

@@ -56,8 +56,10 @@ class WeekPlanResponse(BaseModel):
 class CoachOverrideRequest(BaseModel):
     athlete_user_id: str
     scope: Literal["week", "workout", "phase", "volume", "overtraining"]
-    week_id: str | None = None
-    workout_id: str | None = None
+    # Speglar kolumnerna i coach_overrides. week_id/workout_id fanns aldrig i
+    # tabellen, så varje override-skrivning gav PGRST204 mot skarp databas.
+    week_start: date_type | None = None
+    planned_session_id: str | None = None
     engine_recommendation: dict
     override_decision: dict
     motivation: str = Field(..., min_length=10)
