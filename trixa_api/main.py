@@ -16,6 +16,7 @@ import os
 from datetime import date as date_type, datetime, timezone
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlencode
 
 from fastapi import Depends, FastAPI, HTTPException, Query, Request, status
 from fastapi.middleware.cors import CORSMiddleware
@@ -81,6 +82,12 @@ from trixa_api.mcp_server import router as mcp_router  # noqa: E402
 
 app.include_router(mcp_router)
 
+# Mounta OAuth 2.1-auktoriseringsservern (.well-known + /oauth/*) — vägen in för
+# AI-klienter som inte kan sätta egen Authorization-header (claude.ai).
+from trixa_api.oauth_server import router as oauth_router  # noqa: E402
+
+app.include_router(oauth_router)
+
 # Servera temat (trixa.css m.m.) — tropical-temats stylesheet ligger i trixa_api/static
 app.mount(
     "/static",
@@ -99,9 +106,13 @@ async def auth_gate(request: Request, call_next):
     """
     request.state.user_id = None
     path = request.url.path
-    gated = path.startswith("/ui") and not path.startswith(
-        ("/ui/login", "/ui/logout", "/ui/signup")
-    )
+    # /oauth/authorize är adeptens samtyckessida och kräver samma session som
+    # /ui. Övriga OAuth-endpoints (.well-known, /register, /token) är maskin-
+    # till-maskin och har sin egen validering.
+    gated = (
+        path.startswith("/ui")
+        and not path.startswith(("/ui/login", "/ui/logout", "/ui/signup"))
+    ) or path == "/oauth/authorize"
     if not gated:
         return await call_next(request)
 
@@ -118,7 +129,14 @@ async def auth_gate(request: Request, call_next):
         if renewed:
             uid = renewed.get("user_id")
     if not uid:
-        return RedirectResponse(url="/ui/login", status_code=303)
+        # Ta med vart adepten var på väg, annars tappas ett pågående
+        # OAuth-flöde vid inloggningen och klienten får börja om.
+        target = request.url.path
+        if request.url.query:
+            target = f"{target}?{request.url.query}"
+        return RedirectResponse(
+            url=f"/ui/login?{urlencode({'next': target})}", status_code=303
+        )
 
     request.state.user_id = uid
     response = await call_next(request)

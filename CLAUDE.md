@@ -179,8 +179,9 @@ Trixa2/
 │   └── trixa/                  ← planner, cron, races, alerts, db
 ├── trixa_api/                  ← FastAPI + /ui (login, signup, onboarding, settings)
 │   ├── agent_api.py            ← /agent/* REST, per-adept Bearer-token
-│   └── mcp_server.py           ← /mcp MCP-server (samma token, MCP-protokoll)
-├── db/migrations/              ← 001-010 (008 user-fält, 009 races, 010 coach_name + grendistanser)
+│   ├── mcp_server.py           ← /mcp MCP-server (samma token, MCP-protokoll)
+│   └── oauth_server.py         ← OAuth 2.1 AS: .well-known + /oauth/* (claude.ai)
+├── db/migrations/              ← 001-011 (010 coach_name + grendistanser, 011 oauth)
 └── coach/tests/
 ```
 
@@ -317,10 +318,23 @@ Projektet (CLAUDE.md + md-källdokument + kod) bär delad kunskap. Tråden är a
   Setup: `docs/11_MCP_CONNECTOR.md`.
 - ✓ Claude Code / Claude Desktop / Cursor kan koppla in sig i dag
   (`claude mcp add --transport http trixa <url>/mcp --header "Authorization: Bearer …"`).
-- ☐ **claude.ai (webb/mobil) kan INTE** — custom connectors där kan inte sätta
-  egen Authorization-header, de förhandlar OAuth. Nästa etapp: OAuth 2.1 + DCR
-  + PKCE framför `/mcp`, med Supabase Auth som identitet. Verktygsytan ändras
-  inte av det. Token i URL är INTE ett alternativ (läcker i loggar).
+- ✓ **OAuth 2.1-auktoriseringsserver** (`trixa_api/oauth_server.py`) — claude.ai
+  (webb/mobil) kan nu koppla upp sig utan token: adepten lägger till connectorn,
+  loggar in, godkänner. RFC 9728-metadata + RFC 8414-metadata + DCR (RFC 7591)
+  + PKCE S256 + audience-bindning (RFC 8707) + roterande refresh med
+  familjeåterkallning. Migration 011. 23 tester i `test_oauth_server.py`.
+  **Verifierad end-to-end mot live-data**: register → authorize → token → MCP →
+  refresh-rotation → revoke dödar åtkomsten.
+- Nyckeln som brukar fälla integrationer: `/mcp`:s 401 måste bära
+  `WWW-Authenticate: Bearer resource_metadata="…"`, och AS-metadatan måste ha
+  `code_challenge_methods_supported: ["S256"]`. Saknas något av det faller
+  klienten tillbaka på att fråga om ett Client ID som ingen kan svara på.
+- Personliga `trixa_`-tokens fungerar parallellt — Claude Code-vägen är orörd.
+- `TRIXA_PUBLIC_URL` **måste** vara satt i prod: metadatan måste ge exakt den
+  adress klienten når servern på, annars vägrar den ansluta.
+- ☐ CIMD (`client_id_metadata_document_supported`) ej implementerat — DCR räcker
+  för Claude, och CIMD kräver att servern hämtar ett dokument från en klientstyrd
+  adress (SSRF-yta). Token i URL är INTE ett alternativ (läcker i loggar).
 
 **Onboarding generaliserad (2026-08-25):**
 - Formuläret antog erfaren triatlet. Nu: aktiva discipliner + erfarenhetsnivå

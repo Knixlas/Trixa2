@@ -32,7 +32,7 @@ from fastapi import APIRouter, HTTPException, Request, Response
 from fastapi.responses import JSONResponse
 
 from trixa_api import agent_api
-from trixa_api.agent_auth import AgentScope, resolve_agent_scope
+from trixa_api.agent_auth import AgentScope, resolve_agent_scope, unauthorized_headers
 
 logger = logging.getLogger(__name__)
 
@@ -388,9 +388,6 @@ def _dispatch(scope: AgentScope, message: dict) -> dict | None:
 # ---------- HTTP ----------
 
 
-_UNAUTHORIZED_HEADERS = {"WWW-Authenticate": "Bearer realm=trixa"}
-
-
 @router.post("/mcp")
 async def mcp_endpoint(request: Request) -> Response:
     """Streamable HTTP-endpoint. En POST = ett JSON-RPC-meddelande (eller en lista)."""
@@ -398,10 +395,12 @@ async def mcp_endpoint(request: Request) -> Response:
         scope = resolve_agent_scope(request)
     except HTTPException as exc:
         if exc.status_code == 401:
+            # Headern bär pekaren till resursmetadatan (RFC 9728) — det är den
+            # en OAuth-klient följer för att hitta auktoriseringsservern.
             return JSONResponse(
                 _error(None, _INVALID_REQUEST, str(exc.detail)),
                 status_code=401,
-                headers=_UNAUTHORIZED_HEADERS,
+                headers=exc.headers or unauthorized_headers(request),
             )
         return JSONResponse(
             _error(None, _INTERNAL_ERROR, str(exc.detail)), status_code=exc.status_code
