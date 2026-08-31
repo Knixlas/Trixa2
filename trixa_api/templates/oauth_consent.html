@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}Ge åtkomst — Trixa{% endblock %}
+{% block content %}
+
+<section style="max-width: 520px; margin: 6vh auto 0;">
+  <h1 style="font-size: 1.9rem;">Ge {{ client_name }} åtkomst?</h1>
+
+  <article>
+    <p style="margin-top: 0;">
+      {{ client_name }} vill koppla upp sig mot ditt Trixa-konto{% if athlete_name %}
+      ({{ athlete_name }}){% endif %}.
+    </p>
+
+    <p style="margin-bottom: 6px;"><strong>Den kommer kunna</strong></p>
+    <ul style="margin-top: 0;">
+      <li>läsa din plan, dina genomförda pass och din återhämtningsdata</li>
+      <li>läsa dina mål, tröskelvärden och hälsouppgifter</li>
+      <li>lägga till, ändra och ta bort pass i din plan</li>
+    </ul>
+
+    <p style="font-size: 0.875rem; color: var(--ink-3);">
+      Åtkomsten gäller <strong>bara din egen data</strong> — aldrig någon annan
+      adepts. Du kan när som helst dra tillbaka den under
+      <a href="/ui/settings">Inställningar</a>.
+    </p>
+
+    <p style="font-size: 0.875rem; color: var(--ink-3);">
+      Känner du inte igen {{ client_name }}? Neka. En app kan kalla sig vad som
+      helst när den registrerar sig.
+    </p>
+
+    <form method="post" action="/oauth/authorize">
+      {% for key, value in params.items() %}
+      <input type="hidden" name="{{ key }}" value="{{ value }}">
+      {% endfor %}
+      <div style="display: flex; gap: 10px; margin-top: 16px;">
+        <button type="submit" name="decision" value="approve" style="flex: 1;">
+          <i data-lucide="check"></i> Ge åtkomst
+        </button>
+        <button type="submit" name="decision" value="deny" class="outline" style="flex: 1;">
+          Neka
+        </button>
+      </div>
+    </form>
+  </article>
+</section>
+
+{% endblock %}

@@ -43,11 +43,11 @@ _jinja_env = Environment(
 )
 
 
-def _render(template_name: str, context: dict) -> HTMLResponse:
+def _render(template_name: str, context: dict, status_code: int = 200) -> HTMLResponse:
     """Direkt-rendering utan starlette-wrapper."""
     template = _jinja_env.get_template(template_name)
     html = template.render(**context)
-    return HTMLResponse(content=html)
+    return HTMLResponse(content=html, status_code=status_code)
 
 
 def _safe_float(value, default: float = 0.0) -> float:
@@ -105,9 +105,25 @@ def is_secure_request(request: Request) -> bool:
     return request.headers.get("x-forwarded-proto", request.url.scheme) == "https"
 
 
+def _safe_next(target: str | None) -> str:
+    """Vart vi får skicka användaren efter inloggning.
+
+    Bara relativa sökvägar inom Trixa. Ett fullständigt eller protokollrelativt
+    ("//evil.example") värde vore en öppen redirect — då går vi till startsidan
+    i stället. Behövs eftersom OAuth-flödet skickar hit oinloggade adepter mitt
+    i ett /oauth/authorize-anrop och vill tillbaka dit.
+    """
+    target = (target or "").strip()
+    if target.startswith("/") and not target.startswith("//"):
+        return target
+    return "/ui/"
+
+
 @router.get("/login", response_class=HTMLResponse)
-def login_form(request: Request) -> HTMLResponse:
-    return _render("login.html", {"request": request, "error": ""})
+def login_form(request: Request, next: str = "") -> HTMLResponse:
+    return _render(
+        "login.html", {"request": request, "error": "", "next": _safe_next(next)}
+    )
 
 
 @router.post("/login")
@@ -115,14 +131,20 @@ def login_submit(
     request: Request,
     email: str = Form(...),
     password: str = Form(...),
+    next: str = Form(""),
 ) -> Any:
+    destination = _safe_next(next)
     session = supabase_auth.sign_in_password(email.strip(), password)
     if not session or not session.get("user_id"):
         return _render(
             "login.html",
-            {"request": request, "error": "Fel e-post eller lösenord — försök igen."},
+            {
+                "request": request,
+                "error": "Fel e-post eller lösenord — försök igen.",
+                "next": destination,
+            },
         )
-    resp = RedirectResponse(url="/ui/", status_code=303)
+    resp = RedirectResponse(url=destination, status_code=303)
     set_session_cookies(resp, session, secure=is_secure_request(request))
     return resp
 
@@ -476,6 +498,70 @@ def api_token_revoke(request: Request, token_id: str) -> Any:
     client.table("api_tokens").update(
         {"revoked_at": datetime.now(timezone.utc).isoformat()}
     ).eq("id", token_id).eq("user_id", uid).execute()
+    return RedirectResponse("/ui/settings?saved=1", status_code=303)
+
+
+def _connected_oauth_apps(client, user_id: str) -> list[dict]:
+    """Appar adepten gett OAuth-åtkomst, en rad per klient.
+
+    En klient har typiskt många token-rader (varje refresh roterar fram en ny),
+    men adepten bryr sig om appen — inte om rotationshistoriken. Vi visar den
+    senaste levande raden per klient.
+    """
+    try:
+        tokens = (
+            client.table("oauth_tokens")
+            .select("client_id, created_at, last_used_at")
+            .eq("user_id", user_id).is_("revoked_at", "null")
+            .order("created_at", desc=True).execute()
+        ).data or []
+    except Exception:  # noqa: BLE001 — en tom lista är bättre än en trasig sida
+        logger.exception("Kunde inte läsa kopplade OAuth-appar")
+        return []
+
+    by_client: dict[str, dict] = {}
+    for row in tokens:
+        by_client.setdefault(row["client_id"], row)
+    if not by_client:
+        return []
+
+    names: dict[str, str] = {}
+    try:
+        rows = (
+            client.table("oauth_clients")
+            .select("client_id, client_name")
+            .in_("client_id", list(by_client)).execute()
+        ).data or []
+        names = {r["client_id"]: (r.get("client_name") or "") for r in rows}
+    except Exception:  # noqa: BLE001
+        logger.exception("Kunde inte läsa klientnamn")
+
+    return [
+        {
+            "client_id": cid,
+            "name": names.get(cid) or "Okänd app",
+            "connected_at": (row.get("created_at") or "")[:10],
+            "last_used_at": (row.get("last_used_at") or "")[:10],
+        }
+        for cid, row in by_client.items()
+    ]
+
+
+@router.post("/oauth-apps/{client_id}/revoke")
+def oauth_app_revoke(request: Request, client_id: str) -> Any:
+    """Dra tillbaka en apps åtkomst — alla dess tokens för DENNA adept.
+
+    Scope:at på user_id: en adept kan aldrig återkalla någon annans koppling,
+    även om de råkar ha godkänt samma app.
+    """
+    uid = _current_user_id(request)
+    if not uid:
+        raise HTTPException(401, "Inte inloggad")
+    from datetime import datetime, timezone
+
+    get_postgrest().table("oauth_tokens").update(
+        {"revoked_at": datetime.now(timezone.utc).isoformat()}
+    ).eq("client_id", client_id).eq("user_id", uid).is_("revoked_at", "null").execute()
     return RedirectResponse("/ui/settings?saved=1", status_code=303)
 
 
@@ -1823,13 +1909,12 @@ _LOCATION_LABELS = dict(_BODY_LOCATIONS)
 def _public_base_url(request: Request) -> str:
     """Adressen adepten ska peka sin AI-klient på.
 
-    Bakom Railways proxy stämmer inte alltid ``request.base_url`` (den kan bli
-    http:// eller den interna porten), så TRIXA_PUBLIC_URL vinner när den är satt.
+    Delegerar till oauth_server så att Inställningar och OAuth-metadatan alltid
+    säger exakt samma sak — skiljer de sig vägrar klienter ansluta.
     """
-    configured = os.environ.get("TRIXA_PUBLIC_URL", "").strip()
-    if configured:
-        return configured.rstrip("/")
-    return str(request.base_url).rstrip("/")
+    from trixa_api.oauth_server import public_base_url
+
+    return public_base_url(request)
 
 
 def _location_text(concern: dict) -> str:
@@ -2206,6 +2291,10 @@ def settings_view(
     except Exception:  # noqa: BLE001
         api_tokens = []
 
+    # Kopplade OAuth-appar (claude.ai m.fl.). Samtyckessidan lovar att åtkomsten
+    # går att dra tillbaka här — då måste den också synas här.
+    connected_apps = _connected_oauth_apps(client, user_id)
+
     # TP-anslutningsstatus (finns en cookie sparad för användaren?)
     try:
         tp_row = client.table("tp_auth").select("user_id").eq("user_id", user_id).limit(1).execute()
@@ -2247,6 +2336,7 @@ def settings_view(
             "saved": saved,
             "strava": strava_status,
             "api_tokens": api_tokens,
+            "connected_apps": connected_apps,
             "new_token": new_token,
         },
     )

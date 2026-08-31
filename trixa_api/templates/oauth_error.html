@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}Åtkomsten kunde inte ges — Trixa{% endblock %}
+{% block content %}
+
+<section style="max-width: 520px; margin: 6vh auto 0;">
+  <h1 style="font-size: 1.9rem;">Åtkomsten kunde inte ges</h1>
+  <article>
+    <p style="margin-top: 0;">{{ message }}</p>
+    <p style="font-size: 0.875rem; color: var(--ink-3);">
+      Felet visas här i stället för att du skickas vidare till appen — hade vi
+      skickat dig till en adress vi inte känner igen hade det kunnat vara en
+      förfalskad sida.
+    </p>
+    <a href="/ui/settings" role="button">Till Inställningar</a>
+  </article>
+</section>
+
+{% endblock %}

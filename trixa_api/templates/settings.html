@@ -298,6 +298,37 @@ sön för löpning, mån som vila).</p>
     </label>
     <button type="submit"><i data-lucide="key"></i> Skapa token</button>
   </form>
+
+  <h3 style="margin-top: 22px;">Kopplade appar</h3>
+  <p style="font-size: 0.875rem; color: var(--ink-3); margin-top: 0;">
+    Appar du gett åtkomst via inloggning (claude.ai och liknande). Här behövs
+    ingen token — appen skickade dig hit och du godkände. Drar du tillbaka
+    åtkomsten slutar den fungera direkt.
+  </p>
+  {% if connected_apps %}
+  <table style="width: 100%; font-size: 0.875rem; border-collapse: collapse;">
+    <thead><tr style="text-align: left; color: var(--ink-3);">
+      <th>App</th><th>Kopplad</th><th>Senast använd</th><th></th>
+    </tr></thead>
+    <tbody>
+      {% for app in connected_apps %}
+      <tr style="border-top: 1px solid var(--line);">
+        <td>{{ app.name }}</td>
+        <td>{{ app.connected_at or "—" }}</td>
+        <td>{{ app.last_used_at or "—" }}</td>
+        <td style="text-align: right;">
+          <form method="post" action="/ui/oauth-apps/{{ app.client_id }}/revoke"
+                onsubmit="return confirm('Dra tillbaka åtkomsten? Appen tappar den direkt.');">
+            <button type="submit" class="outline" style="padding: 4px 10px;">Dra tillbaka</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p style="font-size: 0.875rem; color: var(--ink-3);">Inga kopplade appar.</p>
+  {% endif %}
 </section>
 
 <form method="post" action="/ui/settings">

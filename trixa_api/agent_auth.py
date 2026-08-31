@@ -1,15 +1,24 @@
-"""Per-adept Bearer-token-auth för agent-API:t (``/agent/*``).
+"""Per-adept Bearer-token-auth för agent-API:t (``/agent/*``) och ``/mcp``.
 
-En extern AI (Nils, Maja, …) får en token som **scope:ar alla anrop till en
-adept**. Token = identitet: endpointen härleder adepten ur token, det finns
-ingen ``athlete_user_id``-parameter att manipulera (ingen IDOR mellan adepter).
+En AI-klient får en token som **scope:ar alla anrop till en adept**. Token =
+identitet: endpointen härleder adepten ur token, det finns ingen
+``athlete_user_id``-parameter att manipulera (ingen IDOR mellan adepter).
+
+**Två sorters token accepteras**, i den ordningen:
+
+1. **Personlig token** (``trixa_…``) som adepten skapar i Inställningar och
+   klistrar in i en klient som kan sätta egna headers (Claude Code, Cursor).
+   Rad i ``public.api_tokens``.
+2. **OAuth-access-token** (``trixa_at_…``) utfärdad av auktoriseringsservern i
+   ``oauth_server`` för klienter som inte kan sätta headers (claude.ai). Rad i
+   ``public.oauth_tokens``, med **audience** bunden till den här MCP-servern.
 
 Säkerhet:
-- Bara token-**hashen** (sha256 hex) lagras i ``public.api_tokens``. Råvärdet
-  visas en gång vid skapande och kan aldrig läsas igen.
-- Upplösning sker serverside via service-role (agent-requesten har ingen
-  Supabase-JWT — bara sin Bearer-token).
-- Återkallning: sätt ``revoked_at`` → token slutar matcha direkt.
+- Bara token-**hashen** (sha256 hex) lagras. Råvärdet visas en gång.
+- Upplösning sker serverside via service-role (requesten har ingen Supabase-JWT).
+- Återkallning: sätt ``revoked_at`` → token slutar matcha direkt. Gäller båda.
+- 401-svaret pekar ut resursmetadatan (RFC 9728) så en OAuth-klient vet var
+  auktoriseringsservern finns. Utan den pekaren kan den inte komma vidare.
 """
 
 from __future__ import annotations
@@ -59,17 +68,37 @@ def _extract_bearer(request: Request) -> str | None:
     return token or None
 
 
+def unauthorized_headers(request: Request) -> dict[str, str]:
+    """``WWW-Authenticate`` för ett 401-svar, med pekare till resursmetadatan.
+
+    RFC 9728 §5.1. Det här är startpunkten för hela OAuth-kedjan: utan
+    ``resource_metadata`` har klienten ingenstans att leta efter
+    auktoriseringsservern och faller tillbaka på att fråga användaren om ett
+    Client ID som ingen kan svara på.
+    """
+    try:
+        from trixa_api.oauth_server import public_base_url
+
+        base = public_base_url(request)
+    except Exception:  # noqa: BLE001 — headern får aldrig fälla 401-svaret
+        return {"WWW-Authenticate": "Bearer"}
+    metadata = f"{base}/.well-known/oauth-protected-resource"
+    return {"WWW-Authenticate": f'Bearer resource_metadata="{metadata}"'}
+
+
 def resolve_agent_scope(request: Request) -> AgentScope:
     """FastAPI-dependency: Bearer-token → AgentScope (adept-scope).
 
-    401 om token saknas/ogiltig/återkallad. Uppdaterar ``last_used_at``
-    best-effort (failar inte anropet om den skrivningen strular).
+    Provar personlig token först, sedan OAuth-access-token. 401 om ingen
+    matchar. Uppdaterar ``last_used_at`` best-effort (failar inte anropet om
+    den skrivningen strular).
     """
     raw = _extract_bearer(request)
     if not raw:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Saknar Bearer-token i Authorization-header.",
+            headers=unauthorized_headers(request),
         )
     client = get_postgrest()
     try:
@@ -87,9 +116,13 @@ def resolve_agent_scope(request: Request) -> AgentScope:
         )
     rows = res.data or []
     if not rows or rows[0].get("revoked_at"):
+        oauth_scope = _resolve_via_oauth(request, raw)
+        if oauth_scope is not None:
+            return oauth_scope
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Ogiltig eller återkallad token.",
+            headers=unauthorized_headers(request),
         )
     row = rows[0]
     try:
@@ -101,3 +134,24 @@ def resolve_agent_scope(request: Request) -> AgentScope:
     except Exception:  # noqa: BLE001 — best-effort, blockera aldrig anropet
         pass
     return AgentScope(user_id=row["user_id"], token_id=row["id"], name=row.get("name") or "")
+
+
+def _resolve_via_oauth(request: Request, raw: str) -> AgentScope | None:
+    """OAuth-access-token → AgentScope, eller None om den inte gäller här.
+
+    Audience-kontrollen ligger i ``oauth_server.resolve_oauth_token``: en token
+    utfärdad för någon annan resurs får inte fungera mot oss.
+    """
+    try:
+        from trixa_api.oauth_server import canonical_resource, resolve_oauth_token
+
+        row = resolve_oauth_token(raw, canonical_resource(request))
+    except Exception:  # noqa: BLE001
+        return None
+    if row is None:
+        return None
+    return AgentScope(
+        user_id=row["user_id"],
+        token_id=str(row["id"]),
+        name=row.get("client_id") or "oauth",
+    )
