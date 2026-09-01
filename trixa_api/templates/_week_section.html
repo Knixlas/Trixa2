@@ -120,22 +120,35 @@
             {% if w.exercises_to_log %}
             <p style="font-size: 12.5px; color: var(--ink-3); margin: 0 0 8px;">
               <strong>Kvar att bocka av ({{ w.exercises_to_log | length }}):</strong>
-              justera vikt och ansträngning, tryck Bocka av.
+              vikt och reps är räknade ur förra passets ansträngning — justera om
+              det inte stämmer, och bocka av.
             </p>
+            {% set trend_mark = {'up': '↗', 'down': '↘', 'hold': '→', 'deload': '⤵', 'new': '★'} %}
             {% for ex in w.exercises_to_log %}
             <form method="post" action="/ui/strength/log"
                   style="display: flex; align-items: end; gap: 8px; flex-wrap: wrap;
                          padding: 6px 0; border-bottom: 1px dashed var(--line);">
               <input type="hidden" name="session_date" value="{{ w.date }}">
               <input type="hidden" name="exercise_name" value="{{ ex.name }}">
-              <span style="flex: 1 1 150px; min-width: 150px;">
+              {% if ex.code %}<input type="hidden" name="exercise_code" value="{{ ex.code }}">{% endif %}
+              <span style="flex: 1 1 100%; min-width: 150px;">
                 <strong style="font-size: 13.5px;">{{ ex.name }}</strong>
                 {% if ex.load or ex.rir is not none or ex.rest_sec %}
-                <br><small style="color: var(--ink-3);">
-                  {% if ex.load %}{{ ex.load }}{% endif %}
+                <small style="color: var(--ink-3);">
+                  — {% if ex.load %}{{ ex.load }}{% endif %}
                   {% if ex.rir is not none %}{% if ex.load %} · {% endif %}RIR {{ ex.rir }}{% endif %}
                   {% if ex.rest_sec %} · {{ ex.rest_sec }}s vila{% endif %}
                 </small>
+                {% endif %}
+                {# Progressionen: varför just den här vikten. Utan meningen är
+                   förslaget ett tal ur tomma intet och adepten litar inte på det. #}
+                {% if ex.suggestion %}
+                <br><small style="color: {{ 'var(--palm-deep)' if ex.suggestion.trend in ('up', 'new') else 'var(--ink-3)' }};">
+                  {{ trend_mark.get(ex.suggestion.trend, '·') }} {{ ex.suggestion.reason }}
+                </small>
+                {% for warn in ex.suggestion.warnings %}
+                <br><small style="color: var(--ink-3);"><em>{{ warn }}</em></small>
+                {% endfor %}
                 {% endif %}
                 {% if ex.note %}<br><small style="color: var(--ink-3);"><em>{{ ex.note }}</em></small>{% endif %}
               </span>
@@ -146,12 +159,12 @@
               <label style="width: 82px;">Vikt (kg)
                 <input type="number" name="weight_from" min="0" step="0.5"
                        value="{{ ex.weight_from if ex.weight_from is not none else '' }}"></label>
-              <label style="width: 116px;">Ansträngning
+              <label style="width: 150px;">Hur kändes det?
                 <select name="effort">
-                  <option value="1">Lätt</option>
-                  <option value="2" selected>Medel</option>
-                  <option value="3">Tung</option>
-                  <option value="4">Max</option>
+                  <option value="1">Lätt — kunde mer</option>
+                  <option value="2" selected>Lagom</option>
+                  <option value="3">Tungt, men klarade</option>
+                  <option value="4">För tungt</option>
                   <option value="-1">Hoppade över</option>
                 </select>
               </label>
@@ -164,7 +177,7 @@
             </p>
             {% endif %}
             {% if w.logged_exercises %}
-            {% set em = {1: '💚 lätt', 2: '💛 medel', 3: '🟠 tung', 4: '❤️ max', -1: '⏭️ hoppade'} %}
+            {% set em = {1: '💚 lätt', 2: '💛 lagom', 3: '🟠 tungt', 4: '❤️ för tungt', -1: '⏭️ hoppade'} %}
             <ul style="font-size: 13px; margin: 0 0 10px; padding: 0; list-style: none;">
               {% for lg in w.logged_exercises %}
               <li style="display: flex; align-items: center; gap: 8px; padding: 3px 0; border-bottom: 1px dashed var(--line);">
@@ -186,12 +199,12 @@
               <label>Set <input type="number" name="sets" min="0" placeholder="3"></label>
               <label>Reps <input type="number" name="reps" min="0" placeholder="12"></label>
               <label>Vikt (kg) <input type="number" name="weight_from" min="0" step="0.5" placeholder="40"></label>
-              <label>Ansträngning
+              <label>Hur kändes det?
                 <select name="effort">
-                  <option value="1">Lätt</option>
-                  <option value="2" selected>Medel</option>
-                  <option value="3">Tung</option>
-                  <option value="4">Max</option>
+                  <option value="1">Lätt — kunde mer</option>
+                  <option value="2" selected>Lagom</option>
+                  <option value="3">Tungt, men klarade</option>
+                  <option value="4">För tungt</option>
                   <option value="-1">Hoppade över</option>
                 </select>
               </label>

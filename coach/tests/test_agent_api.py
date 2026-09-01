@@ -41,6 +41,12 @@ _REAL_COLUMNS = {
         "duration_min", "details", "purpose", "status", "origin", "created_at",
         "updated_at", "distance_km", "tp_workout_id", "steps", "exercises",
     },
+    # exercise_code kom med migration 013 (progressionshistoriken behöver en
+    # nyckel som överlever att katalogens namn skrivs om).
+    "exercise_logs": {
+        "id", "user_id", "session_date", "exercise_name", "exercise_code",
+        "sets", "reps", "weight_from", "effort", "logged_at",
+    },
 }
 
 # UNIQUE-constraints som databasen faktiskt upprätthåller.
@@ -87,6 +93,9 @@ class _Q:
         return self
 
     def lte(self, c, v):
+        return self
+
+    def lt(self, c, v):
         return self
 
     def order(self, *a, **k):
