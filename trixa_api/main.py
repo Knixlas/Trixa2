@@ -156,10 +156,62 @@ def root_redirect() -> Any:
 # ---------- Health (publikt) ----------
 
 
+def _build_info() -> dict:
+    """Vilken kod som faktiskt kör — commit, gren och deploy.
+
+    "Appen svarar 200" säger att något kör, inte att det är det du just
+    mergade. Utan den skillnaden går en deploy att verifiera bara när
+    ändringen råkar synas i den publika API-ytan.
+
+    Railway sätter RAILWAY_GIT_* i containern. Lokalt finns ingen sådan
+    miljö, så .git/HEAD läses direkt — billigare än att starta en
+    git-process, och /health ligger i Railways hälsokoll.
+    """
+    sha = (os.environ.get("RAILWAY_GIT_COMMIT_SHA") or "").strip()
+    branch = (os.environ.get("RAILWAY_GIT_BRANCH") or "").strip()
+    if not sha:
+        try:
+            git_dir = Path(__file__).resolve().parents[1] / ".git"
+            head = (git_dir / "HEAD").read_text(encoding="utf-8").strip()
+            if head.startswith("ref:"):
+                ref = head.split(" ", 1)[1].strip()
+                branch = branch or ref.rsplit("/", 1)[-1]
+                try:
+                    sha = (git_dir / ref).read_text(encoding="utf-8").strip()
+                except OSError:
+                    # Färsk klon: refs ligger packade, inte som egna filer.
+                    for line in (git_dir / "packed-refs").read_text(
+                        encoding="utf-8"
+                    ).splitlines():
+                        if line.endswith(" " + ref):
+                            sha = line.split(" ", 1)[0]
+                            break
+            else:
+                sha = head
+        except OSError:
+            # Ingen .git och ingen Railway-variabel: bygginfo saknas helt
+            # enkelt. Hälsokollen ska svara ändå.
+            pass
+    return {
+        "commit": sha[:12] or None,
+        "branch": branch or None,
+        "deployment": (os.environ.get("RAILWAY_DEPLOYMENT_ID") or "").strip() or None,
+    }
+
+
+# Läses en gång vid start. /health är Railways hälsokoll och ska vara snabb,
+# och koden kan ändå inte byta commit mitt i en process.
+_BUILD = _build_info()
+
+
 @app.get("/health")
 def health() -> dict:
-    """Railway hälsokoll. Returnerar 200 utan DB-koll så svaret är snabbt."""
-    return {"status": "ok", "service": "trixa-api"}
+    """Railway hälsokoll. Returnerar 200 utan DB-koll så svaret är snabbt.
+
+    Bär också vilken commit som kör, så en deploy går att verifiera utan
+    att ändringen råkar synas i API-ytan.
+    """
+    return {"status": "ok", "service": "trixa-api", **_BUILD}
 
 
 @app.get("/health/db")
