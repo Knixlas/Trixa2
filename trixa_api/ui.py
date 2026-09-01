@@ -12,6 +12,7 @@ import logging
 import os
 from datetime import date as date_type, datetime, timedelta, timezone
 from pathlib import Path
+from uuid import uuid4
 
 import requests
 
@@ -2728,7 +2729,9 @@ def debug_view(request: Request) -> HTMLResponse:
 
 
 @router.get("/health", response_class=HTMLResponse)
-def health_view(request: Request, added: bool = False) -> HTMLResponse:
+def health_view(
+    request: Request, added: bool = False, updated: bool = False
+) -> HTMLResponse:
     user_id = _current_user_id(request)
     client = get_postgrest()
     a_res = (
@@ -2746,10 +2749,14 @@ def health_view(request: Request, added: bool = False) -> HTMLResponse:
         {
             "request": request,
             "concerns": concerns,
+            "locations_selected": [
+                set(_concern_locations(c)) for c in concerns
+            ],
             "locations": _BODY_LOCATIONS,
             "location_text": _location_text,
             "disciplines": _DISCIPLINES_FOR_IMPACT,
             "added": added,
+            "updated": updated,
         },
     )
 
@@ -2786,6 +2793,9 @@ def health_add(
     # (singular) skrivs kvar för äldre läsvägar; locations är sanningen.
     locs = [loc for loc in locations if loc in _LOCATION_LABELS]
     new_concern = {
+        # Stabilt id så redigering och borttagning kan adressera raden även när
+        # listan flyttar sig. Äldre besvär saknar det och adresseras på index.
+        "id": uuid4().hex[:12],
         "name": name,
         "location": locs[0] if locs else None,
         "locations": locs,
@@ -2809,10 +2819,106 @@ def health_add(
     return RedirectResponse(url="/ui/health?added=true", status_code=303)
 
 
+def _concern_locations(concern: dict) -> list[str]:
+    """locations (sanningen) med fallback på det äldre singular-fältet."""
+    locs = concern.get("locations")
+    if isinstance(locs, list) and locs:
+        return [loc for loc in locs if loc in _LOCATION_LABELS]
+    single = concern.get("location")
+    return [single] if single in _LOCATION_LABELS else []
+
+
+def _concern_index(concerns: list, concern_id: str, index: int) -> int:
+    """Hitta raden att skriva på. Id vinner över position.
+
+    Positionen är det enda gamla /ui/health/remove hade, och den flyttar sig så
+    fort en annan flik lägger till eller tar bort ett besvär. Besvär som skapats
+    efter den här ändringen bär ett id; för äldre rader faller vi tillbaka på
+    index så att de också går att rätta.
+    """
+    if concern_id:
+        for i, c in enumerate(concerns):
+            if isinstance(c, dict) and str(c.get("id") or "") == concern_id:
+                return i
+        return -1
+    return index if 0 <= index < len(concerns) else -1
+
+
+@router.post("/health/update", response_class=HTMLResponse)
+def health_update(
+    request: Request,
+    index: int = Form(-1),
+    concern_id: str = Form(""),
+    name: str = Form(...),
+    locations: list[str] = Form(default=[]),
+    severity: int = Form(2),
+    since_date: str = Form(""),
+    impact_swim: str = Form("none"),
+    impact_bike: str = Form("none"),
+    impact_run: str = Form("none"),
+    impact_strength: str = Form("none"),
+    needs_followup: str | None = Form(None),
+    follow_up_by: str = Form(""),
+    notes: str = Form(""),
+) -> Any:
+    """Ändra ett befintligt besvär.
+
+    Fanns inte förut: sidan hade bara add och remove. Att justera impact_run
+    från none till partial — en ren schemaläggningsinställning — krävde att man
+    raderade den medicinska posten och skapade en ny, varpå since_date och
+    historik gick förlorade. En rutinjustering får inte kosta hälsodata.
+    """
+    user_id = _current_user_id(request)
+    client = get_postgrest()
+    a_res = (
+        client.table("athlete_profiles")
+        .select("id, active_concerns")
+        .eq("user_id", user_id)
+        .execute()
+    )
+    if not a_res.data:
+        raise HTTPException(404, "Athlete saknas")
+    athlete_id = a_res.data[0]["id"]
+    concerns = a_res.data[0].get("active_concerns") or []
+
+    pos = _concern_index(concerns, concern_id.strip(), index)
+    if pos < 0:
+        raise HTTPException(404, "Besväret finns inte längre — ladda om sidan.")
+
+    locs = [loc for loc in locations if loc in _LOCATION_LABELS]
+    # Slå ihop i stället för att ersätta: fält som formuläret inte känner till
+    # (id, framtida fält) ska överleva en redigering.
+    updated = dict(concerns[pos])
+    updated.update({
+        "name": name,
+        "location": locs[0] if locs else None,
+        "locations": locs,
+        "severity": severity,
+        "since_date": since_date or None,
+        "needs_followup": needs_followup == "1",
+        "follow_up_by": follow_up_by or None,
+        "notes": notes or None,
+        "impact_per_discipline": {
+            "swim": impact_swim,
+            "bike": impact_bike,
+            "run": impact_run,
+            "strength": impact_strength,
+        },
+        "updated_at": datetime.now(timezone.utc).isoformat(),
+    })
+    concerns[pos] = updated
+    client.table("athlete_profiles").update(
+        {"active_concerns": concerns}
+    ).eq("id", athlete_id).execute()
+
+    return RedirectResponse(url="/ui/health?updated=true", status_code=303)
+
+
 @router.post("/health/remove", response_class=HTMLResponse)
 def health_remove(
     request: Request,
-    index: int = Form(...),
+    index: int = Form(-1),
+    concern_id: str = Form(""),
 ) -> Any:
     user_id = _current_user_id(request)
     client = get_postgrest()
@@ -2827,8 +2933,9 @@ def health_remove(
     athlete_id = a_res.data[0]["id"]
     concerns = a_res.data[0].get("active_concerns") or []
 
-    if 0 <= index < len(concerns):
-        concerns.pop(index)
+    pos = _concern_index(concerns, concern_id.strip(), index)
+    if pos >= 0:
+        concerns.pop(pos)
         client.table("athlete_profiles").update(
             {"active_concerns": concerns}
         ).eq("id", athlete_id).execute()
