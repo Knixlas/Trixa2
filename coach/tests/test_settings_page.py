@@ -14,6 +14,7 @@ dem försvann den andra ändringen utan varning.
 from __future__ import annotations
 
 import sys
+from contextlib import contextmanager
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
@@ -143,24 +144,48 @@ def test_page_has_a_single_settings_form():
 # ---------- TX-8: kopplingsvägen syns ----------
 
 
+@contextmanager
+def _strava_configured(configured: bool = True):
+    """Styr Strava-nycklarna i miljön i stället för att ärva dem.
+
+    Utan det här blev testet grönt lokalt (nycklar i .env) och rött i CI
+    (inga nycklar) — det mätte utvecklarens miljö, inte koden.
+    """
+    import trixa_api.strava_client as sc
+
+    saved = (sc.creds_configured, sc.authorize_url, sc.sign_state)
+    sc.creds_configured = lambda: configured
+    sc.authorize_url = lambda uri, state: "https://www.strava.com/oauth/authorize?x=1"
+    sc.sign_state = lambda uid: "state"
+    try:
+        yield sc
+    finally:
+        sc.creds_configured, sc.authorize_url, sc.sign_state = saved
+
+
 def test_connect_paths_are_visible_before_anything_is_checked():
     c, st = _client_and_store()
-    body = c.get("/ui/settings").text
+    with _strava_configured():
+        body = c.get("/ui/settings").text
     # Inget ikryssat, inget kopplat — och ändå ska vägen dit finnas.
     assert "Anslut Strava" in body
     assert "Logga in på TrainingPeaks" in body
     assert "Inget kopplat än" in body
 
 
+def test_missing_strava_keys_explain_themselves_instead_of_hiding_the_section():
+    c, st = _client_and_store()
+    with _strava_configured(False):
+        body = c.get("/ui/settings").text
+    # Serverns miljö saknar nycklar — säg det, göm inte hela vägen dit.
+    assert "Strava-nycklar saknas" in body
+    assert "Logga in på TrainingPeaks" in body
+
+
 def test_connecting_strava_also_turns_the_capability_on():
     c, st = _client_and_store()
-    import trixa_api.strava_client as sc
-
-    sc.creds_configured = lambda: True
-    sc.authorize_url = lambda uri, state: "https://www.strava.com/oauth/authorize?x=1"
-    sc.sign_state = lambda uid: "state"
-
-    r = c.get("/ui/strava/connect")
+    with _strava_configured():
+        r = c.get("/ui/strava/connect")
     assert r.status_code == 303
     assert r.headers["location"].startswith("https://www.strava.com/oauth/authorize")
     assert _profile(st)["conn_strava"] is True

@@ -352,13 +352,18 @@ upsert) och TX-6 (log_override 404 för självcoachade) var redan fixade i
 - ✓ **TX-7** Vilodagar räknas inte som pass ("3 (+4 vila)").
 - ✓ **TX-8** Aktivitetskälla-sektionen syns alltid; Anslut-knappen sätter
   `conn_*`-flaggan själv.
-- ✓ **TX-9** Hinderbanelopp som distanstyp (migration 012 — **ej applicerad**).
+- ✓ **TX-9** Hinderbanelopp som distanstyp (migration 012 **applicerad 2026-09-01**).
 - ✓ **TX-10** En spar-knapp; `section`-fält styr vilka delar posten bär.
 - ✓ **TX-11** `get_recovery` bär `has_data` + note; serverinstruktionen täcker
   fallet utan klocka.
-- ☐ Kvar: applicera migration 012 i Supabase; OCR-specifikt träningsinnehåll
-  (grepp/drag/bärningar) i passbanken — eget passbanksarbete; radera den
-  diagnostiska OAuth-klienten `trixa-client-i-_k03j9Rm3EXAUJmRgy-g`.
+- ☐ Kvar: OCR-specifikt träningsinnehåll (grepp/drag/bärningar) i passbanken
+  — eget passbanksarbete; radera den diagnostiska OAuth-klienten
+  `trixa-client-i-_k03j9Rm3EXAUJmRgy-g`.
+
+Lärdom: `test_settings_page` mätte först utvecklarens miljö — "Anslut
+Strava"-länken kräver `STRAVA_CLIENT_ID/SECRET`, som finns i lokal `.env` men
+inte i CI. Testet var grönt lokalt och rött i CI. UI-tester som beror på
+miljövariabler måste sätta dem själva.
 
 **Onboarding generaliserad (2026-08-25):**
 - Formuläret antog erfaren triatlet. Nu: aktiva discipliner + erfarenhetsnivå
