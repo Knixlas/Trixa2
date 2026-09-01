@@ -158,9 +158,15 @@ sport till engelska; lagring sker svenska.
 ### `/mcp` — MCP-server (REKOMMENDERAS för AI-klienter)
 
 Samma per-adept-token som `/agent/*`, men talad som MCP så en AI-klient kan
-koppla upp sig utan mellanled. Verktyg: `whoami`, `get_athlete`, `get_week`,
-`get_training_log`, `get_recovery`, `plan_session`, `delete_planned_session`,
-`log_override`. Setup och felsökning: `docs/11_MCP_CONNECTOR.md`.
+koppla upp sig utan mellanled. Verktyg: `whoami`, `get_athlete`,
+`get_constraints`, `get_week`, `get_training_log`, `get_recovery`,
+`plan_session`, `delete_planned_session`, `log_override`. Setup och
+felsökning: `docs/11_MCP_CONNECTOR.md`.
+
+`get_constraints` är bindande innan man skriver pass: den väger ihop aktiva
+discipliner, besvärens impact per gren, pool-tillgång och låsta vilodagar.
+Utan den planerade en agent blint och skrev sim- och cykelpass åt en adept som
+hade båda avstängda (rapport 2026-09-01).
 
 ```bash
 claude mcp add --transport http trixa https://<trixa-url>/mcp --header "Authorization: Bearer trixa_..."
