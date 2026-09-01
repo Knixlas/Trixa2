@@ -183,6 +183,12 @@ phase_details:
       # Simning — minst nedbrytande av de tre grenarna
       open_water: 4
       swim_meet: 3
+      # Hinderbana — löpning plus excentrisk överkroppsbelastning (grepp, drag,
+      # klättring, bärningar) som löpning inte ger. Kostar mer än löploppet på
+      # samma sträcka; greppstyrkan är det som tar längst tid tillbaka.
+      obstacle_sprint: 5
+      obstacle_standard: 10
+      obstacle_ultra: 21
       default: 14   # okänd distans / distans saknas
     max_session_minutes: null
     discipline_split: null  # flexibel, baserad på adeptens preferenser

@@ -52,6 +52,11 @@ sön för löpning, mån som vila).</p>
               <option value="open_water" {% if rt == "open_water" %}selected{% endif %}>Öppet vatten</option>
               <option value="swim_meet" {% if rt == "swim_meet" %}selected{% endif %}>Bassängtävling</option>
             </optgroup>
+            <optgroup label="Hinderbana">
+              <option value="obstacle_sprint" {% if rt == "obstacle_sprint" %}selected{% endif %}>Sprint (upp till ~7 km)</option>
+              <option value="obstacle_standard" {% if rt == "obstacle_standard" %}selected{% endif %}>Standard (~8-15 km)</option>
+              <option value="obstacle_ultra" {% if rt == "obstacle_ultra" %}selected{% endif %}>Ultra / timformat</option>
+            </optgroup>
             <option value="other" {% if rt == "other" %}selected{% endif %}>Annat</option>
           </select>
         </label>

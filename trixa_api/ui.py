@@ -606,6 +606,7 @@ _RACE_TYPES = {
     "5k", "10k", "half_marathon", "marathon", "ultra",
     "gran_fondo", "time_trial", "stage_race",
     "open_water", "swim_meet",
+    "obstacle_sprint", "obstacle_standard", "obstacle_ultra",
     "other",
 }
 
@@ -2022,6 +2023,13 @@ _RACE_DISTANCES = [
     ("stage_race", "Etapplopp", "bike"),
     ("open_water", "Öppet vatten", "swim"),
     ("swim_meet", "Bassängtävling", "swim"),
+    # Hinderbana kräver löpning OCH styrka (grepp, drag, klättring) — därför
+    # syns alternativen så snart någon av dem är aktiv. Ett hinderlopp är inte
+    # ett löplopp: att tvinga en OCR-adept att välja "10 km" gjorde att motorn
+    # planerade för fel sak.
+    ("obstacle_sprint", "Hinderbana sprint (upp till ~7 km)", "run strength"),
+    ("obstacle_standard", "Hinderbana standard (~8-15 km)", "run strength"),
+    ("obstacle_ultra", "Hinderbana ultra / timformat", "run strength"),
     ("other", "Annat", "any"),
 ]
 
