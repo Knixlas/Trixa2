@@ -402,6 +402,8 @@ def write_plan_session(
         "origin": "nils",
     }
 
+    warnings = _plan_warnings(sport_sv, row)
+
     def _existing() -> dict | None:
         res = (
             client.table("planned_sessions").select("id, origin")
@@ -419,7 +421,7 @@ def write_plan_session(
         client.table("planned_sessions").update(row).eq("id", session_id).execute()
         return {
             "status": "ok", "id": session_id, "sport": sport_sv, "origin": "nils",
-            "replaced_origin": previous,
+            "replaced_origin": previous, "warnings": warnings,
         }
 
     found = _existing()
@@ -437,7 +439,43 @@ def write_plan_session(
         return _took_over(found)
     sid = res.data[0]["id"] if res.data else None
     return {"status": "ok", "id": sid, "sport": sport_sv, "origin": "nils",
-            "replaced_origin": None}
+            "replaced_origin": None, "warnings": warnings}
+
+
+def _plan_warnings(sport_sv: str, row: dict) -> list[str]:
+    """Vad coachen behöver veta om passet hen just skrev.
+
+    Ett styrkepass utan ``exercises`` ser komplett ut för coachen — övningarna
+    står ju i ``details`` — men landar hos adepten som ett tomt loggformulär,
+    och utan loggad vikt har lastprogressionen inget att räkna nästa pass på.
+    Verktygsbeskrivningen sade redan att listan ska skickas; det räckte inte,
+    så skrivningen svarar numera med vad som saknas.
+
+    Varning, inte avslag: ett "Rörlighet 20 min" som lagts som Styrka är ett
+    giltigt pass utan set och reps att bocka av.
+    """
+    if sport_sv != "Styrka":
+        return []
+    exercises = row.get("exercises") or []
+    if not exercises:
+        return [
+            "Styrkepasset saknar 'exercises'. Adepten får ett tomt loggformulär "
+            "och måste skriva in varje övningsnamn för hand, och utan loggad "
+            "vikt kan lastprogressionen inte räkna nästa pass. Skicka om passet "
+            "med övningarna som lista."
+        ]
+    missing = [
+        ex.get("name") for ex in exercises
+        if ex.get("reps_min") is None or ex.get("reps_max") is None
+    ]
+    if missing:
+        return [
+            "Övningarna saknar repspann (reps_min/reps_max): "
+            + ", ".join(str(n) for n in missing[:6])
+            + ". Progressionen antar då spannet reps till reps+2, vilket kan "
+            "växla till tyngre vikt tidigare än protokollet avser."
+        ]
+    return []
 
 
 @router.delete("/plan/session/{session_id}")

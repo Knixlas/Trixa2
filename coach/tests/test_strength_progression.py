@@ -22,6 +22,7 @@ from coach.trixa.strength_progression import (  # noqa: E402
     rep_span,
     round_load,
     suggest_next,
+    suggestions_by_name,
 )
 
 # Ett MS-block: spannet 3-6 reps, tung last (strength.yaml::protocol_parameters).
@@ -240,6 +241,53 @@ def test_historik_matchas_pa_kod_nar_namnet_skrivits_om():
         [renamed], [_log("2026-08-25", weight=60.0, reps=6, effort=1)]
     )
     assert out[0]["weight_from"] == 62.5
+
+
+# ---------- övningar utanför planen ----------
+
+
+def test_suggestions_by_name_tacker_pass_som_bar_ovningarna_som_prosa():
+    """Ett coach-skrivet pass kan ha övningarna i löptext utan strukturerad
+    lista. Adepten har ändå en historik, och passets form är inte hens val."""
+    out = suggestions_by_name([_log("2026-08-25", weight=60.0, reps=6, effort=1)])
+    assert "knäböj" in out                 # uppslag på det adepten skriver
+    assert out["knäböj"]["weight"] == 62.5
+    assert out["knäböj"]["code"] == "back_squat"
+    assert out["knäböj"]["trend"] == "up"
+
+
+def test_planlos_ovning_flyttar_vikten_i_stallet_for_att_klattra_i_reps():
+    """Regression: ett repspann som följde med senast loggade reps flyttade
+    taket varje gång. Reps klättrade i all evighet och vikten steg aldrig —
+    alltså ingen progression alls, bara längre set.
+
+    Utan protokoll finns inget spann att växla inom, så reps låses vid det
+    adepten körde och hela progressionen sitter i vikten.
+    """
+    first = suggestions_by_name([_log("2026-08-25", weight=60.0, reps=6, effort=1)])
+    assert first["knäböj"]["weight"] == 62.5
+    assert first["knäböj"]["reps"] == 6           # oförändrat, inte 8
+    # Inget spann föreskrevs, så tala inte om ett tak adepten aldrig sett.
+    assert "Taket" not in first["knäböj"]["reason"]
+    assert "samma 6 reps" in first["knäböj"]["reason"]
+
+    later = suggestions_by_name([_log("2026-09-01", weight=62.5, reps=6, effort=1)])
+    assert later["knäböj"]["weight"] == 65.0      # 62,5 × 1,05 → närmaste skivsteg
+
+
+def test_planlos_kroppsviktsovning_progredierar_fortfarande_i_reps():
+    """Utan vikt finns bara reps att skruva på."""
+    out = suggestions_by_name([{
+        "session_date": "2026-08-25", "exercise_name": "Chins",
+        "sets": 3, "reps": 8, "weight_from": None, "effort": 1,
+    }])
+    assert out["chins"]["weight"] is None
+    assert out["chins"]["reps"] == 10
+
+
+def test_suggestions_by_name_hoppar_over_ovningar_utan_utfort_pass():
+    out = suggestions_by_name([_log("2026-08-25", weight=None, effort=-1)])
+    assert out == {}
 
 
 def test_okand_ovning_far_inte_arva_annan_ovnings_vikt():

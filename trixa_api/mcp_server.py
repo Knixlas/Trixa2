@@ -228,7 +228,11 @@ _TOOLS: list[tuple[str, str, dict, Callable[[AgentScope, dict], Any]]] = [
         "plan_session",
         "Skriv ett pass i adeptens plan. Upsert på (datum, gren): samma dag och "
         "gren skrivs över så du kan korrigera utan att skapa dubbletter. Pass du "
-        "skriver är skyddade — motorn genererar aldrig över dem.",
+        "skriver är skyddade — motorn genererar aldrig över dem. "
+        "STYRKEPASS: skicka alltid 'exercises'. Övningar bara som prosa i "
+        "'details' ger adepten ett tomt loggformulär, och utan loggad vikt kan "
+        "lastprogressionen inte räkna nästa pass. Svaret innehåller 'warnings' "
+        "när något saknas — läs det.",
         {
             "type": "object",
             "properties": {
@@ -260,15 +264,44 @@ _TOOLS: list[tuple[str, str, dict, Callable[[AgentScope, dict], Any]]] = [
                         "Styrkepassets övningar som strukturerad lista. Adeptens "
                         "loggformulär förifylls från den — utan den får hen skriva "
                         "in varje övningsnamn för hand. Skriv den ALLTID för "
-                        "styrkepass, utöver upplägget i details."
+                        "styrkepass, utöver upplägget i details. Listan är också "
+                        "vad lastprogressionen räknar på: reps_min/reps_max ger "
+                        "spannet där reps växlas mot tyngre vikt."
                     ),
                     "items": {
                         "type": "object",
                         "properties": {
                             "name": {"type": "string", "description": "Övningens namn, t.ex. 'Knäböj'."},
+                            "code": {
+                                "type": "string",
+                                "description": (
+                                    "Passbankens övningskod om den finns "
+                                    "(strength_exercises.yaml), t.ex. 'back_squat'. "
+                                    "Stabil nyckel för progressionshistoriken."
+                                ),
+                            },
                             "sets": {"type": "integer"},
-                            "reps": {"type": "integer"},
+                            "reps": {"type": "integer", "description": "Målreps att börja på."},
+                            "reps_min": {
+                                "type": "integer",
+                                "description": "Repspannets golv, t.ex. 3 för maxstyrka.",
+                            },
+                            "reps_max": {
+                                "type": "integer",
+                                "description": (
+                                    "Repspannets tak. Vid taket växlar progressionen "
+                                    "till tyngre vikt och går tillbaka till golvet."
+                                ),
+                            },
                             "weight_from": {"type": "number", "description": "Startvikt i kg, om känd."},
+                            "load": {
+                                "type": "string",
+                                "description": (
+                                    "Lastanvisning, t.ex. '80% 1RM'. Skriv 'kroppsvikt' "
+                                    "för kroppsviktsövningar — då progredierar reps "
+                                    "i stället för kilon."
+                                ),
+                            },
                             "rir": {"type": "integer", "description": "Reps in reserve."},
                             "rest_sec": {"type": "integer"},
                             "note": {"type": "string"},
