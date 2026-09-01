@@ -70,11 +70,12 @@ proxy- och webbläsarloggar och går inte att få tillbaka.
 | Verktyg | Läser/skriver | Gör |
 |---|---|---|
 | `whoami` | läs | Vilken adept är token:en låst till? |
-| `get_athlete` | läs | Mål, erfarenhetsnivå, tröskelvärden, veckoram, hälsa, fasläge |
+| `get_athlete` | läs | Hela profilen: mål, nivå, tröskelvärden, veckoram, aktiva grenar, vilodagar, långpassdagar, utrustning, hälsa, fasläge |
+| `get_constraints` | läs | Vad som går att planera alls — grenar, blockeringar, vilodagar, pool. Läs FÖRE du skriver pass |
 | `get_week` | läs | Planerade pass (default: innevarande vecka) |
 | `get_training_log` | läs | Genomförda pass, alla källor |
-| `get_recovery` | läs | RHR, HRV mot baseline, sömn, readiness, belastningskvot |
-| `plan_session` | skriv | Lägg/ändra ett pass — upsert på (datum, gren) |
+| `get_recovery` | läs | RHR, HRV mot baseline, sömn, readiness, belastningskvot. `has_data=false` + note när klocka saknas |
+| `plan_session` | skriv | Lägg/ändra ett pass — upsert på (datum, gren). Styrkepass bär `exercises[]` som förifyller adeptens logg |
 | `delete_planned_session` | skriv | Ta bort ett pass |
 | `log_override` | skriv | Dokumentera avsteg från motorns rekommendation |
 
@@ -149,7 +150,8 @@ varje regel. Tester: `coach/tests/test_mcp_server.py`.
 | 401 på allt | Token saknas, är felkopierad, eller återkallad i Inställningar |
 | `whoami` ger fel adept | Token tillhör ett annat konto — skapa en ny från rätt inloggning |
 | Klienten hittar inga verktyg | Pekar på fel URL — sökvägen är `/mcp`, inte `/agent` |
-| `get_recovery` ger tom lista | Ingen `garmin_athlete_id` kopplad; TP-synken har inte fyllt cachen |
+| `get_recovery` ger tom lista | Normalt utan kopplad klocka — svaret bär `has_data: false` och en note. Med klocka: TP-synken har inte fyllt cachen |
+| Agenten planerar i fel gren | Den läste inte `get_constraints`. Den är bindande: `inactive_sports`, `blocked_sports` och `rest_days` är hårda gränser |
 | Skrivna pass syns inte i klockan | TP-pushen är avstängd — `TRIXA_PUSH_TO_TP` på workern |
 | Connectorn frågar efter Client ID | Discovery nådde inte fram — se nedan |
 | Connectorn kopplar upp mot fel adress | `TRIXA_PUBLIC_URL` saknas eller pekar fel |

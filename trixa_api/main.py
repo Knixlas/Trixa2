@@ -476,16 +476,23 @@ def post_override(req: CoachOverrideRequest) -> CoachOverrideResponse:
         .limit(1)
         .execute()
     )
-    if not coach_res.data:
-        raise HTTPException(404, "Ingen aktiv coach kopplad till adepten")
-    coach_user_id = coach_res.data[0]["coach_id"]
+    # Ingen mänsklig coach kopplad = självcoachad adept. Overriden ska ändå gå
+    # att logga; spårbarheten behövs mest när det är en språkmodell som avviker.
+    coach_user_id = (
+        coach_res.data[0]["coach_id"] if coach_res.data else req.athlete_user_id
+    )
+
+    if req.scope == "week" and not req.week_start:
+        raise HTTPException(400, "scope=week kräver week_start")
+    if req.scope == "workout" and not req.planned_session_id:
+        raise HTTPException(400, "scope=workout kräver planned_session_id")
 
     row = {
         "athlete_id": athlete_id,
         "coach_user_id": coach_user_id,
         "scope": req.scope,
-        "week_id": req.week_id,
-        "workout_id": req.workout_id,
+        "week_start": req.week_start.isoformat() if req.week_start else None,
+        "planned_session_id": req.planned_session_id,
         "engine_recommendation": req.engine_recommendation,
         "override_decision": req.override_decision,
         "motivation": req.motivation,

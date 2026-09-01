@@ -8,13 +8,21 @@
 pass läses. "Spelar ingen roll" = Trixa väljer (default lör för cykel,
 sön för löpning, mån som vila).</p>
 
+
+{# En form, en spar-knapp. Sidan hade tre formulär med var sin knapp:
+   ändrade man i två sektioner och tryckte på en av dem försvann den andra
+   ändringen utan varning. section-fälten säger vilka delar posten bär. #}
+<form method="post" action="/ui/settings">
+<input type="hidden" name="section" value="profile">
+<input type="hidden" name="section" value="connections">
+<input type="hidden" name="section" value="training">
+
 <section>
   <h2>Om mig</h2>
   <p style="font-size: 0.875rem; color: var(--ink-3); margin-top: 0;">
     Det här berättar du själv — måltävling, hur mycket du tränar och dina
     testvärden. Justerbart när som helst; nästa veckogenerering använder det.
   </p>
-  <form method="post" action="/ui/settings/profile">
     <fieldset>
       <legend>Måltävling</legend>
       <div class="grid">
@@ -43,6 +51,11 @@ sön för löpning, mån som vila).</p>
             <optgroup label="Simning">
               <option value="open_water" {% if rt == "open_water" %}selected{% endif %}>Öppet vatten</option>
               <option value="swim_meet" {% if rt == "swim_meet" %}selected{% endif %}>Bassängtävling</option>
+            </optgroup>
+            <optgroup label="Hinderbana">
+              <option value="obstacle_sprint" {% if rt == "obstacle_sprint" %}selected{% endif %}>Sprint (upp till ~7 km)</option>
+              <option value="obstacle_standard" {% if rt == "obstacle_standard" %}selected{% endif %}>Standard (~8-15 km)</option>
+              <option value="obstacle_ultra" {% if rt == "obstacle_ultra" %}selected{% endif %}>Ultra / timformat</option>
             </optgroup>
             <option value="other" {% if rt == "other" %}selected{% endif %}>Annat</option>
           </select>
@@ -115,224 +128,24 @@ sön för löpning, mån som vila).</p>
         </label>
       </div>
     </fieldset>
-
-    <button type="submit"><i data-lucide="save"></i> Spara om mig</button>
-  </form>
 </section>
 
 <section>
   <h2>Vad du använder</h2>
   <p style="font-size: 0.875rem; color: var(--ink-3); margin-top: 0;">
-    Kryssa i det du faktiskt har kopplat. Det du inte använder göms — och
-    saknar du TrainingPeaks/Strava loggar du dina pass manuellt på hemskärmen.
+    Vad du vill använda. Anslutningen görs under "Aktivitetskälla" nedan —
+    kopplar du Strava eller TrainingPeaks därifrån kryssas rutan i åt dig.
   </p>
-  <form method="post" action="/ui/settings/connections">
     <label><input type="checkbox" name="conn_ai" value="1" {% if athlete.conn_ai %}checked{% endif %}>
       AI-coach — personlig tolkning och plan ovanpå motorn</label>
     <label><input type="checkbox" name="conn_tp" value="1" {% if athlete.conn_tp %}checked{% endif %}>
       TrainingPeaks — pass + återhämtning från klockan via TP</label>
     <label><input type="checkbox" name="conn_strava" value="1" {% if athlete.conn_strava %}checked{% endif %}>
       Strava — utförda pass</label>
-    <button type="submit"><i data-lucide="check"></i> Spara anslutningar</button>
-  </form>
 </section>
-
-{% if athlete.conn_tp or athlete.conn_strava %}
-<section>
-  <h2>Aktivitetskälla</h2>
-
-  {% if strava.tp_flash == "synced" %}<p style="color: var(--palm-deep); font-weight: 600;">✓ Hämtat från TrainingPeaks — nya pass och återhämtningsdata är inne.</p>
-  {% elif strava.tp_flash == "connected" %}<p style="color: var(--palm-deep); font-weight: 600;">✓ TrainingPeaks kopplat — inloggningen sparad.</p>
-  {% elif strava.tp_flash == "loginfail" %}<p style="color: var(--coral); font-weight: 600;">Inloggningen nekades — kontrollera användarnamn/lösenord. Har TP slagit på CAPTCHA/MFA kan automatisk login inte användas.</p>
-  {% elif strava.tp_flash == "loginerror" %}<p style="color: var(--coral); font-weight: 600;">Något gick fel vid TP-inloggningen (detaljer i serverloggen) — försök igen.</p>
-  {% elif strava.tp_flash == "error" %}<p style="color: var(--coral); font-weight: 600;">TrainingPeaks-hämtningen misslyckades — försök igen om en stund (detaljer i serverloggen).</p>
-  {% elif strava.tp_flash == "nocookie" %}<p style="color: var(--coral); font-weight: 600;">Ingen TrainingPeaks-inloggning sparad — logga in nedan.</p>
-  {% elif strava.tp_flash == "noprofile" %}<p style="color: var(--coral); font-weight: 600;">Profilen saknar recovery-nyckel (garmin_athlete_id) — kan inte synka TP.</p>
-  {% endif %}
-  {% if athlete.conn_tp %}
-  <article>
-    <p style="margin-top: 0;"><strong>TrainingPeaks</strong> (klockan via TP) — primär källa för utförda pass och återhämtning.</p>
-    {% if strava.tp_connected %}
-    <p style="font-size: 0.875rem; color: var(--ink-3);">Inloggning sparad. Workern hämtar automatiskt enligt schema. Vill du analysera ett pass direkt
-    efter att du klivit av — tryck här så hämtas det nu (klockan måste ha hunnit synka till TP, vanligen inom någon minut).</p>
-    <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-      <form method="post" action="/ui/tp/sync"><button type="submit">Hämta från TrainingPeaks nu</button></form>
-    </div>
-    <details style="margin-top: 8px;">
-      <summary>Logga in på nytt (rotera)</summary>
-      {% include "_tp_login_form.html" %}
-    </details>
-    {% else %}
-    <p style="font-size: 0.875rem; color: var(--ink-3);">Logga in med ditt TrainingPeaks-konto för att koppla. Vi sparar bara
-    sessionen (inte lösenordet) och läser dina pass + återhämtning.</p>
-    {% include "_tp_login_form.html" %}
-    {% endif %}
-  </article>
-  {% endif %}
-
-  {% if athlete.conn_strava %}
-  {% if strava.flash == "connected" %}<p style="color: var(--palm-deep); font-weight: 600;">✓ Strava ansluten och synkad.</p>
-  {% elif strava.flash == "synced" %}<p style="color: var(--palm-deep); font-weight: 600;">✓ Strava synkad.</p>
-  {% elif strava.flash == "disconnected" %}<p style="color: var(--ink-3);">Strava frånkopplad.</p>
-  {% elif strava.flash == "error" %}
-  <p style="color: var(--coral); font-weight: 600;">
-    {% if strava.why in ("http400", "http401") %}
-    Strava nekade token-förnyelsen ({{ strava.why | replace("http", "HTTP ") }}).
-    Troligen fel/saknade STRAVA_CLIENT_ID/STRAVA_CLIENT_SECRET i serverns miljö,
-    eller en återkallad koppling — prova "Koppla från" och anslut Strava på nytt.
-    {% elif strava.why %}
-    Något gick fel med Strava ({{ strava.why | replace("http", "HTTP ") }}) — försök igen.
-    {% else %}
-    Något gick fel med Strava — försök igen.
-    {% endif %}
-  </p>
-  {% elif strava.flash == "noconfig" %}<p style="color: var(--coral); font-weight: 600;">Strava-nycklar saknas i serverns miljö (STRAVA_CLIENT_ID/STRAVA_CLIENT_SECRET) — synk går inte förrän de är satta.</p>
-  {% elif strava.flash == "using" %}<p style="color: var(--coral); font-weight: 600;">Strava är nu tvingad källa — TrainingPeaks-datan ignoreras tills du återgår.</p>
-  {% elif strava.flash == "auto" %}<p style="color: var(--palm-deep); font-weight: 600;">✓ Tillbaka till TrainingPeaks som primär källa (Strava som reserv).</p>
-  {% endif %}
-  <article>
-    {% if strava.connected %}
-      <p style="margin-top: 0;">
-        <strong>Ansluten</strong>{% if strava.athlete_id %} (Strava-id {{ strava.athlete_id }}){% endif %}.
-        {% if strava.last_activity %}Senaste pass: {{ strava.last_activity }}.{% endif %}
-        {% if strava.use_strava %}<span class="badge" style="background: var(--coral); color: #fff;">tvingad källa</span>{% endif %}
-      </p>
-      {% if not strava.has_garmin %}
-      <p style="font-size: 0.875rem; color: var(--ink-3);">Du har ingen TrainingPeaks-koppling — Trixa läser dina utförda pass från Strava.</p>
-      {% elif strava.use_strava %}
-      <p style="font-size: 0.875rem; color: var(--ink-3);">Strava är just nu <strong>tvingad källa</strong> — TrainingPeaks-datan (klockan via TP) ignoreras tills du återgår. Använd bara när TP-synken ligger nere.</p>
-      {% else %}
-      <p style="font-size: 0.875rem; color: var(--ink-3);">TrainingPeaks (klockan via TP) är primär källa. Strava är <strong>reserv</strong> och fyller bara i de veckor TP saknar pass.</p>
-      {% endif %}
-      <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
-        <form method="post" action="/ui/strava/sync"><button type="submit">Synka nu</button></form>
-        <form method="post" action="/ui/strava/disconnect" onsubmit="return confirm('Koppla från Strava?');">
-          <button type="submit" class="outline">Koppla från</button>
-        </form>
-        {% if strava.has_garmin %}
-          {% if strava.use_strava %}
-          <form method="post" action="/ui/strava/auto"><button type="submit">Återgå till TrainingPeaks</button></form>
-          {% else %}
-          <form method="post" action="/ui/strava/use" onsubmit="return confirm('Tvinga Strava som källa? TrainingPeaks-datan ignoreras tills du återgår.');">
-            <button type="submit" class="outline">Använd Strava istället</button>
-          </form>
-          {% endif %}
-        {% endif %}
-      </div>
-    {% else %}
-      <p style="margin-top: 0;">Koppla Strava som reserv — Trixa läser i första hand TrainingPeaks och fyller bara i från Strava de veckor TP saknar pass.</p>
-      {% if strava.configured %}
-      <a href="/ui/strava/connect" style="display:inline-flex;align-items:center;background:var(--hibiscus);color:#fff;padding:12px 22px;border-radius:var(--r-pill);text-decoration:none;font-weight:700;box-shadow:var(--shadow-hibiscus);">
-        <i data-lucide="link" style="width:16px;height:16px;margin-right:8px;"></i>Anslut Strava
-      </a>
-      {% else %}
-      <p style="color: var(--coral);">Strava-nycklar saknas i miljön (STRAVA_CLIENT_ID/SECRET).</p>
-      {% endif %}
-    {% endif %}
-  </article>
-  {% endif %}{# conn_strava #}
-</section>
-{% else %}
-<section>
-  <h2>Aktivitetskälla</h2>
-  <article>
-    <p style="margin: 0;">Du loggar dina pass <strong>manuellt</strong> — varje planerat pass
-    har en "Logga"-knapp på hemskärmen, förifylld med det passet föreskriver.
-    Koppla TrainingPeaks eller Strava ovan om du vill att utfört hämtas automatiskt.</p>
-  </article>
-</section>
-{% endif %}
 
 <section>
-  <h2>AI-åtkomst</h2>
-  <p style="font-size: 0.875rem; color: var(--ink-3); margin-top: 0;">
-    Vill du att din AI-coach ska läsa din plan och skriva pass åt dig? Skapa en
-    <strong>token</strong> och lägg in den i AI-klienten. Token låser AI:n till
-    <strong>just din</strong> data — den ser ingen annans, och du kan återkalla
-    den när som helst.
-  </p>
-  <p style="font-size: 0.875rem; color: var(--ink-3);">
-    I Claude Code kopplar du in Trixa med ett kommando:<br>
-    <code style="user-select: all;">claude mcp add --transport http trixa {{ base_url }}/mcp --header "Authorization: Bearer &lt;token&gt;"</code><br>
-    Andra klienter tar samma adress (<code>{{ base_url }}/mcp</code>) och samma header.
-    Behöver du ett vanligt REST-API istället finns det på <code>/agent</code>.
-  </p>
-
-  {% if new_token %}
-  <div class="alert" style="background: var(--lagoon-soft); margin-bottom: 12px;">
-    <div class="alert-body">
-      <strong>Din nya token — kopiera nu, visas bara en gång:</strong>
-      <p><code style="word-break: break-all; user-select: all;">{{ new_token }}</code></p>
-    </div>
-  </div>
-  {% endif %}
-
-  {% if api_tokens %}
-  <table style="width: 100%; font-size: 0.875rem; border-collapse: collapse;">
-    <thead><tr style="text-align: left; color: var(--ink-3);">
-      <th>Namn</th><th>Prefix</th><th>Senast använd</th><th></th>
-    </tr></thead>
-    <tbody>
-      {% for t in api_tokens %}
-      <tr style="border-top: 1px solid var(--line);">
-        <td>{{ t.name }}</td>
-        <td><code>{{ t.token_prefix }}…</code></td>
-        <td>{{ (t.last_used_at or "—")[:10] }}</td>
-        <td style="text-align: right;">
-          <form method="post" action="/ui/api-tokens/{{ t.id }}/revoke"
-                onsubmit="return confirm('Återkalla token? AI:n tappar åtkomsten direkt.');">
-            <button type="submit" class="outline" style="padding: 4px 10px;">Återkalla</button>
-          </form>
-        </td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
-  {% else %}
-  <p style="font-size: 0.875rem; color: var(--ink-3);">Inga aktiva tokens.</p>
-  {% endif %}
-
-  <form method="post" action="/ui/api-tokens" style="margin-top: 10px;">
-    <label>Namn (för att känna igen den)
-      <input type="text" name="name" placeholder="t.ex. Claude på jobbdatorn" maxlength="60">
-    </label>
-    <button type="submit"><i data-lucide="key"></i> Skapa token</button>
-  </form>
-
-  <h3 style="margin-top: 22px;">Kopplade appar</h3>
-  <p style="font-size: 0.875rem; color: var(--ink-3); margin-top: 0;">
-    Appar du gett åtkomst via inloggning (claude.ai och liknande). Här behövs
-    ingen token — appen skickade dig hit och du godkände. Drar du tillbaka
-    åtkomsten slutar den fungera direkt.
-  </p>
-  {% if connected_apps %}
-  <table style="width: 100%; font-size: 0.875rem; border-collapse: collapse;">
-    <thead><tr style="text-align: left; color: var(--ink-3);">
-      <th>App</th><th>Kopplad</th><th>Senast använd</th><th></th>
-    </tr></thead>
-    <tbody>
-      {% for app in connected_apps %}
-      <tr style="border-top: 1px solid var(--line);">
-        <td>{{ app.name }}</td>
-        <td>{{ app.connected_at or "—" }}</td>
-        <td>{{ app.last_used_at or "—" }}</td>
-        <td style="text-align: right;">
-          <form method="post" action="/ui/oauth-apps/{{ app.client_id }}/revoke"
-                onsubmit="return confirm('Dra tillbaka åtkomsten? Appen tappar den direkt.');">
-            <button type="submit" class="outline" style="padding: 4px 10px;">Dra tillbaka</button>
-          </form>
-        </td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
-  {% else %}
-  <p style="font-size: 0.875rem; color: var(--ink-3);">Inga kopplade appar.</p>
-  {% endif %}
-</section>
-
-<form method="post" action="/ui/settings">
-
+  <h2>Träningsupplägg</h2>
   <fieldset>
     <legend>Aktiva discipliner</legend>
     <p style="font-size: 0.875rem; color: var(--ink-3); margin-top: 0;">
@@ -440,8 +253,11 @@ sön för löpning, mån som vila).</p>
     </label>
     {% endfor %}
   </fieldset>
+</section>
 
-  <button type="submit"><i data-lucide="check"></i> Spara</button>
+<div style="position: sticky; bottom: 0; padding: 12px 0 16px; background: var(--surface, #fff);">
+  <button type="submit"><i data-lucide="check"></i> Spara inställningar</button>
+</div>
 </form>
 
 {% if saved %}
@@ -450,6 +266,192 @@ sön för löpning, mån som vila).</p>
   <div class="alert-body"><strong>Sparat.</strong><p>Nästa veckogenerering använder dessa val.</p></div>
 </div>
 {% endif %}
+
+<section>
+  <h2>Aktivitetskälla</h2>
+
+  {% if strava.tp_flash == "synced" %}<p style="color: var(--palm-deep); font-weight: 600;">✓ Hämtat från TrainingPeaks — nya pass och återhämtningsdata är inne.</p>
+  {% elif strava.tp_flash == "connected" %}<p style="color: var(--palm-deep); font-weight: 600;">✓ TrainingPeaks kopplat — inloggningen sparad.</p>
+  {% elif strava.tp_flash == "loginfail" %}<p style="color: var(--coral); font-weight: 600;">Inloggningen nekades — kontrollera användarnamn/lösenord. Har TP slagit på CAPTCHA/MFA kan automatisk login inte användas.</p>
+  {% elif strava.tp_flash == "loginerror" %}<p style="color: var(--coral); font-weight: 600;">Något gick fel vid TP-inloggningen (detaljer i serverloggen) — försök igen.</p>
+  {% elif strava.tp_flash == "error" %}<p style="color: var(--coral); font-weight: 600;">TrainingPeaks-hämtningen misslyckades — försök igen om en stund (detaljer i serverloggen).</p>
+  {% elif strava.tp_flash == "nocookie" %}<p style="color: var(--coral); font-weight: 600;">Ingen TrainingPeaks-inloggning sparad — logga in nedan.</p>
+  {% elif strava.tp_flash == "noprofile" %}<p style="color: var(--coral); font-weight: 600;">Profilen saknar recovery-nyckel (garmin_athlete_id) — kan inte synka TP.</p>
+  {% endif %}
+  <article>
+    <p style="margin-top: 0;"><strong>TrainingPeaks</strong> (klockan via TP) — primär källa för utförda pass och återhämtning.</p>
+    {% if strava.tp_connected %}
+    <p style="font-size: 0.875rem; color: var(--ink-3);">Inloggning sparad. Workern hämtar automatiskt enligt schema. Vill du analysera ett pass direkt
+    efter att du klivit av — tryck här så hämtas det nu (klockan måste ha hunnit synka till TP, vanligen inom någon minut).</p>
+    <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+      <form method="post" action="/ui/tp/sync"><button type="submit">Hämta från TrainingPeaks nu</button></form>
+    </div>
+    <details style="margin-top: 8px;">
+      <summary>Logga in på nytt (rotera)</summary>
+      {% include "_tp_login_form.html" %}
+    </details>
+    {% else %}
+    <p style="font-size: 0.875rem; color: var(--ink-3);">Logga in med ditt TrainingPeaks-konto för att koppla. Vi sparar bara
+    sessionen (inte lösenordet) och läser dina pass + återhämtning.</p>
+    {% include "_tp_login_form.html" %}
+    {% endif %}
+  </article>
+
+  {% if strava.flash == "connected" %}<p style="color: var(--palm-deep); font-weight: 600;">✓ Strava ansluten och synkad.</p>
+  {% elif strava.flash == "synced" %}<p style="color: var(--palm-deep); font-weight: 600;">✓ Strava synkad.</p>
+  {% elif strava.flash == "disconnected" %}<p style="color: var(--ink-3);">Strava frånkopplad.</p>
+  {% elif strava.flash == "error" %}
+  <p style="color: var(--coral); font-weight: 600;">
+    {% if strava.why in ("http400", "http401") %}
+    Strava nekade token-förnyelsen ({{ strava.why | replace("http", "HTTP ") }}).
+    Troligen fel/saknade STRAVA_CLIENT_ID/STRAVA_CLIENT_SECRET i serverns miljö,
+    eller en återkallad koppling — prova "Koppla från" och anslut Strava på nytt.
+    {% elif strava.why %}
+    Något gick fel med Strava ({{ strava.why | replace("http", "HTTP ") }}) — försök igen.
+    {% else %}
+    Något gick fel med Strava — försök igen.
+    {% endif %}
+  </p>
+  {% elif strava.flash == "noconfig" %}<p style="color: var(--coral); font-weight: 600;">Strava-nycklar saknas i serverns miljö (STRAVA_CLIENT_ID/STRAVA_CLIENT_SECRET) — synk går inte förrän de är satta.</p>
+  {% elif strava.flash == "using" %}<p style="color: var(--coral); font-weight: 600;">Strava är nu tvingad källa — TrainingPeaks-datan ignoreras tills du återgår.</p>
+  {% elif strava.flash == "auto" %}<p style="color: var(--palm-deep); font-weight: 600;">✓ Tillbaka till TrainingPeaks som primär källa (Strava som reserv).</p>
+  {% endif %}
+  <article>
+    {% if strava.connected %}
+      <p style="margin-top: 0;">
+        <strong>Ansluten</strong>{% if strava.athlete_id %} (Strava-id {{ strava.athlete_id }}){% endif %}.
+        {% if strava.last_activity %}Senaste pass: {{ strava.last_activity }}.{% endif %}
+        {% if strava.use_strava %}<span class="badge" style="background: var(--coral); color: #fff;">tvingad källa</span>{% endif %}
+      </p>
+      {% if not strava.has_garmin %}
+      <p style="font-size: 0.875rem; color: var(--ink-3);">Du har ingen TrainingPeaks-koppling — Trixa läser dina utförda pass från Strava.</p>
+      {% elif strava.use_strava %}
+      <p style="font-size: 0.875rem; color: var(--ink-3);">Strava är just nu <strong>tvingad källa</strong> — TrainingPeaks-datan (klockan via TP) ignoreras tills du återgår. Använd bara när TP-synken ligger nere.</p>
+      {% else %}
+      <p style="font-size: 0.875rem; color: var(--ink-3);">TrainingPeaks (klockan via TP) är primär källa. Strava är <strong>reserv</strong> och fyller bara i de veckor TP saknar pass.</p>
+      {% endif %}
+      <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
+        <form method="post" action="/ui/strava/sync"><button type="submit">Synka nu</button></form>
+        <form method="post" action="/ui/strava/disconnect" onsubmit="return confirm('Koppla från Strava?');">
+          <button type="submit" class="outline">Koppla från</button>
+        </form>
+        {% if strava.has_garmin %}
+          {% if strava.use_strava %}
+          <form method="post" action="/ui/strava/auto"><button type="submit">Återgå till TrainingPeaks</button></form>
+          {% else %}
+          <form method="post" action="/ui/strava/use" onsubmit="return confirm('Tvinga Strava som källa? TrainingPeaks-datan ignoreras tills du återgår.');">
+            <button type="submit" class="outline">Använd Strava istället</button>
+          </form>
+          {% endif %}
+        {% endif %}
+      </div>
+    {% else %}
+      <p style="margin-top: 0;">Koppla Strava som reserv — Trixa läser i första hand TrainingPeaks och fyller bara i från Strava de veckor TP saknar pass.</p>
+      {% if strava.configured %}
+      <a href="/ui/strava/connect" style="display:inline-flex;align-items:center;background:var(--hibiscus);color:#fff;padding:12px 22px;border-radius:var(--r-pill);text-decoration:none;font-weight:700;box-shadow:var(--shadow-hibiscus);">
+        <i data-lucide="link" style="width:16px;height:16px;margin-right:8px;"></i>Anslut Strava
+      </a>
+      {% else %}
+      <p style="color: var(--coral);">Strava-nycklar saknas i miljön (STRAVA_CLIENT_ID/SECRET).</p>
+      {% endif %}
+    {% endif %}
+  </article>
+  {% if not strava.tp_connected and not strava.connected %}
+  <article>
+    <p style="margin: 0;">Inget kopplat än — du loggar dina pass <strong>manuellt</strong>
+    på hemskärmen, förifyllt med det passet föreskriver. Koppla TrainingPeaks eller
+    Strava ovan om du vill att utfört hämtas automatiskt.</p>
+  </article>
+  {% endif %}
+</section>
+
+<section>
+  <h2>AI-åtkomst</h2>
+  <p style="font-size: 0.875rem; color: var(--ink-3); margin-top: 0;">
+    Vill du att din AI-coach ska läsa din plan och skriva pass åt dig? Skapa en
+    <strong>token</strong> och lägg in den i AI-klienten. Token låser AI:n till
+    <strong>just din</strong> data — den ser ingen annans, och du kan återkalla
+    den när som helst.
+  </p>
+  <p style="font-size: 0.875rem; color: var(--ink-3);">
+    I Claude Code kopplar du in Trixa med ett kommando:<br>
+    <code style="user-select: all;">claude mcp add --transport http trixa {{ base_url }}/mcp --header "Authorization: Bearer &lt;token&gt;"</code><br>
+    Andra klienter tar samma adress (<code>{{ base_url }}/mcp</code>) och samma header.
+    Behöver du ett vanligt REST-API istället finns det på <code>/agent</code>.
+  </p>
+
+  {% if new_token %}
+  <div class="alert" style="background: var(--lagoon-soft); margin-bottom: 12px;">
+    <div class="alert-body">
+      <strong>Din nya token — kopiera nu, visas bara en gång:</strong>
+      <p><code style="word-break: break-all; user-select: all;">{{ new_token }}</code></p>
+    </div>
+  </div>
+  {% endif %}
+
+  {% if api_tokens %}
+  <table style="width: 100%; font-size: 0.875rem; border-collapse: collapse;">
+    <thead><tr style="text-align: left; color: var(--ink-3);">
+      <th>Namn</th><th>Prefix</th><th>Senast använd</th><th></th>
+    </tr></thead>
+    <tbody>
+      {% for t in api_tokens %}
+      <tr style="border-top: 1px solid var(--line);">
+        <td>{{ t.name }}</td>
+        <td><code>{{ t.token_prefix }}…</code></td>
+        <td>{{ (t.last_used_at or "—")[:10] }}</td>
+        <td style="text-align: right;">
+          <form method="post" action="/ui/api-tokens/{{ t.id }}/revoke"
+                onsubmit="return confirm('Återkalla token? AI:n tappar åtkomsten direkt.');">
+            <button type="submit" class="outline" style="padding: 4px 10px;">Återkalla</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p style="font-size: 0.875rem; color: var(--ink-3);">Inga aktiva tokens.</p>
+  {% endif %}
+
+  <form method="post" action="/ui/api-tokens" style="margin-top: 10px;">
+    <label>Namn (för att känna igen den)
+      <input type="text" name="name" placeholder="t.ex. Claude på jobbdatorn" maxlength="60">
+    </label>
+    <button type="submit"><i data-lucide="key"></i> Skapa token</button>
+  </form>
+
+  <h3 style="margin-top: 22px;">Kopplade appar</h3>
+  <p style="font-size: 0.875rem; color: var(--ink-3); margin-top: 0;">
+    Appar du gett åtkomst via inloggning (claude.ai och liknande). Här behövs
+    ingen token — appen skickade dig hit och du godkände. Drar du tillbaka
+    åtkomsten slutar den fungera direkt.
+  </p>
+  {% if connected_apps %}
+  <table style="width: 100%; font-size: 0.875rem; border-collapse: collapse;">
+    <thead><tr style="text-align: left; color: var(--ink-3);">
+      <th>App</th><th>Kopplad</th><th>Senast använd</th><th></th>
+    </tr></thead>
+    <tbody>
+      {% for app in connected_apps %}
+      <tr style="border-top: 1px solid var(--line);">
+        <td>{{ app.name }}</td>
+        <td>{{ app.connected_at or "—" }}</td>
+        <td>{{ app.last_used_at or "—" }}</td>
+        <td style="text-align: right;">
+          <form method="post" action="/ui/oauth-apps/{{ app.client_id }}/revoke"
+                onsubmit="return confirm('Dra tillbaka åtkomsten? Appen tappar den direkt.');">
+            <button type="submit" class="outline" style="padding: 4px 10px;">Dra tillbaka</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p style="font-size: 0.875rem; color: var(--ink-3);">Inga kopplade appar.</p>
+  {% endif %}
+</section>
 
 <section style="margin-top: 28px;">
   <details>

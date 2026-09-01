@@ -45,10 +45,12 @@ values
   redan har en rad med `origin != 'trixa2'`.
 - Använd **bara** `public.planned_sessions` som skrivväg. Den äldre
   `garmin_coach.planned_workouts`-vägen är pensionerad och speglas inte längre.
-- Om en `trixa2`-rad redan ligger på dagen du planerar: ändra den inte till
-  `nils`. Skapa/behåll din `origin='nils'`-rad; Trixas nästa regenerering
-  markerar sin egen överflödiga rad som `cancelled`, och TP-workern tar bort
-  motsvarande pass från TrainingPeaks.
+- Om en `trixa2`-rad redan ligger på dagen du planerar: **ta över den**.
+  Tabellen har `UNIQUE (user_id, date, sport)`, så två rader för samma gren
+  samma dag kan inte existera — den gamla instruktionen om att skapa en egen
+  parallell rad var omöjlig att följa. `POST /agent/plan/session` och
+  MCP-verktyget `plan_session` gör övertagandet åt dig och svarar med
+  `replaced_origin` så du ser vems pass som skrevs över.
 
 ## Läsa utfört (genomförda pass)
 
@@ -100,15 +102,25 @@ order by metric_date desc limit 14;
 
 ```sql
 insert into public.coach_overrides
-  (athlete_id, coach_user_id, scope, engine_recommendation, override_decision,
+  (athlete_id, coach_user_id, scope, week_start, planned_session_id,
+   engine_recommendation, override_decision,
    motivation, medical_context_disclosed, athlete_explicit_request)
 values
   ('81b667bc-f37c-4311-a45e-1b0a28d1ada7',          -- athlete_profiles.id, INTE user_id!
    '4e225307-ee66-4bf8-a141-69f52218e2ce',          -- Coach Svidén
    'overtraining',                                   -- week|workout|phase|volume|overtraining
+   null, null,                                       -- se scope-kraven nedan
    '{"level": "..."}', '{"level": "..."}',
    '<motivering, minst 10 tecken>', true, false);
 ```
+
+Kolumnerna heter `week_start` och `planned_session_id` — inte `week_id` /
+`workout_id`. CHECK-constraintet `scope_matches_target` kräver `week_start` när
+`scope='week'` och `planned_session_id` när `scope='workout'`.
+
+Saknar adepten mänsklig coach sätts `coach_user_id` till adepten själv
+(självcoachad) — spårbarheten behövs mest just då, eftersom det är en
+språkmodell som avviker från motorn.
 
 Planeraren kvitterar respekterad override med `honored_by_planner=true` + `honored_at`.
 
@@ -146,9 +158,15 @@ sport till engelska; lagring sker svenska.
 ### `/mcp` — MCP-server (REKOMMENDERAS för AI-klienter)
 
 Samma per-adept-token som `/agent/*`, men talad som MCP så en AI-klient kan
-koppla upp sig utan mellanled. Verktyg: `whoami`, `get_athlete`, `get_week`,
-`get_training_log`, `get_recovery`, `plan_session`, `delete_planned_session`,
-`log_override`. Setup och felsökning: `docs/11_MCP_CONNECTOR.md`.
+koppla upp sig utan mellanled. Verktyg: `whoami`, `get_athlete`,
+`get_constraints`, `get_week`, `get_training_log`, `get_recovery`,
+`plan_session`, `delete_planned_session`, `log_override`. Setup och
+felsökning: `docs/11_MCP_CONNECTOR.md`.
+
+`get_constraints` är bindande innan man skriver pass: den väger ihop aktiva
+discipliner, besvärens impact per gren, pool-tillgång och låsta vilodagar.
+Utan den planerade en agent blint och skrev sim- och cykelpass åt en adept som
+hade båda avstängda (rapport 2026-09-01).
 
 ```bash
 claude mcp add --transport http trixa https://<trixa-url>/mcp --header "Authorization: Bearer trixa_..."

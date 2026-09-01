@@ -73,6 +73,10 @@ def _tool_get_athlete(scope: AgentScope, args: dict) -> Any:
     return agent_api.get_athlete(scope=scope)
 
 
+def _tool_get_constraints(scope: AgentScope, args: dict) -> Any:
+    return agent_api.get_constraints(scope=scope)
+
+
 def _tool_get_week(scope: AgentScope, args: dict) -> Any:
     monday = (args.get("monday") or "").strip()
     if not monday:
@@ -104,6 +108,7 @@ def _tool_plan_session(scope: AgentScope, args: dict) -> Any:
         intensity=args.get("intensity") or "",
         details=args.get("details") or "",
         workout_code=args.get("workout_code") or "",
+        exercises=args.get("exercises") or [],
     )
     return agent_api.write_plan_session(body=body, scope=scope)
 
@@ -116,6 +121,7 @@ def _tool_delete_planned_session(scope: AgentScope, args: dict) -> Any:
 
 
 def _tool_log_override(scope: AgentScope, args: dict) -> Any:
+    week_start = (args.get("week_start") or "").strip()
     body = agent_api.OverrideIn(
         scope=args.get("scope", ""),
         engine_recommendation=args.get("engine_recommendation") or {},
@@ -123,6 +129,8 @@ def _tool_log_override(scope: AgentScope, args: dict) -> Any:
         motivation=args.get("motivation", ""),
         medical_context_disclosed=bool(args.get("medical_context_disclosed")),
         athlete_explicit_request=bool(args.get("athlete_explicit_request")),
+        week_start=_parse_date(week_start, "week_start") if week_start else None,
+        planned_session_id=(args.get("planned_session_id") or "").strip() or None,
     )
     return agent_api.write_override(body=body, scope=scope)
 
@@ -141,11 +149,23 @@ _TOOLS: list[tuple[str, str, dict, Callable[[AgentScope, dict], Any]]] = [
     ),
     (
         "get_athlete",
-        "Adeptens grunddata: mål, erfarenhetsnivå, tröskelvärden, veckoram, "
-        "aktiva besvär, kroniska tillstånd och fasläge. Börja här när du ska "
-        "planera — det är kontexten allt annat vilar på.",
+        "Hela adeptprofilen: mål, erfarenhetsnivå, tröskelvärden, veckoram, "
+        "aktiva discipliner, vilodagar, långpassdagar, utrustning och "
+        "pool-tillgång, inne/ute-preferens, besvär med impact per gren, "
+        "kroniska tillstånd, nutrition och fasläge. Samma fält som adepten ser "
+        "på inställnings- och hälsosidan.",
         {"type": "object", "properties": {}},
         _tool_get_athlete,
+    ),
+    (
+        "get_constraints",
+        "Vad som ÖVERHUVUDTAGET går att planera, färdigsammanvägt: aktiva "
+        "discipliner, grenar som är blockerade eller begränsade av besvär, "
+        "vilodagar som ska lämnas tomma, pool-tillgång och utrustning. Läs den "
+        "FÖRE du skriver pass — den hindrar dig från att lägga simpass åt någon "
+        "utan pool eller träning på en låst vilodag.",
+        {"type": "object", "properties": {}},
+        _tool_get_constraints,
     ),
     (
         "get_week",
@@ -186,7 +206,9 @@ _TOOLS: list[tuple[str, str, dict, Callable[[AgentScope, dict], Any]]] = [
         "get_recovery",
         "Dygnsdata för återhämtning: vilopuls, HRV mot baseline, sömnpoäng, "
         "readiness, stress och belastningskvot (ACWR). Läs den innan du höjer "
-        "belastningen eller lägger in kvalitetspass.",
+        "belastningen eller lägger in kvalitetspass. Saknar adepten kopplad "
+        "klocka svarar den has_data=false med en note — det är normalt, inte "
+        "ett fel; planera då på veckoram och upplevd ansträngning.",
         {
             "type": "object",
             "properties": {
@@ -228,6 +250,28 @@ _TOOLS: list[tuple[str, str, dict, Callable[[AgentScope, dict], Any]]] = [
                     "type": "string",
                     "description": "Passbankskod om passet kommer därifrån, t.ex. 'AE2_bike_04'.",
                 },
+                "exercises": {
+                    "type": "array",
+                    "description": (
+                        "Styrkepassets övningar som strukturerad lista. Adeptens "
+                        "loggformulär förifylls från den — utan den får hen skriva "
+                        "in varje övningsnamn för hand. Skriv den ALLTID för "
+                        "styrkepass, utöver upplägget i details."
+                    ),
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "name": {"type": "string", "description": "Övningens namn, t.ex. 'Knäböj'."},
+                            "sets": {"type": "integer"},
+                            "reps": {"type": "integer"},
+                            "weight_from": {"type": "number", "description": "Startvikt i kg, om känd."},
+                            "rir": {"type": "integer", "description": "Reps in reserve."},
+                            "rest_sec": {"type": "integer"},
+                            "note": {"type": "string"},
+                        },
+                        "required": ["name"],
+                    },
+                },
             },
             "required": ["date", "sport", "title"],
         },
@@ -253,7 +297,8 @@ _TOOLS: list[tuple[str, str, dict, Callable[[AgentScope, dict], Any]]] = [
         "Dokumentera att du medvetet frångår motorns rekommendation. Krav enligt "
         "coach-praxis: vad motorn sa, vad du valde istället, och varför. Flagga "
         "om beslutet vilar på medicinsk information eller adeptens uttryckliga "
-        "önskemål — motorn tar hänsyn till overriden när nästa vecka genereras.",
+        "önskemål — motorn tar hänsyn till overriden när nästa vecka genereras. "
+        "scope='week' kräver week_start, scope='workout' kräver planned_session_id.",
         {
             "type": "object",
             "properties": {
@@ -276,6 +321,14 @@ _TOOLS: list[tuple[str, str, dict, Callable[[AgentScope, dict], Any]]] = [
                 },
                 "medical_context_disclosed": {"type": "boolean"},
                 "athlete_explicit_request": {"type": "boolean"},
+                "week_start": {
+                    "type": "string",
+                    "description": "Veckans måndag, YYYY-MM-DD. Krävs när scope='week'.",
+                },
+                "planned_session_id": {
+                    "type": "string",
+                    "description": "Passets id från get_week. Krävs när scope='workout'.",
+                },
             },
             "required": [
                 "scope",
@@ -360,9 +413,19 @@ def _dispatch(scope: AgentScope, message: dict) -> dict | None:
                 "serverInfo": {"name": SERVER_NAME, "version": SERVER_VERSION},
                 "instructions": (
                     "Trixa är en deterministisk träningsmotor. Verktygen läser och "
-                    "skriver EN adepts data — den som token:en tillhör. Läs "
-                    "get_athlete och get_recovery innan du planerar, skriv pass med "
-                    "plan_session, och dokumentera avsteg från motorn med log_override."
+                    "skriver EN adepts data — den som token:en tillhör.\n\n"
+                    "Innan du planerar: läs get_constraints (vad som går att lägga "
+                    "alls) och get_athlete (mål, nivå, tröskelvärden). "
+                    "get_constraints är bindande — planera aldrig i en gren som "
+                    "ligger i inactive_sports eller blocked_sports, och lägg aldrig "
+                    "pass på en dag i rest_days.\n\n"
+                    "Läs get_recovery också. Saknar adepten kopplad klocka svarar "
+                    "den med tom metrics-lista och en note — det är normalläget för "
+                    "nya adepter och inget fel. Planera då på veckoram och "
+                    "erfarenhetsnivå ur get_athlete, håll upprampningen försiktig "
+                    "och fråga adepten hur passen kändes i stället för att läsa HRV.\n\n"
+                    "Skriv pass med plan_session och dokumentera avsteg från motorn "
+                    "med log_override."
                 ),
             },
         )

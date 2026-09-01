@@ -18,6 +18,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from coach.trixa.db import get_postgrest
+from coach.trixa.exercise_plan import normalize_exercises
 from trixa_api.agent_auth import AgentScope, resolve_agent_scope
 
 router = APIRouter(prefix="/agent", tags=["agent"])
@@ -67,23 +68,131 @@ def whoami(scope: AgentScope = Depends(resolve_agent_scope)) -> dict:
 # ---------- läsa: athlete-state ----------
 
 
-@router.get("/athlete")
-def get_athlete(scope: AgentScope = Depends(resolve_agent_scope)) -> dict:
-    """Adeptens mål, testvärden, hälsa — Nils kontextbygge."""
-    client = get_postgrest()
+# Hela adeptprofilen som ``/ui/settings`` och ``/ui/health`` håller. Listan var
+# förut en delmängd: den utelämnade aktiva discipliner, vilodagar, utrustning och
+# pool-tillgång — precis de fält som avgör vad som ÖVERHUVUDTAGET går att lägga.
+# En agent som bara ser MCP-ytan planerade därför blint, och skrev sim- och
+# cykelpass åt en adept som hade båda avstängda. Allt som styr planeringen ska
+# vara läsbart här; det som inte gör det (tokens, cookies) hör inte hemma.
+_ATHLETE_COLUMNS = (
+    "id, user_id, coach_name, goal, experience_level, weekly_hours, weekly_days,"
+    " race_type, race_date, time_goal,"
+    " ftp, lthr, lthr_bike, max_hr, resting_hr, swim_css, run_threshold_pace,"
+    " threshold_meta, recovery_week_ratio,"
+    " sports, preferred_rest_days, long_bike_day, long_run_day,"
+    " equipment, preferred_settings,"
+    " injuries, health_conditions, active_concerns, medications,"
+    " nutrition_notes, race_carbs_per_hour_g, carb_load_g_per_kg,"
+    " phase_state, notes, onboarded_at, onboarding_version"
+)
+
+_ALL_SPORTS = ("swim", "bike", "run", "strength")
+_IMPACT_RANK = {"none": 0, "partial": 1, "full": 2}
+_DAY_NAMES = (
+    "monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday",
+)
+
+
+def _athlete_row(client, user_id: str) -> dict:
     res = (
         client.table("athlete_profiles")
-        .select("id, user_id, goal, experience_level, weekly_hours, weekly_days,"
-                " race_type, race_date, time_goal, ftp, lthr, swim_css,"
-                " run_threshold_pace, injuries, health_conditions, active_concerns,"
-                " medications, phase_state, notes")
-        .eq("user_id", scope.user_id)
+        .select(_ATHLETE_COLUMNS)
+        .eq("user_id", user_id)
         .limit(1)
         .execute()
     )
     if not res.data:
         raise HTTPException(404, "Athlete saknas")
     return res.data[0]
+
+
+@router.get("/athlete")
+def get_athlete(scope: AgentScope = Depends(resolve_agent_scope)) -> dict:
+    """Hela adeptprofilen: mål, testvärden, schema, utrustning, hälsa."""
+    return _athlete_row(get_postgrest(), scope.user_id)
+
+
+def _worst_impact(concerns: list) -> dict[str, str]:
+    """Värsta impact per disciplin över alla aktiva besvär.
+
+    Två besvär kan träffa samma gren olika hårt — planeringen måste följa det
+    strängaste. Okända värden räknas som ``none`` (fältet är fritext i jsonb).
+    """
+    worst = {s: "none" for s in _ALL_SPORTS}
+    for concern in concerns or []:
+        if not isinstance(concern, dict):
+            continue
+        impacts = concern.get("impact_per_discipline") or {}
+        for sport, level in impacts.items():
+            if sport not in worst:
+                continue
+            if _IMPACT_RANK.get(level, 0) > _IMPACT_RANK.get(worst[sport], 0):
+                worst[sport] = level
+    return worst
+
+
+@router.get("/constraints")
+def get_constraints(scope: AgentScope = Depends(resolve_agent_scope)) -> dict:
+    """De hårda begränsningarna, färdigsammanvägda: vad går att planera alls?
+
+    ``get_athlete`` bär råvärdena, men de ligger på tre ställen (aktiva
+    discipliner, utrustning, impact per besvär) och måste vägas ihop rätt för
+    att ge ett svar. Den sammanvägningen är deterministisk och hör hemma i
+    koden, inte i en språkmodells huvud — därför den här vyn.
+    """
+    athlete = _athlete_row(get_postgrest(), scope.user_id)
+
+    sports = [s for s in (athlete.get("sports") or list(_ALL_SPORTS)) if s in _ALL_SPORTS]
+    equipment = athlete.get("equipment") or {}
+    pool = equipment.get("pool_type") or "unknown"
+    impact = _worst_impact(athlete.get("active_concerns") or [])
+
+    blocked = sorted(s for s in sports if impact.get(s) == "full")
+    limited = sorted(s for s in sports if impact.get(s) == "partial")
+    # Ingen pool och inget öppet vatten → simpass går inte att genomföra,
+    # oavsett vad profilen säger att adepten håller på med.
+    if "swim" in sports and pool == "none" and "swim" not in blocked:
+        blocked.append("swim")
+    plannable = [s for s in sports if s not in blocked]
+
+    rest_days = [d for d in (athlete.get("preferred_rest_days") or []) if d in _DAY_NAMES]
+
+    reasons: list[str] = []
+    inactive = [s for s in _ALL_SPORTS if s not in sports]
+    if inactive:
+        reasons.append(
+            "Ej aktiva discipliner (planera inga pass alls i dem): "
+            + ", ".join(inactive)
+        )
+    if pool == "none" and "swim" in sports:
+        reasons.append("Ingen pool-tillgång — simpass går inte att genomföra.")
+    for sport in blocked:
+        if impact.get(sport) == "full":
+            reasons.append(f"{sport}: besvär med impact 'full' — hoppa över helt.")
+    for sport in limited:
+        reasons.append(f"{sport}: besvär med impact 'partial' — bara lugna AE-pass.")
+    if rest_days:
+        reasons.append("Vilodagar (lägg inga pass): " + ", ".join(rest_days))
+
+    return {
+        "sports": sports,
+        "inactive_sports": inactive,
+        "plannable_sports": plannable,
+        "blocked_sports": blocked,
+        "limited_sports": limited,
+        "discipline_impact": impact,
+        "rest_days": rest_days,
+        "long_session_days": {
+            "bike": athlete.get("long_bike_day"),
+            "run": athlete.get("long_run_day"),
+        },
+        "pool_access": pool,
+        "equipment": equipment,
+        "preferred_settings": athlete.get("preferred_settings") or {},
+        "weekly_hours": athlete.get("weekly_hours"),
+        "weekly_days": athlete.get("weekly_days"),
+        "reasons": reasons,
+    }
 
 
 # ---------- läsa: veckans plan ----------
@@ -94,7 +203,7 @@ def _week_plan(client, user_id: str, monday: date_type) -> dict:
     res = (
         client.table("planned_sessions")
         .select("id, date, sport, title, workout_code, intensity, duration_min,"
-                " details, purpose, status, origin")
+                " details, purpose, status, origin, exercises")
         .eq("user_id", user_id)
         .gte("date", monday.isoformat())
         .lte("date", sunday.isoformat())
@@ -111,6 +220,7 @@ def _week_plan(client, user_id: str, monday: date_type) -> dict:
             "intensity": w.get("intensity") or "",
             "duration_min": w.get("duration_min"),
             "details": w.get("details") or "",
+            "exercises": w.get("exercises") or [],
             "status": w.get("status") or "",
             "origin": w.get("origin") or "",
         }
@@ -174,8 +284,16 @@ def get_recovery(
         .eq("user_id", scope.user_id).limit(1).execute()
     )
     gid = a.data[0].get("garmin_athlete_id") if a.data else None
+    # Tomt svar är normalläget för en adept utan kopplad klocka, inte ett fel.
+    # Noten säger det rakt ut så att en agent slutar leta efter data som aldrig
+    # kommer och planerar på veckoram och upplevd ansträngning i stället.
+    no_watch = (
+        "Ingen kopplad klocka — adepten har ingen återhämtningsdata. Planera på "
+        "veckoram och erfarenhetsnivå ur get_athlete, ramp försiktigt och fråga "
+        "adepten hur passen kändes."
+    )
     if not gid:
-        return {"metrics": [], "note": "Ingen garmin_athlete_id kopplad."}
+        return {"metrics": [], "has_data": False, "note": no_watch}
     res = (
         client.schema("garmin_coach").table("daily_metrics")
         .select("metric_date, resting_hr, hrv_last_night_ms, hrv_baseline_low,"
@@ -185,7 +303,16 @@ def get_recovery(
         .limit(days)
         .execute()
     )
-    return {"metrics": res.data or []}
+    metrics = res.data or []
+    if not metrics:
+        return {
+            "metrics": [], "has_data": False,
+            "note": (
+                "Klocka kopplad men inga dygn synkade i perioden — behandla som "
+                "avsaknad av data, inte som goda värden."
+            ),
+        }
+    return {"metrics": metrics, "has_data": True}
 
 
 # ---------- skriva: plan (Nils vinner) ----------
@@ -199,14 +326,27 @@ class PlanSessionIn(BaseModel):
     intensity: str = ""
     details: str = ""
     workout_code: str = ""
+    # Strukturerad övningslista utöver prosan i details. Loggformuläret
+    # förifylls från den, så adepten bekräftar i stället för att skriva av.
+    exercises: list[dict] = Field(default_factory=list)
 
 
 @router.post("/plan/session")
 def write_plan_session(
     body: PlanSessionIn, scope: AgentScope = Depends(resolve_agent_scope)
 ) -> dict:
-    """Skriv ett pass i planen (origin='nils'). Upsert på (adept, datum, gren) —
-    samma dag+gren skrivs över så Nils kan korrigera utan dubbletter."""
+    """Skriv ett pass i planen (origin='nils'). Upsert på (adept, datum, gren).
+
+    Databasen har UNIQUE (user_id, date, sport) — två pass för samma gren samma
+    dag kan alltså inte existera. Därför matchar vi på hela nyckeln, **oavsett
+    origin**: ligger motorns eller adeptens egen rad där tar coachen över den.
+    Att bara leta efter egna rader (origin='nils') gjorde att varje krock med en
+    genererad vecka slog i unik-indexet och kastade ett rått databasfel, trots
+    att endpointen dokumenterats som upsert.
+
+    Att ta över raden är också rätt semantik: plannerns grind hoppar över dagar
+    som redan har mänskligt skapade rader, så en övertagen rad blir skyddad.
+    """
     client = get_postgrest()
     sport_sv = _norm_sport_sv(body.sport)
     row = {
@@ -218,21 +358,47 @@ def write_plan_session(
         "intensity": body.intensity.strip(),
         "details": body.details.strip(),
         "workout_code": body.workout_code.strip(),
+        "exercises": normalize_exercises(body.exercises) or None,
         "status": "planned",
         "origin": "nils",
     }
-    existing = (
-        client.table("planned_sessions").select("id")
-        .eq("user_id", scope.user_id).eq("date", row["date"]).eq("sport", sport_sv)
-        .eq("origin", "nils").limit(1).execute()
-    )
-    if existing.data:
-        sid = existing.data[0]["id"]
-        client.table("planned_sessions").update(row).eq("id", sid).execute()
-    else:
+
+    def _existing() -> dict | None:
+        res = (
+            client.table("planned_sessions").select("id, origin")
+            .eq("user_id", scope.user_id).eq("date", row["date"]).eq("sport", sport_sv)
+            .limit(1).execute()
+        )
+        return (res.data or [None])[0]
+
+    def _took_over(found: dict) -> dict:
+        # Läs av vad som stod där INNAN uppdateringen — annars rapporterar vi
+        # tillbaka vårt eget origin och adepten får aldrig veta att motorns
+        # eller hens eget pass skrevs över.
+        previous = found.get("origin")
+        session_id = found["id"]
+        client.table("planned_sessions").update(row).eq("id", session_id).execute()
+        return {
+            "status": "ok", "id": session_id, "sport": sport_sv, "origin": "nils",
+            "replaced_origin": previous,
+        }
+
+    found = _existing()
+    if found is not None:
+        return _took_over(found)
+
+    try:
         res = client.table("planned_sessions").insert(row).execute()
-        sid = res.data[0]["id"] if res.data else None
-    return {"status": "ok", "id": sid, "sport": sport_sv, "origin": "nils"}
+    except Exception:  # noqa: BLE001
+        # Kapplöpning: någon hann skriva raden mellan uppslaget och insert:en.
+        # Unik-indexet gjorde sitt jobb — läs om och uppdatera i stället.
+        found = _existing()
+        if found is None:
+            raise
+        return _took_over(found)
+    sid = res.data[0]["id"] if res.data else None
+    return {"status": "ok", "id": sid, "sport": sport_sv, "origin": "nils",
+            "replaced_origin": None}
 
 
 @router.delete("/plan/session/{session_id}")
@@ -263,16 +429,27 @@ class OverrideIn(BaseModel):
     motivation: str = Field(..., min_length=10)
     medical_context_disclosed: bool = False
     athlete_explicit_request: bool = False
-    week_id: str | None = None
-    workout_id: str | None = None
+    # Namnen speglar kolumnerna i coach_overrides. Hette week_id/workout_id
+    # förut, kolumner som aldrig funnits, så varje skrivning mot skarp DB gav
+    # PGRST204. CHECK-constraintet scope_matches_target kräver dessutom
+    # week_start när scope=week och planned_session_id när scope=workout.
+    week_start: date_type | None = None
+    planned_session_id: str | None = None
 
 
 @router.post("/override")
 def write_override(
     body: OverrideIn, scope: AgentScope = Depends(resolve_agent_scope)
 ) -> dict:
-    """Skapa en manual_override (Nils åsidosätter engine). athlete_id =
-    athlete_profiles.id, coach_user_id slås upp via coach_athletes."""
+    """Skapa en manual_override (coachen åsidosätter engine).
+
+    athlete_id = athlete_profiles.id. coach_user_id slås upp via coach_athletes,
+    men **faller tillbaka på adepten själv** när ingen mänsklig coach är kopplad.
+    Tidigare gav det 404, vilket gjorde verktyget oanvändbart för varje
+    självcoachad adept, trots att spårbarheten behövs mest just då: det är en
+    språkmodell som avviker från motorn, och beslutet måste gå att granska
+    efteråt.
+    """
     client = get_postgrest()
     a = (
         client.table("athlete_profiles").select("id")
@@ -286,14 +463,22 @@ def write_override(
         .eq("athlete_id", scope.user_id).in_("status", ["accepted", "active"])
         .limit(1).execute()
     )
-    if not coach.data:
-        raise HTTPException(404, "Ingen aktiv coach kopplad till adepten.")
+    coach_user_id = coach.data[0]["coach_id"] if coach.data else scope.user_id
+    self_coached = not coach.data
+
+    # scope_matches_target i DB: week kräver week_start, workout kräver
+    # planned_session_id. Fånga det här i stället för som ett rått CHECK-fel.
+    if body.scope == "week" and not body.week_start:
+        raise HTTPException(400, "scope=week kräver week_start (veckans måndag).")
+    if body.scope == "workout" and not body.planned_session_id:
+        raise HTTPException(400, "scope=workout kräver planned_session_id.")
+
     row = {
         "athlete_id": athlete_id,
-        "coach_user_id": coach.data[0]["coach_id"],
+        "coach_user_id": coach_user_id,
         "scope": body.scope,
-        "week_id": body.week_id,
-        "workout_id": body.workout_id,
+        "week_start": body.week_start.isoformat() if body.week_start else None,
+        "planned_session_id": body.planned_session_id,
         "engine_recommendation": body.engine_recommendation,
         "override_decision": body.override_decision,
         "motivation": body.motivation,
@@ -303,4 +488,4 @@ def write_override(
     res = client.table("coach_overrides").insert(row).execute()
     if not res.data:
         raise HTTPException(500, "Override-insert gav ingen data.")
-    return {"status": "ok", "id": res.data[0]["id"]}
+    return {"status": "ok", "id": res.data[0]["id"], "self_coached": self_coached}

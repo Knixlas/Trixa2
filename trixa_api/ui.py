@@ -12,6 +12,7 @@ import logging
 import os
 from datetime import date as date_type, datetime, timedelta, timezone
 from pathlib import Path
+from uuid import uuid4
 
 import requests
 
@@ -20,12 +21,13 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 from coach.trixa.db import get_postgrest
+from coach.trixa.exercise_plan import exercises_from_steps
 from coach.trixa.planner import (
     generate_week,
     swap_workout_discipline_and_replan,
     swap_workout_to_next_alternative,
 )
-from trixa_api import season, supabase_auth, readiness, strava_client
+from trixa_api import markdown_lite, season, supabase_auth, readiness, strava_client
 
 
 logger = logging.getLogger("trixa.ui")
@@ -41,6 +43,9 @@ _jinja_env = Environment(
     autoescape=select_autoescape(["html"]),
     cache_size=0,
 )
+# Passbeskrivningar är markdown i fritext (både motorns och coachens). Filtret
+# escapar indata innan det formaterar — se markdown_lite.
+_jinja_env.filters["session_markdown"] = markdown_lite.render
 
 
 def _render(template_name: str, context: dict, status_code: int = 200) -> HTMLResponse:
@@ -255,11 +260,24 @@ def _strava_redirect_uri(request: Request) -> str:
 
 @router.get("/strava/connect")
 def strava_connect(request: Request) -> Any:
+    """Starta Strava-OAuth — och slå på kopplingen på vägen.
+
+    Kryssrutan under "Vad du använder" gömde hela integrationen, och texten
+    läste som en deklaration: en adept som VILLE koppla Strava såg ingen väg
+    dit, och måste först kryssa i att hon redan gjort det hon försökte göra.
+    Att trycka Anslut ÄR att använda Strava — flaggan följer med.
+    """
     uid = _current_user_id(request)
     if not uid:
         return RedirectResponse("/ui/login", status_code=303)
     if not strava_client.creds_configured():
         return RedirectResponse("/ui/settings?strava=noconfig", status_code=303)
+    try:
+        get_postgrest().table("athlete_profiles").update(
+            {"conn_strava": True}
+        ).eq("user_id", uid).execute()
+    except Exception:  # noqa: BLE001 — flaggan får inte blockera själva kopplingen
+        logger.exception("Kunde inte sätta conn_strava för %s", uid)
     url = strava_client.authorize_url(
         _strava_redirect_uri(request), strava_client.sign_state(uid)
     )
@@ -365,6 +383,11 @@ def tp_login(
     except Exception:  # noqa: BLE001
         logger.exception("TP-login via knapp kraschade för %s", uid)
         return RedirectResponse("/ui/settings?tp=loginerror", status_code=303)
+    # Samma resonemang som för Strava: en lyckad inloggning ÄR att använda TP.
+    try:
+        client.table("athlete_profiles").update({"conn_tp": True}).eq("user_id", uid).execute()
+    except Exception:  # noqa: BLE001
+        logger.exception("Kunde inte sätta conn_tp för %s", uid)
     return RedirectResponse("/ui/settings?tp=connected", status_code=303)
 
 
@@ -373,7 +396,9 @@ def strava_disconnect(request: Request) -> Any:
     uid = _current_user_id(request)
     client = get_postgrest()
     strava_client.delete_tokens(client, uid)
-    client.table("athlete_profiles").update({"use_strava": False}).eq("user_id", uid).execute()
+    client.table("athlete_profiles").update(
+        {"use_strava": False, "conn_strava": False}
+    ).eq("user_id", uid).execute()
     return RedirectResponse("/ui/settings?strava=disconnected", status_code=303)
 
 
@@ -444,6 +469,14 @@ def strength_remove(request: Request, log_id: str = Form(...)) -> Any:
     return RedirectResponse("/ui/", status_code=303)
 
 
+def _connections_update(conn_ai, conn_tp, conn_strava) -> dict:
+    return {
+        "conn_ai": conn_ai == "1",
+        "conn_tp": conn_tp == "1",
+        "conn_strava": conn_strava == "1",
+    }
+
+
 @router.post("/settings/connections")
 def settings_connections(
     request: Request,
@@ -451,16 +484,13 @@ def settings_connections(
     conn_tp: str | None = Form(None),
     conn_strava: str | None = Form(None),
 ) -> Any:
-    """Spara bara kapabilitets-flaggorna (egen form → nollställer inte övrigt)."""
+    """Bakåtkompatibel ingång — inställningssidan postar allt till /ui/settings."""
     uid = _current_user_id(request)
     if not uid:
         raise HTTPException(401, "Inte inloggad")
-    client = get_postgrest()
-    client.table("athlete_profiles").update({
-        "conn_ai": conn_ai == "1",
-        "conn_tp": conn_tp == "1",
-        "conn_strava": conn_strava == "1",
-    }).eq("user_id", uid).execute()
+    get_postgrest().table("athlete_profiles").update(
+        _connections_update(conn_ai, conn_tp, conn_strava)
+    ).eq("user_id", uid).execute()
     return RedirectResponse("/ui/settings?saved=1", status_code=303)
 
 
@@ -576,6 +606,7 @@ _RACE_TYPES = {
     "5k", "10k", "half_marathon", "marathon", "ultra",
     "gran_fondo", "time_trial", "stage_race",
     "open_water", "swim_meet",
+    "obstacle_sprint", "obstacle_standard", "obstacle_ultra",
     "other",
 }
 
@@ -613,6 +644,18 @@ def settings_profile(
     uid = _current_user_id(request)
     if not uid:
         raise HTTPException(401, "Inte inloggad")
+    update = _profile_update(
+        coach_name, goal, experience_level, weekly_hours, weekly_days,
+        race_type, race_date, time_goal, ftp, lthr, swim_css, run_threshold_pace,
+    )
+    get_postgrest().table("athlete_profiles").update(update).eq("user_id", uid).execute()
+    return RedirectResponse("/ui/settings?saved=1", status_code=303)
+
+
+def _profile_update(
+    coach_name, goal, experience_level, weekly_hours, weekly_days,
+    race_type, race_date, time_goal, ftp, lthr, swim_css, run_threshold_pace,
+) -> dict:
     update: dict = {
         "coach_name": (coach_name or "").strip()[:40] or None,
         "weekly_hours": weekly_hours if weekly_hours and weekly_hours > 0 else None,
@@ -631,9 +674,7 @@ def settings_profile(
         update["goal"] = goal.strip()
     if experience_level in _EXPERIENCE_LEVELS:
         update["experience_level"] = experience_level
-    client = get_postgrest()
-    client.table("athlete_profiles").update(update).eq("user_id", uid).execute()
-    return RedirectResponse("/ui/settings?saved=1", status_code=303)
+    return update
 
 
 # ---------- Manuell passlogg (utfört → MASTER training_log, source='manual') ----------
@@ -1610,7 +1651,16 @@ def _attach_strength_logs(client, week: dict, user_id: str) -> None:
         for r in (prev.data or []) if (r.get("exercise_name") or "").strip()
     })
     for w in strength:
-        w["logged_exercises"] = by_date.get(str(w["date"])[:10], [])
+        logged = by_date.get(str(w["date"])[:10], [])
+        w["logged_exercises"] = logged
+        done = {(lg.get("exercise_name") or "").strip().casefold() for lg in logged}
+        # Förifyll formuläret, skriv ALDRIG loggraden. Att registrera pass som
+        # inte utförts förstör just den datakvalitet motorn vilar på — adepten
+        # justerar vikt och ansträngning och bekräftar själv.
+        w["exercises_to_log"] = [
+            ex for ex in (w.get("planned_exercises") or [])
+            if (ex.get("name") or "").strip().casefold() not in done
+        ]
 
 
 def _display_steps(steps) -> list[dict]:
@@ -1714,9 +1764,23 @@ def _fetch_current_week_data(
             "coach_notes": "",
             "is_manual": (ps.get("origin") or "") == "manual",
             "origin": ps.get("origin") or "",
-            "planned_exercises": ps.get("exercises") or [],
+            # Äldre rader (och rader från skrivare som bara fyllt steps) bär
+            # övningarna i main_set — härled listan så loggen kan förifyllas
+            # även där, i stället för att kräva en ombyggnad av gamla veckor.
+            "planned_exercises": (
+                ps.get("exercises") or exercises_from_steps(ps.get("steps"))
+            ),
+            # Vilodagen lagras som en rad i planned_sessions men är frånvaro av
+            # träning. Yoga/Promenad mappar också till sport "rest" — de ÄR pass
+            # och räknas som sådana, därför tittar vi på det lagrade värdet.
+            "is_rest": (ps.get("sport") or "").strip().lower() in ("vila", "rest"),
             "status": _status(ps["date"], sport, code or title, dur, ps.get("id")),
         })
+
+    # "Pass: 7" för en vecka med tre träningsdagar och fyra vilodagar lästes som
+    # sju träningspass. Räknaren visar träningspass; vilan redovisas separat.
+    week["rest_day_count"] = sum(1 for w in week["workouts"] if w["is_rest"])
+    week["session_count"] = len(week["workouts"]) - week["rest_day_count"]
 
     _attach_strength_logs(client, week, user_id)
     return week
@@ -1959,6 +2023,13 @@ _RACE_DISTANCES = [
     ("stage_race", "Etapplopp", "bike"),
     ("open_water", "Öppet vatten", "swim"),
     ("swim_meet", "Bassängtävling", "swim"),
+    # Hinderbana kräver löpning OCH styrka (grepp, drag, klättring) — därför
+    # syns alternativen så snart någon av dem är aktiv. Ett hinderlopp är inte
+    # ett löplopp: att tvinga en OCR-adept att välja "10 km" gjorde att motorn
+    # planerade för fel sak.
+    ("obstacle_sprint", "Hinderbana sprint (upp till ~7 km)", "run strength"),
+    ("obstacle_standard", "Hinderbana standard (~8-15 km)", "run strength"),
+    ("obstacle_ultra", "Hinderbana ultra / timformat", "run strength"),
     ("other", "Annat", "any"),
 ]
 
@@ -2342,41 +2413,16 @@ def settings_view(
     )
 
 
-@router.post("/settings", response_class=HTMLResponse)
-def settings_submit(
-    request: Request,
-    sports: list[str] = Form(default=[]),
-    long_bike_day: str = Form(""),
-    long_run_day: str = Form(""),
-    rest_days: list[str] = Form(default=[]),
-    has_trainer: str | None = Form(None),
-    has_treadmill: str | None = Form(None),
-    has_power_meter_bike: str | None = Form(None),
-    has_power_meter_run: str | None = Form(None),
-    hr_strap: str | None = Form(None),
-    pool_type: str = Form("25m"),
-    setting_swim: str = Form("any"),
-    setting_bike: str = Form("any"),
-    setting_run: str = Form("any"),
-) -> HTMLResponse:
-    user_id = _current_user_id(request)
-    client = get_postgrest()
-    a_res = (
-        client.table("athlete_profiles")
-        .select("id")
-        .eq("user_id", user_id)
-        .execute()
-    )
-    if not a_res.data:
-        raise HTTPException(404, "Athlete saknas")
-    athlete_id = a_res.data[0]["id"]
-
-    # Validera sports — minst en disciplin måste vara aktiv
+def _training_update(
+    sports, long_bike_day, long_run_day, rest_days,
+    has_trainer, has_treadmill, has_power_meter_bike, has_power_meter_run,
+    hr_strap, pool_type, setting_swim, setting_bike, setting_run,
+) -> dict:
+    # Minst en disciplin måste vara aktiv — annars finns inget att planera.
     valid_sports = [s for s in sports if s in {"swim", "bike", "run", "strength"}]
     if not valid_sports:
         valid_sports = ["swim", "bike", "run"]
-
-    update = {
+    return {
         "sports": valid_sports,
         "long_bike_day": long_bike_day or None,
         "long_run_day": long_run_day or None,
@@ -2395,7 +2441,82 @@ def settings_submit(
             "run": setting_run if setting_run in {"any", "indoor", "outdoor"} else "any",
         },
     }
-    client.table("athlete_profiles").update(update).eq("id", athlete_id).execute()
+
+
+@router.post("/settings", response_class=HTMLResponse)
+def settings_submit(
+    request: Request,
+    section: list[str] = Form(default=[]),
+    # profil
+    coach_name: str = Form(""),
+    goal: str = Form(""),
+    experience_level: str = Form(""),
+    weekly_hours: float | None = Form(None),
+    weekly_days: int | None = Form(None),
+    race_type: str = Form(""),
+    race_date: str = Form(""),
+    time_goal: str = Form(""),
+    ftp: int | None = Form(None),
+    lthr: int | None = Form(None),
+    swim_css: str = Form(""),
+    run_threshold_pace: str = Form(""),
+    # anslutningar
+    conn_ai: str | None = Form(None),
+    conn_tp: str | None = Form(None),
+    conn_strava: str | None = Form(None),
+    # träningsupplägg
+    sports: list[str] = Form(default=[]),
+    long_bike_day: str = Form(""),
+    long_run_day: str = Form(""),
+    rest_days: list[str] = Form(default=[]),
+    has_trainer: str | None = Form(None),
+    has_treadmill: str | None = Form(None),
+    has_power_meter_bike: str | None = Form(None),
+    has_power_meter_run: str | None = Form(None),
+    hr_strap: str | None = Form(None),
+    pool_type: str = Form("25m"),
+    setting_swim: str = Form("any"),
+    setting_bike: str = Form("any"),
+    setting_run: str = Form("any"),
+) -> HTMLResponse:
+    """Spara hela inställningssidan i en skrivning.
+
+    Sidan hade tre formulär med var sin spar-knapp. Ändrade man i två sektioner
+    och tryckte på en knapp försvann den andra ändringen utan varning — de andra
+    sektionernas fält skickades helt enkelt aldrig med.
+
+    ``section`` säger vilka delar posten faktiskt bär. Utan den skulle
+    default-värdena skriva över det som inte skickades: tomma ``sports`` blir
+    "swim, bike, run" och en omarkerad kryssruta blir False. En äldre post utan
+    fältet behandlas som bara träningsupplägget, precis som förut.
+    """
+    user_id = _current_user_id(request)
+    client = get_postgrest()
+    a_res = (
+        client.table("athlete_profiles").select("id").eq("user_id", user_id).execute()
+    )
+    if not a_res.data:
+        raise HTTPException(404, "Athlete saknas")
+    athlete_id = a_res.data[0]["id"]
+
+    sections = set(section) or {"training"}
+    update: dict = {}
+    if "profile" in sections:
+        update.update(_profile_update(
+            coach_name, goal, experience_level, weekly_hours, weekly_days,
+            race_type, race_date, time_goal, ftp, lthr, swim_css, run_threshold_pace,
+        ))
+    if "connections" in sections:
+        update.update(_connections_update(conn_ai, conn_tp, conn_strava))
+    if "training" in sections:
+        update.update(_training_update(
+            sports, long_bike_day, long_run_day, rest_days,
+            has_trainer, has_treadmill, has_power_meter_bike, has_power_meter_run,
+            hr_strap, pool_type, setting_swim, setting_bike, setting_run,
+        ))
+
+    if update:
+        client.table("athlete_profiles").update(update).eq("id", athlete_id).execute()
 
     return settings_view(request, saved=True)
 
@@ -2701,7 +2822,9 @@ def debug_view(request: Request) -> HTMLResponse:
 
 
 @router.get("/health", response_class=HTMLResponse)
-def health_view(request: Request, added: bool = False) -> HTMLResponse:
+def health_view(
+    request: Request, added: bool = False, updated: bool = False
+) -> HTMLResponse:
     user_id = _current_user_id(request)
     client = get_postgrest()
     a_res = (
@@ -2719,10 +2842,14 @@ def health_view(request: Request, added: bool = False) -> HTMLResponse:
         {
             "request": request,
             "concerns": concerns,
+            "locations_selected": [
+                set(_concern_locations(c)) for c in concerns
+            ],
             "locations": _BODY_LOCATIONS,
             "location_text": _location_text,
             "disciplines": _DISCIPLINES_FOR_IMPACT,
             "added": added,
+            "updated": updated,
         },
     )
 
@@ -2759,6 +2886,9 @@ def health_add(
     # (singular) skrivs kvar för äldre läsvägar; locations är sanningen.
     locs = [loc for loc in locations if loc in _LOCATION_LABELS]
     new_concern = {
+        # Stabilt id så redigering och borttagning kan adressera raden även när
+        # listan flyttar sig. Äldre besvär saknar det och adresseras på index.
+        "id": uuid4().hex[:12],
         "name": name,
         "location": locs[0] if locs else None,
         "locations": locs,
@@ -2782,10 +2912,106 @@ def health_add(
     return RedirectResponse(url="/ui/health?added=true", status_code=303)
 
 
+def _concern_locations(concern: dict) -> list[str]:
+    """locations (sanningen) med fallback på det äldre singular-fältet."""
+    locs = concern.get("locations")
+    if isinstance(locs, list) and locs:
+        return [loc for loc in locs if loc in _LOCATION_LABELS]
+    single = concern.get("location")
+    return [single] if single in _LOCATION_LABELS else []
+
+
+def _concern_index(concerns: list, concern_id: str, index: int) -> int:
+    """Hitta raden att skriva på. Id vinner över position.
+
+    Positionen är det enda gamla /ui/health/remove hade, och den flyttar sig så
+    fort en annan flik lägger till eller tar bort ett besvär. Besvär som skapats
+    efter den här ändringen bär ett id; för äldre rader faller vi tillbaka på
+    index så att de också går att rätta.
+    """
+    if concern_id:
+        for i, c in enumerate(concerns):
+            if isinstance(c, dict) and str(c.get("id") or "") == concern_id:
+                return i
+        return -1
+    return index if 0 <= index < len(concerns) else -1
+
+
+@router.post("/health/update", response_class=HTMLResponse)
+def health_update(
+    request: Request,
+    index: int = Form(-1),
+    concern_id: str = Form(""),
+    name: str = Form(...),
+    locations: list[str] = Form(default=[]),
+    severity: int = Form(2),
+    since_date: str = Form(""),
+    impact_swim: str = Form("none"),
+    impact_bike: str = Form("none"),
+    impact_run: str = Form("none"),
+    impact_strength: str = Form("none"),
+    needs_followup: str | None = Form(None),
+    follow_up_by: str = Form(""),
+    notes: str = Form(""),
+) -> Any:
+    """Ändra ett befintligt besvär.
+
+    Fanns inte förut: sidan hade bara add och remove. Att justera impact_run
+    från none till partial — en ren schemaläggningsinställning — krävde att man
+    raderade den medicinska posten och skapade en ny, varpå since_date och
+    historik gick förlorade. En rutinjustering får inte kosta hälsodata.
+    """
+    user_id = _current_user_id(request)
+    client = get_postgrest()
+    a_res = (
+        client.table("athlete_profiles")
+        .select("id, active_concerns")
+        .eq("user_id", user_id)
+        .execute()
+    )
+    if not a_res.data:
+        raise HTTPException(404, "Athlete saknas")
+    athlete_id = a_res.data[0]["id"]
+    concerns = a_res.data[0].get("active_concerns") or []
+
+    pos = _concern_index(concerns, concern_id.strip(), index)
+    if pos < 0:
+        raise HTTPException(404, "Besväret finns inte längre — ladda om sidan.")
+
+    locs = [loc for loc in locations if loc in _LOCATION_LABELS]
+    # Slå ihop i stället för att ersätta: fält som formuläret inte känner till
+    # (id, framtida fält) ska överleva en redigering.
+    updated = dict(concerns[pos])
+    updated.update({
+        "name": name,
+        "location": locs[0] if locs else None,
+        "locations": locs,
+        "severity": severity,
+        "since_date": since_date or None,
+        "needs_followup": needs_followup == "1",
+        "follow_up_by": follow_up_by or None,
+        "notes": notes or None,
+        "impact_per_discipline": {
+            "swim": impact_swim,
+            "bike": impact_bike,
+            "run": impact_run,
+            "strength": impact_strength,
+        },
+        "updated_at": datetime.now(timezone.utc).isoformat(),
+    })
+    concerns[pos] = updated
+    client.table("athlete_profiles").update(
+        {"active_concerns": concerns}
+    ).eq("id", athlete_id).execute()
+
+    return RedirectResponse(url="/ui/health?updated=true", status_code=303)
+
+
 @router.post("/health/remove", response_class=HTMLResponse)
 def health_remove(
     request: Request,
-    index: int = Form(...),
+    index: int = Form(-1),
+    concern_id: str = Form(""),
 ) -> Any:
     user_id = _current_user_id(request)
     client = get_postgrest()
@@ -2800,8 +3026,9 @@ def health_remove(
     athlete_id = a_res.data[0]["id"]
     concerns = a_res.data[0].get("active_concerns") or []
 
-    if 0 <= index < len(concerns):
-        concerns.pop(index)
+    pos = _concern_index(concerns, concern_id.strip(), index)
+    if pos >= 0:
+        concerns.pop(pos)
         client.table("athlete_profiles").update(
             {"active_concerns": concerns}
         ).eq("id", athlete_id).execute()

@@ -336,6 +336,35 @@ Projektet (CLAUDE.md + md-källdokument + kod) bär delad kunskap. Tråden är a
   för Claude, och CIMD kräver att servern hämtar ett dokument från en klientstyrd
   adress (SSRF-yta). Token i URL är INTE ett alternativ (läcker i loggar).
 
+**Användarfynd åtgärdade (2026-09-01, rapport `trixa-elva-fynd.md`):**
+Elva fynd från skarp användning via MCP + en 36-veckorsplan. TX-3 (falsk
+upsert) och TX-6 (log_override 404 för självcoachade) var redan fixade i
+`23edf63`. Resterande nio:
+- ✓ **TX-1** `get_athlete` returnerar hela profilen (aktiva grenar, vilodagar,
+  utrustning, pool, inne/ute) + nytt `get_constraints` som väger ihop de hårda
+  gränserna. Var orsak till att 19 pass fick raderas manuellt.
+- ✓ **TX-2** Passets innehåll renderas som markdown i en flik som heter
+  "Passet" och är öppen (`trixa_api/markdown_lite.py`, escapar före format).
+- ✓ **TX-4** `planned_sessions.exercises` fylls av planeraren (ur
+  `strength_block`-steg) och av `plan_session`; loggformuläret förifylls.
+  `coach/trixa/exercise_plan.py`. Loggraden skrivs aldrig automatiskt.
+- ✓ **TX-5** `/ui/health/update` — hälsoposter redigerbara, stabila id:n.
+- ✓ **TX-7** Vilodagar räknas inte som pass ("3 (+4 vila)").
+- ✓ **TX-8** Aktivitetskälla-sektionen syns alltid; Anslut-knappen sätter
+  `conn_*`-flaggan själv.
+- ✓ **TX-9** Hinderbanelopp som distanstyp (migration 012 **applicerad 2026-09-01**).
+- ✓ **TX-10** En spar-knapp; `section`-fält styr vilka delar posten bär.
+- ✓ **TX-11** `get_recovery` bär `has_data` + note; serverinstruktionen täcker
+  fallet utan klocka.
+- ☐ Kvar: OCR-specifikt träningsinnehåll (grepp/drag/bärningar) i passbanken
+  — eget passbanksarbete; radera den diagnostiska OAuth-klienten
+  `trixa-client-i-_k03j9Rm3EXAUJmRgy-g`.
+
+Lärdom: `test_settings_page` mätte först utvecklarens miljö — "Anslut
+Strava"-länken kräver `STRAVA_CLIENT_ID/SECRET`, som finns i lokal `.env` men
+inte i CI. Testet var grönt lokalt och rött i CI. UI-tester som beror på
+miljövariabler måste sätta dem själva.
+
 **Onboarding generaliserad (2026-08-25):**
 - Formuläret antog erfaren triatlet. Nu: aktiva discipliner + erfarenhetsnivå
   frågas först och styr resten. Tröskelvärden visas för advanced/elite (eller

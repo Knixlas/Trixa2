@@ -46,9 +46,75 @@ Partial impact byter hårda pass mot lugna AE-pass i den disciplinen.</p>
 
   {% if c.notes %}<details><summary>Noter</summary><p>{{ c.notes }}</p></details>{% endif %}
 
+  {# Redigering. Utan den krävde en ändrad impact — en ren
+     schemaläggningsinställning — att den medicinska posten raderades och
+     skapades om, varpå since_date och historik gick förlorade. #}
+  {% set sel = locations_selected[loop.index0] %}
+  {% set imp = c.impact_per_discipline or {} %}
+  <details style="margin-top: 0.75rem;">
+    <summary>Ändra</summary>
+    <form method="post" action="/ui/health/update">
+      <input type="hidden" name="index" value="{{ loop.index0 }}">
+      <input type="hidden" name="concern_id" value="{{ c.id or '' }}">
+
+      <label for="name-{{ loop.index0 }}">Namn</label>
+      <input type="text" id="name-{{ loop.index0 }}" name="name" required value="{{ c.name or '' }}">
+
+      <div class="grid">
+        <div>
+          <label for="loc-{{ loop.index0 }}">Kroppsdel (markera alla som gäller)</label>
+          <select id="loc-{{ loop.index0 }}" name="locations" multiple size="6">
+            {% for loc, label in locations %}
+            <option value="{{ loc }}" {% if loc in sel %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label for="sev-{{ loop.index0 }}">Severity (1-5)</label>
+          <select id="sev-{{ loop.index0 }}" name="severity">
+            {% for lvl, txt in [(1, '1 — knappt märkbar'), (2, '2 — irriterande'),
+                                (3, '3 — påverkar träning'), (4, '4 — kraftigt begränsande'),
+                                (5, '5 — helt blockerande')] %}
+            <option value="{{ lvl }}" {% if c.severity == lvl %}selected{% endif %}>{{ txt }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+
+      <label for="since-{{ loop.index0 }}">Sedan (datum)</label>
+      <input type="date" id="since-{{ loop.index0 }}" name="since_date" value="{{ c.since_date or '' }}">
+
+      <fieldset>
+        <legend>Impact per disciplin</legend>
+        {% for d, label in disciplines %}
+        <div class="rating-row">
+          <strong style="min-width: 120px; display: inline-flex; align-items: center; gap: 7px;">
+            <i data-lucide="{{ disc[d][0] }}" style="width: 16px; height: 16px; color: {{ disc[d][1] }};"></i>{{ label }}</strong>
+          {% for value in ['none', 'partial', 'full'] %}
+          <label><input type="radio" name="impact_{{ d }}" value="{{ value }}"
+            {% if (imp.get(d) or 'none') == value %}checked{% endif %}> {{ value }}</label>
+          {% endfor %}
+        </div>
+        {% endfor %}
+      </fieldset>
+
+      <label>
+        <input type="checkbox" name="needs_followup" value="1" {% if c.needs_followup %}checked{% endif %}>
+        Behöver follow-up med fysio / läkare / annan
+      </label>
+      <label for="fu-{{ loop.index0 }}">Följs upp av</label>
+      <input type="text" id="fu-{{ loop.index0 }}" name="follow_up_by" value="{{ c.follow_up_by or '' }}">
+      <label for="notes-{{ loop.index0 }}">Noter (kontext för coach)</label>
+      <textarea id="notes-{{ loop.index0 }}" name="notes" rows="3">{{ c.notes or '' }}</textarea>
+
+      <button type="submit"><i data-lucide="save"></i> Spara ändring</button>
+    </form>
+  </details>
+
   <form method="post" action="/ui/health/remove" style="margin-top: 0.75rem;"
         onsubmit="return confirm('Ta bort concern {{ c.name }}?');">
     <input type="hidden" name="index" value="{{ loop.index0 }}">
+    <input type="hidden" name="concern_id" value="{{ c.id or '' }}">
     <button type="submit" class="secondary" style="font-size: 13px; padding: 8px 14px;"><i data-lucide="trash-2"></i> Ta bort</button>
   </form>
 </article>
@@ -130,6 +196,13 @@ Partial impact byter hårda pass mot lugna AE-pass i den disciplinen.</p>
 <div class="alert" style="background: var(--palm-soft); margin-top: 16px;">
   <div class="ic" style="background: var(--palm);"><i data-lucide="check"></i></div>
   <div class="alert-body"><strong>Concern tillagd.</strong><p>Påverkar nästa veckogenerering.</p></div>
+</div>
+{% endif %}
+
+{% if updated %}
+<div class="alert" style="background: var(--palm-soft); margin-top: 16px;">
+  <div class="ic" style="background: var(--palm);"><i data-lucide="check"></i></div>
+  <div class="alert-body"><strong>Ändringen sparad.</strong><p>Posten är kvar med sin historik — påverkar nästa veckogenerering.</p></div>
 </div>
 {% endif %}
 

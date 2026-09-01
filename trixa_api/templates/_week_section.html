@@ -27,7 +27,7 @@
 
   {% if week and week.workouts %}
     <p>
-      {% if week.phase %}<strong>Fas:</strong> {{ week.phase }} | {% endif %}<strong>Pass:</strong> {{ week.workouts | length }}
+      {% if week.phase %}<strong>Fas:</strong> {{ week.phase }} | {% endif %}<strong>Pass:</strong> {{ week.session_count }}{% if week.rest_day_count %} <span style="color: var(--ink-3); font-weight: 400;">(+{{ week.rest_day_count }} vila)</span>{% endif %}
       {% if week.plan_source == "coach" and conn_ai|default(true) %}
       <span class="badge" style="background: var(--lagoon-soft); color: var(--lagoon-deep);"
             title="Planen kommer från din coach, inte den automatiska generatorn">coachens plan</span>
@@ -113,9 +113,54 @@
         <details {% if w.logged_exercises %}open{% endif %} style="margin-top: 8px;">
           <summary>Logga styrka{% if w.logged_exercises %} ({{ w.logged_exercises | length }})  {% endif %}</summary>
           <article style="margin-top: 6px;">
-            {% if w.planned_exercises %}
-            <p style="font-size: 12.5px; color: var(--ink-3); margin: 0 0 8px;"><strong>Planerat:</strong>
-              {% for ex in w.planned_exercises %}{{ ex.name }}{% if ex.sets %} {{ ex.sets }}×{{ ex.reps or ex.unit or "?" }}{% endif %}{% if ex.weight_from %} @{{ ex.weight_from }}kg{% endif %}{% if not loop.last %} · {% endif %}{% endfor %}
+            {# Passets övningar som avbockningslista. Formuläret är förifyllt
+               med det Trixa själv planerat — adepten justerar vikt och
+               ansträngning och bekräftar. Raden skrivs aldrig automatiskt:
+               det vore att registrera pass som inte utförts. #}
+            {% if w.exercises_to_log %}
+            <p style="font-size: 12.5px; color: var(--ink-3); margin: 0 0 8px;">
+              <strong>Kvar att bocka av ({{ w.exercises_to_log | length }}):</strong>
+              justera vikt och ansträngning, tryck Bocka av.
+            </p>
+            {% for ex in w.exercises_to_log %}
+            <form method="post" action="/ui/strength/log"
+                  style="display: flex; align-items: end; gap: 8px; flex-wrap: wrap;
+                         padding: 6px 0; border-bottom: 1px dashed var(--line);">
+              <input type="hidden" name="session_date" value="{{ w.date }}">
+              <input type="hidden" name="exercise_name" value="{{ ex.name }}">
+              <span style="flex: 1 1 150px; min-width: 150px;">
+                <strong style="font-size: 13.5px;">{{ ex.name }}</strong>
+                {% if ex.load or ex.rir is not none or ex.rest_sec %}
+                <br><small style="color: var(--ink-3);">
+                  {% if ex.load %}{{ ex.load }}{% endif %}
+                  {% if ex.rir is not none %}{% if ex.load %} · {% endif %}RIR {{ ex.rir }}{% endif %}
+                  {% if ex.rest_sec %} · {{ ex.rest_sec }}s vila{% endif %}
+                </small>
+                {% endif %}
+                {% if ex.note %}<br><small style="color: var(--ink-3);"><em>{{ ex.note }}</em></small>{% endif %}
+              </span>
+              <label style="width: 62px;">Set
+                <input type="number" name="sets" min="0" value="{{ ex.sets if ex.sets is not none else '' }}"></label>
+              <label style="width: 62px;">Reps
+                <input type="number" name="reps" min="0" value="{{ ex.reps if ex.reps is not none else '' }}"></label>
+              <label style="width: 82px;">Vikt (kg)
+                <input type="number" name="weight_from" min="0" step="0.5"
+                       value="{{ ex.weight_from if ex.weight_from is not none else '' }}"></label>
+              <label style="width: 116px;">Ansträngning
+                <select name="effort">
+                  <option value="1">Lätt</option>
+                  <option value="2" selected>Medel</option>
+                  <option value="3">Tung</option>
+                  <option value="4">Max</option>
+                  <option value="-1">Hoppade över</option>
+                </select>
+              </label>
+              <button type="submit" style="font-size: 12px; padding: 6px 12px;">Bocka av</button>
+            </form>
+            {% endfor %}
+            {% elif w.planned_exercises %}
+            <p style="font-size: 12.5px; color: var(--palm-deep); margin: 0 0 8px;">
+              ✓ Alla {{ w.planned_exercises | length }} planerade övningar är loggade.
             </p>
             {% endif %}
             {% if w.logged_exercises %}
@@ -135,7 +180,7 @@
             {% endif %}
             <form method="post" action="/ui/strength/log" class="grid" style="align-items: end; gap: 0 10px;">
               <input type="hidden" name="session_date" value="{{ w.date }}">
-              <label style="grid-column: 1 / -1;">Övning
+              <label style="grid-column: 1 / -1;">{% if w.planned_exercises %}Extra övning (utanför planen){% else %}Övning{% endif %}
                 <input type="text" name="exercise_name" list="ex-{{ week.week_start }}" required placeholder="t.ex. Knäböj">
               </label>
               <label>Set <input type="number" name="sets" min="0" placeholder="3"></label>
@@ -156,10 +201,13 @@
         </details>
         {% endif %}
 
+        {# Passets faktiska innehåll. Låg förut som rå text under rubriken
+           "Syfte" — ingen letar övningslistan där, och markdownen visades som
+           tecken. Öppen som förval: det här ÄR passet. #}
         {% if w.notes %}
-        <details>
-          <summary>Syfte</summary>
-          <p>{{ w.notes | trim }}</p>
+        <details open>
+          <summary>Passet</summary>
+          <div class="passtext">{{ w.notes | session_markdown }}</div>
         </details>
         {% endif %}
 
