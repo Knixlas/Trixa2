@@ -30,6 +30,7 @@ jobs:
           coach/tests/test_session_rendering.py
           coach/tests/test_planned_exercises.py
           coach/tests/test_health_edit.py
+          coach/tests/test_settings_page.py
           coach/tests/test_mcp_server.py
           coach/tests/test_oauth_server.py
           coach/tests/test_onboarding.py
