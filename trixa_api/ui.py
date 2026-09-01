@@ -20,6 +20,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 from coach.trixa.db import get_postgrest
+from coach.trixa.exercise_plan import exercises_from_steps
 from coach.trixa.planner import (
     generate_week,
     swap_workout_discipline_and_replan,
@@ -1613,7 +1614,16 @@ def _attach_strength_logs(client, week: dict, user_id: str) -> None:
         for r in (prev.data or []) if (r.get("exercise_name") or "").strip()
     })
     for w in strength:
-        w["logged_exercises"] = by_date.get(str(w["date"])[:10], [])
+        logged = by_date.get(str(w["date"])[:10], [])
+        w["logged_exercises"] = logged
+        done = {(lg.get("exercise_name") or "").strip().casefold() for lg in logged}
+        # Förifyll formuläret, skriv ALDRIG loggraden. Att registrera pass som
+        # inte utförts förstör just den datakvalitet motorn vilar på — adepten
+        # justerar vikt och ansträngning och bekräftar själv.
+        w["exercises_to_log"] = [
+            ex for ex in (w.get("planned_exercises") or [])
+            if (ex.get("name") or "").strip().casefold() not in done
+        ]
 
 
 def _display_steps(steps) -> list[dict]:
@@ -1717,7 +1727,12 @@ def _fetch_current_week_data(
             "coach_notes": "",
             "is_manual": (ps.get("origin") or "") == "manual",
             "origin": ps.get("origin") or "",
-            "planned_exercises": ps.get("exercises") or [],
+            # Äldre rader (och rader från skrivare som bara fyllt steps) bär
+            # övningarna i main_set — härled listan så loggen kan förifyllas
+            # även där, i stället för att kräva en ombyggnad av gamla veckor.
+            "planned_exercises": (
+                ps.get("exercises") or exercises_from_steps(ps.get("steps"))
+            ),
             # Vilodagen lagras som en rad i planned_sessions men är frånvaro av
             # träning. Yoga/Promenad mappar också till sport "rest" — de ÄR pass
             # och räknas som sådana, därför tittar vi på det lagrade värdet.

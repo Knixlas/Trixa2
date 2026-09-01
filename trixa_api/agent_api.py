@@ -18,6 +18,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from coach.trixa.db import get_postgrest
+from coach.trixa.exercise_plan import normalize_exercises
 from trixa_api.agent_auth import AgentScope, resolve_agent_scope
 
 router = APIRouter(prefix="/agent", tags=["agent"])
@@ -202,7 +203,7 @@ def _week_plan(client, user_id: str, monday: date_type) -> dict:
     res = (
         client.table("planned_sessions")
         .select("id, date, sport, title, workout_code, intensity, duration_min,"
-                " details, purpose, status, origin")
+                " details, purpose, status, origin, exercises")
         .eq("user_id", user_id)
         .gte("date", monday.isoformat())
         .lte("date", sunday.isoformat())
@@ -219,6 +220,7 @@ def _week_plan(client, user_id: str, monday: date_type) -> dict:
             "intensity": w.get("intensity") or "",
             "duration_min": w.get("duration_min"),
             "details": w.get("details") or "",
+            "exercises": w.get("exercises") or [],
             "status": w.get("status") or "",
             "origin": w.get("origin") or "",
         }
@@ -324,6 +326,9 @@ class PlanSessionIn(BaseModel):
     intensity: str = ""
     details: str = ""
     workout_code: str = ""
+    # Strukturerad övningslista utöver prosan i details. Loggformuläret
+    # förifylls från den, så adepten bekräftar i stället för att skriva av.
+    exercises: list[dict] = Field(default_factory=list)
 
 
 @router.post("/plan/session")
@@ -353,6 +358,7 @@ def write_plan_session(
         "intensity": body.intensity.strip(),
         "details": body.details.strip(),
         "workout_code": body.workout_code.strip(),
+        "exercises": normalize_exercises(body.exercises) or None,
         "status": "planned",
         "origin": "nils",
     }

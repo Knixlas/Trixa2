@@ -108,6 +108,7 @@ def _tool_plan_session(scope: AgentScope, args: dict) -> Any:
         intensity=args.get("intensity") or "",
         details=args.get("details") or "",
         workout_code=args.get("workout_code") or "",
+        exercises=args.get("exercises") or [],
     )
     return agent_api.write_plan_session(body=body, scope=scope)
 
@@ -248,6 +249,28 @@ _TOOLS: list[tuple[str, str, dict, Callable[[AgentScope, dict], Any]]] = [
                 "workout_code": {
                     "type": "string",
                     "description": "Passbankskod om passet kommer därifrån, t.ex. 'AE2_bike_04'.",
+                },
+                "exercises": {
+                    "type": "array",
+                    "description": (
+                        "Styrkepassets övningar som strukturerad lista. Adeptens "
+                        "loggformulär förifylls från den — utan den får hen skriva "
+                        "in varje övningsnamn för hand. Skriv den ALLTID för "
+                        "styrkepass, utöver upplägget i details."
+                    ),
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "name": {"type": "string", "description": "Övningens namn, t.ex. 'Knäböj'."},
+                            "sets": {"type": "integer"},
+                            "reps": {"type": "integer"},
+                            "weight_from": {"type": "number", "description": "Startvikt i kg, om känd."},
+                            "rir": {"type": "integer", "description": "Reps in reserve."},
+                            "rest_sec": {"type": "integer"},
+                            "note": {"type": "string"},
+                        },
+                        "required": ["name"],
+                    },
                 },
             },
             "required": ["date", "sport", "title"],

@@ -50,6 +50,7 @@ from coach.engine.workouts import (
     select_workout_types,
 )
 from coach.trixa.db import get_supabase
+from coach.trixa.exercise_plan import exercises_from_steps
 
 
 # ---------- Datatyper ----------
@@ -1515,8 +1516,11 @@ _PS_SPORT = {"swim": "Sim", "bike": "Cykel", "run": "Löpning",
              "strength": "Styrka", "rest": "Vila", "brick": "Brick"}
 
 
-def _planned_session_row(sw: ScheduledWorkout, user_id: str) -> dict:
+def _planned_session_row(
+    sw: ScheduledWorkout, user_id: str, exercise_map: dict[str, dict] | None = None
+) -> dict:
     """ScheduledWorkout → planned_sessions-rad (origin='trixa2')."""
+    steps = (sw.workout_data or {}).get("main_set", [])
     return {
         "user_id": user_id,
         "date": sw.date.isoformat(),
@@ -1526,7 +1530,11 @@ def _planned_session_row(sw: ScheduledWorkout, user_id: str) -> dict:
         "purpose": sw.category,
         "status": "planned",
         "duration_min": sw.duration_minutes,
-        "steps": (sw.workout_data or {}).get("main_set", []),
+        "steps": steps,
+        # Övningarna som strukturerad lista, inte bara som prosa i details.
+        # Utan den kan loggformuläret inte förifyllas och adepten får skriva
+        # av tolv övningsnamn som Trixa själv genererat.
+        "exercises": exercises_from_steps(steps, exercise_map) or None,
         "workout_code": sw.code,
         "intensity": sw.intensity,
         "origin": "trixa2",
@@ -1562,8 +1570,9 @@ def _persist_to_planned_sessions(client, plan: WeekPlan, user_id: str) -> dict:
     used_ids: set[str] = set()
     inserted = 0
     updated = 0
+    exercise_map = {e["code"]: e for e in load_strength_exercises()}
     for sw in plan.workouts:
-        payload = _planned_session_row(sw, user_id)
+        payload = _planned_session_row(sw, user_id, exercise_map)
         candidates = by_date.get(payload["date"], [])
         current = next(
             (row for row in candidates if row.get("status") != "cancelled"),

@@ -39,7 +39,7 @@ _REAL_COLUMNS = {
     "planned_sessions": {
         "id", "user_id", "date", "sport", "title", "workout_code", "intensity",
         "duration_min", "details", "purpose", "status", "origin", "created_at",
-        "updated_at", "distance_km", "tp_workout_id",
+        "updated_at", "distance_km", "tp_workout_id", "steps", "exercises",
     },
 }
 
