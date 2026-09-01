@@ -22,7 +22,7 @@ from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 from coach.trixa.db import get_postgrest
 from coach.trixa.exercise_plan import exercises_from_steps
-from coach.trixa.strength_progression import apply_suggestions
+from coach.trixa.strength_progression import apply_suggestions, suggestions_by_name
 from coach.trixa.planner import (
     generate_week,
     swap_workout_discipline_and_replan,
@@ -1684,6 +1684,11 @@ def _attach_strength_logs(client, week: dict, user_id: str) -> None:
         (r.get("exercise_name") or "").strip()
         for r in (prev.data or []) if (r.get("exercise_name") or "").strip()
     })
+    # Förslag per övningsNAMN, för övningar som inte står i någon plan: pass
+    # som bär övningarna som prosa, och egna tillägg utanför planen. Utan det
+    # gäller progressionen bara pass med strukturerad övningslista, och det är
+    # inte adeptens fel vilken form passet lagts i.
+    week["exercise_progress"] = suggestions_by_name(history.data or [])
     for w in strength:
         logged = by_date.get(str(w["date"])[:10], [])
         w["logged_exercises"] = logged

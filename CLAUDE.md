@@ -390,8 +390,35 @@ Adepten mindes förra vikten själv och gissade nästa, som i gamla Trixa.
   reason/trend/previous), så coachen inte föreslår vikter som motsäger appen.
   Bara loggar före passets datum räknas — ett senare pass i veckan får inte
   styra ett tidigare bakåt i tiden.
-- 28 tester (`test_strength_progression.py` + `..._wiring.py`). Gränsen från
+- 37 tester (`test_strength_progression.py` + `..._wiring.py`). Gränsen från
   TX-4 står kvar: formuläret förifylls, loggraden skrivs aldrig automatiskt.
+
+**Progressionen nådde inte skarp data (2026-09-01, samma dag):**
+Första skarpa kollen visade tomt. Tre orsaker, ingen i räknemodellen:
+- Niklas enda styrkepass (3 sept, `origin='nils'`) hade `exercises = null` OCH
+  `steps = null` — Nils skrev de sex maskinövningarna som prosa i `details`.
+  Utan strukturerad lista finns ingen rad att hänga ett förslag på. **Passet
+  strukturerat manuellt 2026-09-01** (koder ur `strength_exercises.yaml` där
+  de fanns; `details` orörd).
+- De 29 befintliga loggarna (mars–april) har `sets`/`reps`/`weight_from` =
+  NULL rakt igenom, bara `effort` satt. Progressionen behöver en vikt att
+  räkna från.
+- Loggarna slutar 2026-04-27, sex dagar utanför 120-dagarsfönstret.
+
+Åtgärder utöver det strukturerade passet:
+- `plan_session` svarar nu med `warnings` när ett styrkepass saknar
+  `exercises` (eller `reps_min`/`reps_max`). Varning, inte avslag — ett
+  "Rörlighet 20 min" lagt som Styrka är ett giltigt pass utan set att bocka
+  av. Verktygsbeskrivningen sade redan "skriv den ALLTID"; det räckte inte,
+  så skrivningen svarar numera med vad som saknas. MCP-schemat exponerar
+  också `code`, `reps_min`, `reps_max` och `load`.
+- `suggestions_by_name()` + fritextformuläret: skriver adepten ett namn hen
+  loggat förr fylls kod, set, reps och vikt i från historiken. Passets form
+  är inte adeptens val. **Utan protokoll körs INTE dubbel progression** —
+  ett spann som följer med senast loggade reps flyttar taket varje gång, så
+  reps klättrar i all evighet och vikten stiger aldrig. Reps låses därför vid
+  det adepten körde och progressionen sitter helt i vikten. Kroppsvikt
+  (ingen loggad vikt) progredierar i reps som vanligt.
 
 **Onboarding generaliserad (2026-08-25):**
 - Formuläret antog erfaren triatlet. Nu: aktiva discipliner + erfarenhetsnivå

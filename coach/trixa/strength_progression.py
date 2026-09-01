@@ -258,8 +258,7 @@ def suggest_next(planned: dict, history: list[dict] | None = None) -> LoadSugges
             weight = _bump(last_weight, _BUMP_LIGHT)
             return LoadSuggestion(
                 weight=weight, reps=low, sets=last_sets or planned_sets,
-                reason=(f"{context}. Taket i spannet nått — upp till "
-                        f"{_fmt_kg(weight)} och tillbaka till {low} reps."),
+                reason=f"{context}. {_bump_phrase(weight, low, high)}",
                 trend="up", previous=last, warnings=warnings,
             )
         reps = min(last_reps + 2, high)
@@ -274,8 +273,7 @@ def suggest_next(planned: dict, history: list[dict] | None = None) -> LoadSugges
             weight = _bump(last_weight, _BUMP_MODERATE)
             return LoadSuggestion(
                 weight=weight, reps=low, sets=last_sets or planned_sets,
-                reason=(f"{context}. Taket nått — upp till {_fmt_kg(weight)} "
-                        f"och tillbaka till {low} reps."),
+                reason=f"{context}. {_bump_phrase(weight, low, high)}",
                 trend="up", previous=last, warnings=warnings,
             )
         reps = min(last_reps + 1, high)
@@ -307,6 +305,20 @@ def suggest_next(planned: dict, history: list[dict] | None = None) -> LoadSugges
 def _bump(weight: float, pct: float) -> float:
     """Höj med procentsatsen, men aldrig mindre än ett faktiskt viktsteg."""
     return round_load(max(weight * (1 + pct), weight + _min_step(weight)))
+
+
+def _bump_phrase(weight: float, low: int, high: int) -> str:
+    """Motiveringen till en viktökning.
+
+    "Taket i spannet nått" är begripligt när passet FÖRESKRIVER ett spann.
+    Övningar utanför planen har inget — deras spann är låst vid det adepten
+    körde — och då är formuleringen bara förvirrande: hen har aldrig sett
+    något tak.
+    """
+    if low >= high:
+        return f"Upp till {_fmt_kg(weight)}, samma {low} reps."
+    return (f"Taket i spannet nått — upp till {_fmt_kg(weight)} "
+            f"och tillbaka till {low} reps.")
 
 
 def _suggest_first_time(
@@ -377,6 +389,55 @@ def _suggest_bodyweight(
         reason=f"{context}. Ned till {reps} reps och bygg upp igen.",
         trend="down", previous=last, warnings=warnings,
     )
+
+
+def suggestions_by_name(logs: Iterable[dict] | None) -> dict[str, dict]:
+    """Förslag per övningsnamn för övningar som INTE står i någon plan.
+
+    Prosa-planerade pass och egna tillägg utanför planen har ingen post att
+    hänga ett förslag på, men adepten har ändå en historik. Uppslaget görs på
+    namnet hen skriver, och den planerade formen härleds ur den senaste
+    loggraden — det är det enda som är känt om övningen.
+
+    Utan protokoll finns inget repspann, och då kan dubbel progression inte
+    köras: ett spann som följer med senast loggade reps flyttar taket varje
+    gång, så reps klättrar i all evighet och vikten stiger aldrig. Här är
+    reps därför låsta vid det adepten körde och progressionen sitter helt i
+    vikten — samma enkla modell som avbockningen alltid beskrivit. Övningar
+    utan loggad vikt är kroppsvikt och progredierar i reps som vanligt.
+    """
+    out: dict[str, dict] = {}
+    for key, rows in index_history(logs or []).items():
+        if not key.startswith("name:"):
+            continue
+        performed = _performed(rows)
+        if not performed:
+            continue
+        last = performed[0]
+        last_reps = _as_int(last.get("reps"))
+        has_weight = _as_float(last.get("weight_from")) is not None
+        stub = {
+            "name": last.get("exercise_name"),
+            "code": last.get("exercise_code"),
+            "sets": _as_int(last.get("sets")),
+            "reps": last_reps,
+        }
+        if last_reps and has_weight:
+            # Låst spann → varje ansträngning utom "tungt" flyttar vikten.
+            stub["reps_min"] = stub["reps_max"] = last_reps
+        elif last_reps:
+            stub["reps_min"], stub["reps_max"] = last_reps, last_reps + _DEFAULT_REP_SPAN
+        suggestion = suggest_next(stub, rows)
+        out[key[len("name:"):]] = {
+            "name": last.get("exercise_name"),
+            "code": last.get("exercise_code"),
+            "sets": suggestion.sets,
+            "reps": suggestion.reps,
+            "weight": suggestion.weight,
+            "reason": suggestion.reason,
+            "trend": suggestion.trend,
+        }
+    return out
 
 
 def apply_suggestions(exercises: list[dict], logs: Iterable[dict] | None) -> list[dict]:

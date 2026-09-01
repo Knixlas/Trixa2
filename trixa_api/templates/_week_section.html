@@ -66,6 +66,12 @@
       {% for ex in week.exercise_suggestions %}<option value="{{ ex }}">{% endfor %}
     </datalist>
     {% endif %}
+    {# Progression för övningar som inte står i någon plan — pass som bär
+       övningarna som prosa, och egna tillägg. Skriver adepten ett namn hen
+       loggat förut fylls vikt och reps i från historiken. #}
+    {% if week.exercise_progress %}
+    <script type="application/json" id="exprog-{{ week.week_start }}">{{ week.exercise_progress | tojson }}</script>
+    {% endif %}
 
     {% for w in week.workouts %}
     <div class="workout">
@@ -191,11 +197,16 @@
               {% endfor %}
             </ul>
             {% endif %}
-            <form method="post" action="/ui/strength/log" class="grid" style="align-items: end; gap: 0 10px;">
+            <form method="post" action="/ui/strength/log" class="grid"
+                  style="align-items: end; gap: 0 10px;"
+                  data-exprog="exprog-{{ week.week_start }}">
               <input type="hidden" name="session_date" value="{{ w.date }}">
+              <input type="hidden" name="exercise_code" value="">
               <label style="grid-column: 1 / -1;">{% if w.planned_exercises %}Extra övning (utanför planen){% else %}Övning{% endif %}
                 <input type="text" name="exercise_name" list="ex-{{ week.week_start }}" required placeholder="t.ex. Knäböj">
               </label>
+              <small class="exprog-reason" style="grid-column: 1 / -1; color: var(--palm-deep);
+                     display: none; margin: -4px 0 6px;"></small>
               <label>Set <input type="number" name="sets" min="0" placeholder="3"></label>
               <label>Reps <input type="number" name="reps" min="0" placeholder="12"></label>
               <label>Vikt (kg) <input type="number" name="weight_from" min="0" step="0.5" placeholder="40"></label>
@@ -209,6 +220,44 @@
                 </select>
               </label>
               <button type="submit" style="grid-column: 1 / -1;">Logga övning</button>
+              <script>
+              /* Skriver adepten ett övningsnamn hen loggat förr fylls vikt och
+                 reps i från historiken, precis som för planens övningar. Utan
+                 det gäller progressionen bara pass med strukturerad
+                 övningslista — och passets form är inte adeptens val.
+                 Fälten fylls bara när de är tomma: det adepten själv skrivit
+                 in vinner alltid över förslaget. */
+              (function () {
+                var form = document.currentScript.closest("form");
+                var data = document.getElementById(form.dataset.exprog);
+                if (!data) return;
+                var progress;
+                try { progress = JSON.parse(data.textContent); } catch (e) { return; }
+                var nameField = form.querySelector('input[name=exercise_name]');
+                var reason = form.querySelector('.exprog-reason');
+                var touched = {};
+                ["sets", "reps", "weight_from"].forEach(function (key) {
+                  var field = form.querySelector('input[name=' + key + ']');
+                  if (field) field.addEventListener("input", function () { touched[key] = true; });
+                });
+                function fill() {
+                  var hit = progress[(nameField.value || "").trim().toLowerCase()];
+                  reason.style.display = hit ? "" : "none";
+                  reason.textContent = hit ? hit.reason : "";
+                  form.querySelector('input[name=exercise_code]').value =
+                    (hit && hit.code) || "";
+                  if (!hit) return;
+                  [["sets", hit.sets], ["reps", hit.reps], ["weight_from", hit.weight]]
+                    .forEach(function (pair) {
+                      var field = form.querySelector('input[name=' + pair[0] + ']');
+                      if (!field || touched[pair[0]] || field.value) return;
+                      if (pair[1] !== null && pair[1] !== undefined) field.value = pair[1];
+                    });
+                }
+                nameField.addEventListener("change", fill);
+                nameField.addEventListener("blur", fill);
+              })();
+              </script>
             </form>
           </article>
         </details>

@@ -187,6 +187,84 @@ def test_agent_week_bar_samma_forslag_som_appen():
     assert ex["suggestion"]["trend"] == "up"
 
 
+def test_veckan_bar_forslag_for_ovningar_utanfor_planen():
+    """Fritextformuläret ska nå samma progression som planens övningar."""
+    ui, fake = _ui_with([_log("2026-09-02")])
+    week = _week()
+    ui._attach_strength_logs(fake, week, UID)
+
+    assert week["exercise_progress"]["knäböj"]["weight"] == 62.5
+
+
+# ---------- coachen får veta när passet inte går att logga ----------
+
+
+def _agent_client():
+    st = {
+        "api_tokens": [],
+        "profiles": [{"id": UID, "name": "Adept"}],
+        "athlete_profiles": [{"id": "81b667bc", "user_id": UID}],
+        "planned_sessions": [],
+        "exercise_logs": [],
+    }
+    fake = _C(st)
+    import coach.trixa.db as db
+    import trixa_api.agent_auth as aa
+    import trixa_api.agent_api as ag
+
+    db.get_postgrest = lambda: fake
+    aa.get_postgrest = lambda: fake
+    ag.get_postgrest = lambda: fake
+
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+
+    app = FastAPI()
+    app.include_router(ag.router)
+    return TestClient(app, raise_server_exceptions=False), st, aa
+
+
+def test_styrkepass_utan_ovningar_varnar_coachen():
+    """Övningar bara som prosa i details ser komplett ut för coachen men
+    landar hos adepten som ett tomt loggformulär. Verktygsbeskrivningen sade
+    redan att listan ska skickas — det räckte inte."""
+    c, st, aa = _agent_client()
+    r = c.post("/agent/plan/session", headers=_with_token(st, aa), json={
+        "date": "2026-09-03", "sport": "strength", "title": "Maskiner",
+        "details": "Benpress\nSittande rodd\nVadpress",
+    })
+    assert r.status_code == 200, r.text
+    warnings = r.json()["warnings"]
+    assert warnings and "saknar 'exercises'" in warnings[0]
+
+
+def test_styrkepass_utan_repspann_varnar_om_progressionen():
+    c, st, aa = _agent_client()
+    r = c.post("/agent/plan/session", headers=_with_token(st, aa), json={
+        "date": "2026-09-03", "sport": "strength", "title": "Ben",
+        "exercises": [{"name": "Knäböj", "sets": 3, "reps": 5}],
+    })
+    assert "repspann" in r.json()["warnings"][0]
+
+
+def test_komplett_styrkepass_varnar_inte():
+    c, st, aa = _agent_client()
+    r = c.post("/agent/plan/session", headers=_with_token(st, aa), json={
+        "date": "2026-09-03", "sport": "strength", "title": "Ben",
+        "exercises": [{"name": "Knäböj", "sets": 3, "reps": 5,
+                       "reps_min": 3, "reps_max": 6}],
+    })
+    assert r.json()["warnings"] == []
+
+
+def test_lopning_varnar_aldrig_om_ovningar():
+    c, st, aa = _agent_client()
+    r = c.post("/agent/plan/session", headers=_with_token(st, aa), json={
+        "date": "2026-09-04", "sport": "run", "title": "Distans 60 min",
+    })
+    assert r.json()["warnings"] == []
+
+
 def _run(name, fn):
     try:
         fn()
