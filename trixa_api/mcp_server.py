@@ -171,7 +171,11 @@ _TOOLS: list[tuple[str, str, dict, Callable[[AgentScope, dict], Any]]] = [
         "get_week",
         "Planerade pass för en vecka. Utan argument: veckan som innehåller "
         "dagens datum. Fältet 'origin' visar vem som skapade passet — 'trixa2' "
-        "är motorns, 'manual' adeptens eget, och dina egna får 'nils'.",
+        "är motorns, 'manual' adeptens eget, och dina egna får 'nils'. "
+        "Styrkepassens 'exercises' bär nästa vikt och reps räknade ur förra "
+        "passets loggade ansträngning ('suggestion': reason, trend, previous) "
+        "— samma tal adeptens loggformulär visar. Föreslå inga andra vikter "
+        "utan att säga varför du avviker.",
         {
             "type": "object",
             "properties": {

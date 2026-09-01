@@ -40,18 +40,44 @@ def _int_or_none(value: Any) -> int | None:
         return None
 
 
+def _rep_bounds(value: Any, fallback: Any = None) -> tuple[int | None, int | None]:
+    """Repspannet ur en prescription, med passets mallspann som reserv.
+
+    Dubbel progression behöver ett golv och ett tak, inte bara ett tal: utan
+    spannet vet ingen när reps-ökningen ska växlas mot en tyngre stång.
+    Spannet finns antingen i steget (``reps: {range: [3, 6]}``) eller på
+    passets parameter (``parameters.reps.range``).
+    """
+    for candidate in (value, fallback):
+        if isinstance(candidate, dict):
+            span = candidate.get("range")
+        else:
+            span = candidate
+        if isinstance(span, (list, tuple)) and len(span) >= 2:
+            low, high = _int_or_none(span[0]), _int_or_none(span[1])
+            if low and high and high >= low:
+                return low, high
+    return None, None
+
+
 def readable_name(code: str) -> str:
     """Kod → läsbart namn när katalogen saknar övningen."""
     return (code or "").replace("_", " ").strip().capitalize() or "Övning"
 
 
 def exercises_from_steps(
-    steps: Any, exercise_map: dict[str, dict] | None = None
+    steps: Any,
+    exercise_map: dict[str, dict] | None = None,
+    reps_range: Any = None,
 ) -> list[dict]:
     """``main_set``-steg → övningslista i den form loggformuläret vill ha.
 
     Bara ``strength_block`` blir övningar. Uppvärmning och nedvarvning hör till
     passtexten, inte till loggen — de har inga set och reps att bekräfta.
+
+    ``reps_range`` är passets mallspann (``parameters.reps``) och används som
+    reserv när steget bara bär ett rep-tal. Spannet följer med posten så att
+    progressionen vet när reps ska växlas mot vikt.
     """
     catalogue = exercise_map or {}
     out: list[dict] = []
@@ -63,11 +89,14 @@ def exercises_from_steps(
         if not isinstance(prescription, dict):
             prescription = {}
         entry = catalogue.get(code) or {}
+        reps_min, reps_max = _rep_bounds(prescription.get("reps"), reps_range)
         out.append({
             "code": code or None,
             "name": entry.get("name") or readable_name(code),
             "sets": _int_or_none(prescription.get("sets")),
             "reps": _int_or_none(prescription.get("reps")),
+            "reps_min": reps_min,
+            "reps_max": reps_max,
             "rir": _int_or_none(prescription.get("rir")),
             "rest_sec": _int_or_none(prescription.get("rest_sec")),
             "load": _scalar(step.get("load_pct")),
@@ -96,11 +125,18 @@ def normalize_exercises(raw: Any) -> list[dict]:
             weight = float(weight) if weight not in (None, "") else None
         except (TypeError, ValueError):
             weight = None
+        reps_min, reps_max = _rep_bounds(
+            item.get("reps"),
+            [item.get("reps_min"), item.get("reps_max")]
+            if item.get("reps_min") and item.get("reps_max") else None,
+        )
         out.append({
             "code": (str(item.get("code")).strip() or None) if item.get("code") else None,
             "name": name[:80],
             "sets": _int_or_none(item.get("sets")),
             "reps": _int_or_none(item.get("reps")),
+            "reps_min": reps_min,
+            "reps_max": reps_max,
             "rir": _int_or_none(item.get("rir")),
             "rest_sec": _int_or_none(item.get("rest_sec")),
             "weight_from": weight,

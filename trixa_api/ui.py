@@ -22,6 +22,7 @@ from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 from coach.trixa.db import get_postgrest
 from coach.trixa.exercise_plan import exercises_from_steps
+from coach.trixa.strength_progression import apply_suggestions
 from coach.trixa.planner import (
     generate_week,
     swap_workout_discipline_and_replan,
@@ -436,8 +437,13 @@ def strength_log(
     reps: int | None = Form(None),
     weight_from: float | None = Form(None),
     effort: int = Form(2),
+    exercise_code: str = Form(""),
 ) -> Any:
-    """Logga en utförd styrkeövning. Upsert på (user, datum, övningsnamn)."""
+    """Logga en utförd styrkeövning. Upsert på (user, datum, övningsnamn).
+
+    ``exercise_code`` följer med från planen när den finns: nästa passets vikt
+    räknas ur den här raden, och en kod överlever att katalogens namn skrivs om.
+    """
     uid = _current_user_id(request)
     name = (exercise_name or "").strip()
     if not uid or not name or not session_date:
@@ -448,6 +454,7 @@ def strength_log(
     row = {
         "user_id": uid, "session_date": session_date, "exercise_name": name,
         "sets": sets, "reps": reps, "weight_from": weight_from, "effort": effort,
+        "exercise_code": (exercise_code or "").strip() or None,
     }
     existing = (
         client.table("exercise_logs").select("id")
@@ -743,6 +750,11 @@ def _monday_of(d: date_type) -> date_type:
 
 # Tidslinjens följsamhet behöver inte obegränsad historik.
 _COMPLIANCE_MAX_WEEKS = 12
+
+# Hur långt bakåt styrkeprogressionen läser. Ett kvartal räcker för
+# stagnationsregeln (tre pass på samma vikt) även för en övning som körs
+# varannan vecka, utan att en vilosäsong från i våras styr höstens vikter.
+_PROGRESSION_DAYS = 120
 
 
 def _fetch_activities_range(
@@ -1622,19 +1634,41 @@ def _fetch_planned_sessions_week(client, user_id, week_monday):
 
 def _attach_strength_logs(client, week: dict, user_id: str) -> None:
     """Lägg loggade styrkeövningar (exercise_logs) på styrkepassen i veckan,
-    plus en datalist med adeptens tidigare övningsnamn (för snabb inmatning)."""
+    plus en datalist med adeptens tidigare övningsnamn (för snabb inmatning).
+
+    Historiken används också till det den alltid borde ha använts till: varje
+    övning som är kvar att bocka av får sin nästa vikt räknad ur förra passets
+    ansträngning (``strength_progression``). Adepten ska bekräfta ett förslag,
+    inte minnas ett tal.
+    """
     if not user_id:
         return
     strength = [w for w in week["workouts"] if w["sport"] == "strength"]
     if not strength:
         return
+    cols = ("id, session_date, exercise_name, exercise_code, sets, reps,"
+            " weight_from, effort")
+    # Historiken bakåt: progressionen behöver de senaste passen per övning,
+    # inte bara den här veckans. Fönstret räcker för stagnationsregeln (tre
+    # pass) även för en övning som körs varannan vecka.
+    history_from = (
+        date_type.fromisoformat(week["week_start"]) - timedelta(days=_PROGRESSION_DAYS)
+    ).isoformat()
     try:
         logs = (
-            client.table("exercise_logs")
-            .select("id, session_date, exercise_name, sets, reps, weight_from, effort")
+            client.table("exercise_logs").select(cols)
             .eq("user_id", user_id)
             .gte("session_date", week["week_start"])
             .lte("session_date", week["week_end"])
+            .execute()
+        )
+        history = (
+            client.table("exercise_logs").select(cols)
+            .eq("user_id", user_id)
+            .gte("session_date", history_from)
+            .lt("session_date", week["week_start"])
+            .order("session_date", desc=True)
+            .limit(1000)
             .execute()
         )
         prev = (
@@ -1657,10 +1691,18 @@ def _attach_strength_logs(client, week: dict, user_id: str) -> None:
         # Förifyll formuläret, skriv ALDRIG loggraden. Att registrera pass som
         # inte utförts förstör just den datakvalitet motorn vilar på — adepten
         # justerar vikt och ansträngning och bekräftar själv.
-        w["exercises_to_log"] = [
+        todo = [
             ex for ex in (w.get("planned_exercises") or [])
             if (ex.get("name") or "").strip().casefold() not in done
         ]
+        # Historiken fram till dagens pass — loggar från senare pass i veckan
+        # får inte styra ett tidigare pass bakåt i tiden.
+        cutoff = str(w["date"])[:10]
+        relevant = [
+            lg for lg in list(history.data or []) + list(logs.data or [])
+            if str(lg.get("session_date"))[:10] < cutoff
+        ]
+        w["exercises_to_log"] = apply_suggestions(todo, relevant)
 
 
 def _display_steps(steps) -> list[dict]:

@@ -365,6 +365,34 @@ Strava"-länken kräver `STRAVA_CLIENT_ID/SECRET`, som finns i lokal `.env` men
 inte i CI. Testet var grönt lokalt och rött i CI. UI-tester som beror på
 miljövariabler måste sätta dem själva.
 
+**Autoreglerad styrkeprogression (2026-09-01):**
+Passbanken beskrev modellen — "progredierar nästa gång samma RIR nås vid lägre
+ansträngning, detta ÄR autoreglering" (`strength_MS.yaml`) — men ingen kod bar
+den. Loggen tog emot vikt och ansträngning; ingenting läste dem tillbaka.
+Adepten mindes förra vikten själv och gissade nästa, som i gamla Trixa.
+- `coach/trixa/strength_progression.py` — **dubbel progression**: kör inom
+  protokollets repspann (`strength.yaml::protocol_parameters`), öka reps tills
+  taket nås, väx då reps mot vikt och gå ned till golvet. `effort` styr takten
+  (lätt +5 %, lagom +2,5 %, tungt håll, för tungt −5 %). Ökningen är aldrig
+  mindre än ett faktiskt viktsteg (0,5/1/2,5 kg efter last) — annars avrundas
+  progressionen bort. Tre pass på samma vikt utan att den lättat = deload −10 %.
+  Loggade reps under spannets golv slår ut angiven ansträngning: kryssrutan är
+  en åsikt, reps ett mätvärde. Kroppsvikt progredierar i reps. **Ingen gissad
+  startvikt** — utan historik ber den om ett värde mot RIR:et.
+- Repspannet följer med varje övning (`reps_min`/`reps_max`) från passets
+  `parameters.reps.range` via `exercises_from_steps`. Äldre rader får ett
+  smalt spann runt sitt rep-tal.
+- Migration **013 applicerad 2026-09-01**: `exercise_logs.exercise_code`
+  (stabil historiknyckel — namnbyte i katalogen får inte nolla progressionen)
+  + två index. Namnmatchning är kvar som reserv för gamla rader.
+- Samma förslag i BÅDA ytorna: adeptens loggformulär (förifyllt + en mening om
+  varför) och `/agent/week` → MCP `get_week` (`exercises[].suggestion` med
+  reason/trend/previous), så coachen inte föreslår vikter som motsäger appen.
+  Bara loggar före passets datum räknas — ett senare pass i veckan får inte
+  styra ett tidigare bakåt i tiden.
+- 28 tester (`test_strength_progression.py` + `..._wiring.py`). Gränsen från
+  TX-4 står kvar: formuläret förifylls, loggraden skrivs aldrig automatiskt.
+
 **Onboarding generaliserad (2026-08-25):**
 - Formuläret antog erfaren triatlet. Nu: aktiva discipliner + erfarenhetsnivå
   frågas först och styr resten. Tröskelvärden visas för advanced/elite (eller

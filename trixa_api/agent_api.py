@@ -19,9 +19,13 @@ from pydantic import BaseModel, Field
 
 from coach.trixa.db import get_postgrest
 from coach.trixa.exercise_plan import normalize_exercises
+from coach.trixa.strength_progression import apply_suggestions
 from trixa_api.agent_auth import AgentScope, resolve_agent_scope
 
 router = APIRouter(prefix="/agent", tags=["agent"])
+
+# Så långt bakåt styrkeprogressionen läser loggen (se ui._PROGRESSION_DAYS).
+_PROGRESSION_DAYS = 120
 
 # Discipliner: lagras svenska i planned_sessions, exponeras engelska i läs-svar.
 _EN_TO_SV = {
@@ -210,6 +214,7 @@ def _week_plan(client, user_id: str, monday: date_type) -> dict:
         .order("date")
         .execute()
     )
+    history = _strength_history(client, user_id, monday, sunday)
     sessions = [
         {
             "id": w["id"],
@@ -220,13 +225,47 @@ def _week_plan(client, user_id: str, monday: date_type) -> dict:
             "intensity": w.get("intensity") or "",
             "duration_min": w.get("duration_min"),
             "details": w.get("details") or "",
-            "exercises": w.get("exercises") or [],
+            # Övningarna bär nästa last räknad ur förra passets ansträngning,
+            # samma tal som adeptens loggformulär visar. Coachen ska se det
+            # adepten ser — annars föreslår hen vikter som motsäger appen.
+            # Bara loggar FÖRE passets datum räknas: ett senare pass i veckan
+            # får inte styra ett tidigare bakåt i tiden.
+            "exercises": apply_suggestions(
+                w.get("exercises") or [],
+                [h for h in history if str(h.get("session_date"))[:10] < str(w["date"])[:10]],
+            ),
             "status": w.get("status") or "",
             "origin": w.get("origin") or "",
         }
         for w in (res.data or [])
     ]
     return {"week_start": monday.isoformat(), "sessions": sessions}
+
+
+def _strength_history(
+    client, user_id: str, monday: date_type, sunday: date_type
+) -> list[dict]:
+    """Styrkeloggen fram till veckans slut — underlaget progressionen räknar på.
+
+    Veckans egna loggar tas med så att coachens siffror inte släpar efter
+    adeptens app mitt i veckan; anroparen skär bort allt som ligger efter det
+    pass som räknas.
+    """
+    try:
+        res = (
+            client.table("exercise_logs")
+            .select("session_date, exercise_name, exercise_code, sets, reps,"
+                    " weight_from, effort")
+            .eq("user_id", user_id)
+            .gte("session_date", (monday - timedelta(days=_PROGRESSION_DAYS)).isoformat())
+            .lte("session_date", sunday.isoformat())
+            .order("session_date", desc=True)
+            .limit(1000)
+            .execute()
+        )
+    except Exception:  # noqa: BLE001
+        return []
+    return res.data or []
 
 
 @router.get("/week/current")

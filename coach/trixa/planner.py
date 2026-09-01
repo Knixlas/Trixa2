@@ -1520,7 +1520,11 @@ def _planned_session_row(
     sw: ScheduledWorkout, user_id: str, exercise_map: dict[str, dict] | None = None
 ) -> dict:
     """ScheduledWorkout → planned_sessions-rad (origin='trixa2')."""
-    steps = (sw.workout_data or {}).get("main_set", [])
+    workout = sw.workout_data or {}
+    steps = workout.get("main_set", [])
+    # Mallens repspann (parameters.reps.range) följer med varje övning: utan
+    # golv och tak vet progressionen inte när reps ska växlas mot tyngre vikt.
+    reps_range = (workout.get("parameters") or {}).get("reps")
     return {
         "user_id": user_id,
         "date": sw.date.isoformat(),
@@ -1534,7 +1538,7 @@ def _planned_session_row(
         # Övningarna som strukturerad lista, inte bara som prosa i details.
         # Utan den kan loggformuläret inte förifyllas och adepten får skriva
         # av tolv övningsnamn som Trixa själv genererat.
-        "exercises": exercises_from_steps(steps, exercise_map) or None,
+        "exercises": exercises_from_steps(steps, exercise_map, reps_range) or None,
         "workout_code": sw.code,
         "intensity": sw.intensity,
         "origin": "trixa2",
