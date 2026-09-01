@@ -73,6 +73,10 @@ def _tool_get_athlete(scope: AgentScope, args: dict) -> Any:
     return agent_api.get_athlete(scope=scope)
 
 
+def _tool_get_constraints(scope: AgentScope, args: dict) -> Any:
+    return agent_api.get_constraints(scope=scope)
+
+
 def _tool_get_week(scope: AgentScope, args: dict) -> Any:
     monday = (args.get("monday") or "").strip()
     if not monday:
@@ -144,11 +148,23 @@ _TOOLS: list[tuple[str, str, dict, Callable[[AgentScope, dict], Any]]] = [
     ),
     (
         "get_athlete",
-        "Adeptens grunddata: mål, erfarenhetsnivå, tröskelvärden, veckoram, "
-        "aktiva besvär, kroniska tillstånd och fasläge. Börja här när du ska "
-        "planera — det är kontexten allt annat vilar på.",
+        "Hela adeptprofilen: mål, erfarenhetsnivå, tröskelvärden, veckoram, "
+        "aktiva discipliner, vilodagar, långpassdagar, utrustning och "
+        "pool-tillgång, inne/ute-preferens, besvär med impact per gren, "
+        "kroniska tillstånd, nutrition och fasläge. Samma fält som adepten ser "
+        "på inställnings- och hälsosidan.",
         {"type": "object", "properties": {}},
         _tool_get_athlete,
+    ),
+    (
+        "get_constraints",
+        "Vad som ÖVERHUVUDTAGET går att planera, färdigsammanvägt: aktiva "
+        "discipliner, grenar som är blockerade eller begränsade av besvär, "
+        "vilodagar som ska lämnas tomma, pool-tillgång och utrustning. Läs den "
+        "FÖRE du skriver pass — den hindrar dig från att lägga simpass åt någon "
+        "utan pool eller träning på en låst vilodag.",
+        {"type": "object", "properties": {}},
+        _tool_get_constraints,
     ),
     (
         "get_week",
@@ -189,7 +205,9 @@ _TOOLS: list[tuple[str, str, dict, Callable[[AgentScope, dict], Any]]] = [
         "get_recovery",
         "Dygnsdata för återhämtning: vilopuls, HRV mot baseline, sömnpoäng, "
         "readiness, stress och belastningskvot (ACWR). Läs den innan du höjer "
-        "belastningen eller lägger in kvalitetspass.",
+        "belastningen eller lägger in kvalitetspass. Saknar adepten kopplad "
+        "klocka svarar den has_data=false med en note — det är normalt, inte "
+        "ett fel; planera då på veckoram och upplevd ansträngning.",
         {
             "type": "object",
             "properties": {
@@ -372,9 +390,19 @@ def _dispatch(scope: AgentScope, message: dict) -> dict | None:
                 "serverInfo": {"name": SERVER_NAME, "version": SERVER_VERSION},
                 "instructions": (
                     "Trixa är en deterministisk träningsmotor. Verktygen läser och "
-                    "skriver EN adepts data — den som token:en tillhör. Läs "
-                    "get_athlete och get_recovery innan du planerar, skriv pass med "
-                    "plan_session, och dokumentera avsteg från motorn med log_override."
+                    "skriver EN adepts data — den som token:en tillhör.\n\n"
+                    "Innan du planerar: läs get_constraints (vad som går att lägga "
+                    "alls) och get_athlete (mål, nivå, tröskelvärden). "
+                    "get_constraints är bindande — planera aldrig i en gren som "
+                    "ligger i inactive_sports eller blocked_sports, och lägg aldrig "
+                    "pass på en dag i rest_days.\n\n"
+                    "Läs get_recovery också. Saknar adepten kopplad klocka svarar "
+                    "den med tom metrics-lista och en note — det är normalläget för "
+                    "nya adepter och inget fel. Planera då på veckoram och "
+                    "erfarenhetsnivå ur get_athlete, håll upprampningen försiktig "
+                    "och fråga adepten hur passen kändes i stället för att läsa HRV.\n\n"
+                    "Skriv pass med plan_session och dokumentera avsteg från motorn "
+                    "med log_override."
                 ),
             },
         )

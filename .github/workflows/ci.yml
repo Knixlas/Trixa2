@@ -26,6 +26,7 @@ jobs:
           coach/trixa/test_session_mapping.py
           coach/tests/test_agent_api.py
           coach/tests/test_agent_api_regressions.py
+          coach/tests/test_agent_constraints.py
           coach/tests/test_mcp_server.py
           coach/tests/test_oauth_server.py
           coach/tests/test_onboarding.py

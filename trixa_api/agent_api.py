@@ -67,23 +67,131 @@ def whoami(scope: AgentScope = Depends(resolve_agent_scope)) -> dict:
 # ---------- läsa: athlete-state ----------
 
 
-@router.get("/athlete")
-def get_athlete(scope: AgentScope = Depends(resolve_agent_scope)) -> dict:
-    """Adeptens mål, testvärden, hälsa — Nils kontextbygge."""
-    client = get_postgrest()
+# Hela adeptprofilen som ``/ui/settings`` och ``/ui/health`` håller. Listan var
+# förut en delmängd: den utelämnade aktiva discipliner, vilodagar, utrustning och
+# pool-tillgång — precis de fält som avgör vad som ÖVERHUVUDTAGET går att lägga.
+# En agent som bara ser MCP-ytan planerade därför blint, och skrev sim- och
+# cykelpass åt en adept som hade båda avstängda. Allt som styr planeringen ska
+# vara läsbart här; det som inte gör det (tokens, cookies) hör inte hemma.
+_ATHLETE_COLUMNS = (
+    "id, user_id, coach_name, goal, experience_level, weekly_hours, weekly_days,"
+    " race_type, race_date, time_goal,"
+    " ftp, lthr, lthr_bike, max_hr, resting_hr, swim_css, run_threshold_pace,"
+    " threshold_meta, recovery_week_ratio,"
+    " sports, preferred_rest_days, long_bike_day, long_run_day,"
+    " equipment, preferred_settings,"
+    " injuries, health_conditions, active_concerns, medications,"
+    " nutrition_notes, race_carbs_per_hour_g, carb_load_g_per_kg,"
+    " phase_state, notes, onboarded_at, onboarding_version"
+)
+
+_ALL_SPORTS = ("swim", "bike", "run", "strength")
+_IMPACT_RANK = {"none": 0, "partial": 1, "full": 2}
+_DAY_NAMES = (
+    "monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday",
+)
+
+
+def _athlete_row(client, user_id: str) -> dict:
     res = (
         client.table("athlete_profiles")
-        .select("id, user_id, goal, experience_level, weekly_hours, weekly_days,"
-                " race_type, race_date, time_goal, ftp, lthr, swim_css,"
-                " run_threshold_pace, injuries, health_conditions, active_concerns,"
-                " medications, phase_state, notes")
-        .eq("user_id", scope.user_id)
+        .select(_ATHLETE_COLUMNS)
+        .eq("user_id", user_id)
         .limit(1)
         .execute()
     )
     if not res.data:
         raise HTTPException(404, "Athlete saknas")
     return res.data[0]
+
+
+@router.get("/athlete")
+def get_athlete(scope: AgentScope = Depends(resolve_agent_scope)) -> dict:
+    """Hela adeptprofilen: mål, testvärden, schema, utrustning, hälsa."""
+    return _athlete_row(get_postgrest(), scope.user_id)
+
+
+def _worst_impact(concerns: list) -> dict[str, str]:
+    """Värsta impact per disciplin över alla aktiva besvär.
+
+    Två besvär kan träffa samma gren olika hårt — planeringen måste följa det
+    strängaste. Okända värden räknas som ``none`` (fältet är fritext i jsonb).
+    """
+    worst = {s: "none" for s in _ALL_SPORTS}
+    for concern in concerns or []:
+        if not isinstance(concern, dict):
+            continue
+        impacts = concern.get("impact_per_discipline") or {}
+        for sport, level in impacts.items():
+            if sport not in worst:
+                continue
+            if _IMPACT_RANK.get(level, 0) > _IMPACT_RANK.get(worst[sport], 0):
+                worst[sport] = level
+    return worst
+
+
+@router.get("/constraints")
+def get_constraints(scope: AgentScope = Depends(resolve_agent_scope)) -> dict:
+    """De hårda begränsningarna, färdigsammanvägda: vad går att planera alls?
+
+    ``get_athlete`` bär råvärdena, men de ligger på tre ställen (aktiva
+    discipliner, utrustning, impact per besvär) och måste vägas ihop rätt för
+    att ge ett svar. Den sammanvägningen är deterministisk och hör hemma i
+    koden, inte i en språkmodells huvud — därför den här vyn.
+    """
+    athlete = _athlete_row(get_postgrest(), scope.user_id)
+
+    sports = [s for s in (athlete.get("sports") or list(_ALL_SPORTS)) if s in _ALL_SPORTS]
+    equipment = athlete.get("equipment") or {}
+    pool = equipment.get("pool_type") or "unknown"
+    impact = _worst_impact(athlete.get("active_concerns") or [])
+
+    blocked = sorted(s for s in sports if impact.get(s) == "full")
+    limited = sorted(s for s in sports if impact.get(s) == "partial")
+    # Ingen pool och inget öppet vatten → simpass går inte att genomföra,
+    # oavsett vad profilen säger att adepten håller på med.
+    if "swim" in sports and pool == "none" and "swim" not in blocked:
+        blocked.append("swim")
+    plannable = [s for s in sports if s not in blocked]
+
+    rest_days = [d for d in (athlete.get("preferred_rest_days") or []) if d in _DAY_NAMES]
+
+    reasons: list[str] = []
+    inactive = [s for s in _ALL_SPORTS if s not in sports]
+    if inactive:
+        reasons.append(
+            "Ej aktiva discipliner (planera inga pass alls i dem): "
+            + ", ".join(inactive)
+        )
+    if pool == "none" and "swim" in sports:
+        reasons.append("Ingen pool-tillgång — simpass går inte att genomföra.")
+    for sport in blocked:
+        if impact.get(sport) == "full":
+            reasons.append(f"{sport}: besvär med impact 'full' — hoppa över helt.")
+    for sport in limited:
+        reasons.append(f"{sport}: besvär med impact 'partial' — bara lugna AE-pass.")
+    if rest_days:
+        reasons.append("Vilodagar (lägg inga pass): " + ", ".join(rest_days))
+
+    return {
+        "sports": sports,
+        "inactive_sports": inactive,
+        "plannable_sports": plannable,
+        "blocked_sports": blocked,
+        "limited_sports": limited,
+        "discipline_impact": impact,
+        "rest_days": rest_days,
+        "long_session_days": {
+            "bike": athlete.get("long_bike_day"),
+            "run": athlete.get("long_run_day"),
+        },
+        "pool_access": pool,
+        "equipment": equipment,
+        "preferred_settings": athlete.get("preferred_settings") or {},
+        "weekly_hours": athlete.get("weekly_hours"),
+        "weekly_days": athlete.get("weekly_days"),
+        "reasons": reasons,
+    }
 
 
 # ---------- läsa: veckans plan ----------
@@ -174,8 +282,16 @@ def get_recovery(
         .eq("user_id", scope.user_id).limit(1).execute()
     )
     gid = a.data[0].get("garmin_athlete_id") if a.data else None
+    # Tomt svar är normalläget för en adept utan kopplad klocka, inte ett fel.
+    # Noten säger det rakt ut så att en agent slutar leta efter data som aldrig
+    # kommer och planerar på veckoram och upplevd ansträngning i stället.
+    no_watch = (
+        "Ingen kopplad klocka — adepten har ingen återhämtningsdata. Planera på "
+        "veckoram och erfarenhetsnivå ur get_athlete, ramp försiktigt och fråga "
+        "adepten hur passen kändes."
+    )
     if not gid:
-        return {"metrics": [], "note": "Ingen garmin_athlete_id kopplad."}
+        return {"metrics": [], "has_data": False, "note": no_watch}
     res = (
         client.schema("garmin_coach").table("daily_metrics")
         .select("metric_date, resting_hr, hrv_last_night_ms, hrv_baseline_low,"
@@ -185,7 +301,16 @@ def get_recovery(
         .limit(days)
         .execute()
     )
-    return {"metrics": res.data or []}
+    metrics = res.data or []
+    if not metrics:
+        return {
+            "metrics": [], "has_data": False,
+            "note": (
+                "Klocka kopplad men inga dygn synkade i perioden — behandla som "
+                "avsaknad av data, inte som goda värden."
+            ),
+        }
+    return {"metrics": metrics, "has_data": True}
 
 
 # ---------- skriva: plan (Nils vinner) ----------

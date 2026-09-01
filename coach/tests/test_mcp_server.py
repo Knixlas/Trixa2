@@ -116,8 +116,9 @@ def test_tools_list_shape():
     H = _with_token(st, aa)
     tools = _rpc(c, H, "tools/list").json()["result"]["tools"]
     names = {t["name"] for t in tools}
-    assert {"whoami", "get_athlete", "get_week", "get_training_log", "get_recovery",
-            "plan_session", "delete_planned_session", "log_override"} == names, names
+    assert {"whoami", "get_athlete", "get_constraints", "get_week",
+            "get_training_log", "get_recovery", "plan_session",
+            "delete_planned_session", "log_override"} == names, names
     for t in tools:
         assert t["description"].strip(), t["name"]
         assert t["inputSchema"]["type"] == "object", t["name"]
