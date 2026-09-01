@@ -25,7 +25,7 @@ from coach.trixa.planner import (
     swap_workout_discipline_and_replan,
     swap_workout_to_next_alternative,
 )
-from trixa_api import season, supabase_auth, readiness, strava_client
+from trixa_api import markdown_lite, season, supabase_auth, readiness, strava_client
 
 
 logger = logging.getLogger("trixa.ui")
@@ -41,6 +41,9 @@ _jinja_env = Environment(
     autoescape=select_autoescape(["html"]),
     cache_size=0,
 )
+# Passbeskrivningar är markdown i fritext (både motorns och coachens). Filtret
+# escapar indata innan det formaterar — se markdown_lite.
+_jinja_env.filters["session_markdown"] = markdown_lite.render
 
 
 def _render(template_name: str, context: dict, status_code: int = 200) -> HTMLResponse:
@@ -1715,8 +1718,17 @@ def _fetch_current_week_data(
             "is_manual": (ps.get("origin") or "") == "manual",
             "origin": ps.get("origin") or "",
             "planned_exercises": ps.get("exercises") or [],
+            # Vilodagen lagras som en rad i planned_sessions men är frånvaro av
+            # träning. Yoga/Promenad mappar också till sport "rest" — de ÄR pass
+            # och räknas som sådana, därför tittar vi på det lagrade värdet.
+            "is_rest": (ps.get("sport") or "").strip().lower() in ("vila", "rest"),
             "status": _status(ps["date"], sport, code or title, dur, ps.get("id")),
         })
+
+    # "Pass: 7" för en vecka med tre träningsdagar och fyra vilodagar lästes som
+    # sju träningspass. Räknaren visar träningspass; vilan redovisas separat.
+    week["rest_day_count"] = sum(1 for w in week["workouts"] if w["is_rest"])
+    week["session_count"] = len(week["workouts"]) - week["rest_day_count"]
 
     _attach_strength_logs(client, week, user_id)
     return week

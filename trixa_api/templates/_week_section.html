@@ -27,7 +27,7 @@
 
   {% if week and week.workouts %}
     <p>
-      {% if week.phase %}<strong>Fas:</strong> {{ week.phase }} | {% endif %}<strong>Pass:</strong> {{ week.workouts | length }}
+      {% if week.phase %}<strong>Fas:</strong> {{ week.phase }} | {% endif %}<strong>Pass:</strong> {{ week.session_count }}{% if week.rest_day_count %} <span style="color: var(--ink-3); font-weight: 400;">(+{{ week.rest_day_count }} vila)</span>{% endif %}
       {% if week.plan_source == "coach" and conn_ai|default(true) %}
       <span class="badge" style="background: var(--lagoon-soft); color: var(--lagoon-deep);"
             title="Planen kommer från din coach, inte den automatiska generatorn">coachens plan</span>
@@ -156,10 +156,13 @@
         </details>
         {% endif %}
 
+        {# Passets faktiska innehåll. Låg förut som rå text under rubriken
+           "Syfte" — ingen letar övningslistan där, och markdownen visades som
+           tecken. Öppen som förval: det här ÄR passet. #}
         {% if w.notes %}
-        <details>
-          <summary>Syfte</summary>
-          <p>{{ w.notes | trim }}</p>
+        <details open>
+          <summary>Passet</summary>
+          <div class="passtext">{{ w.notes | session_markdown }}</div>
         </details>
         {% endif %}
 
