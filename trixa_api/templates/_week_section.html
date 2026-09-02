@@ -9,6 +9,7 @@
   'bike':     ['bike',       'var(--pineapple)'],
   'run':      ['footprints', 'var(--hibiscus)'],
   'strength': ['dumbbell',   'var(--palm)'],
+  'yoga':     ['leaf',       'var(--orchid)'],
   'rest':     ['moon',       'var(--ink-3)']
 } %}
 {# Plan-vs-actual-status → temats badge-klass/stil + accentfärg för actual-raden #}
@@ -301,11 +302,13 @@
         </details>
         {% endif %}
 
-        {# Manuell passlogg — uthållighetspass som inte ligger i framtiden.
-           Förifylld med det passet föreskriver; sparas i training_log. #}
-        {% if w.sport in ("swim", "bike", "run") and w.status.key not in ("planned",) %}
+        {# Manuell passlogg — pass som inte ligger i framtiden. Förifylld med
+           det passet föreskriver; sparas i training_log. Gäller även styrka
+           och yoga: utan den fanns ingen väg att markera dem gjorda, och ett
+           yogapass adepten lagt in själv stod som "Missad" morgonen efter. #}
+        {% if w.sport in ("swim", "bike", "run", "strength", "yoga") and w.status.key not in ("planned",) %}
         <details>
-          <summary>{% if w.status.actual %}Korrigera logg{% else %}Logga pass{% endif %}</summary>
+          <summary>{% if w.status.actual %}Korrigera logg{% elif w.sport in ("strength", "yoga") %}Markera som gjort{% else %}Logga pass{% endif %}</summary>
           <article style="margin-top: 6px;">
             <form method="post" action="/ui/log/session" class="grid" style="align-items: end; gap: 0 10px;">
               <input type="hidden" name="date" value="{{ w.date }}">
@@ -316,6 +319,7 @@
                 <input type="number" name="duration_min" min="0" step="1"
                        value="{{ (w.status.actual.duration_min if w.status.actual else w.duration_minutes) or '' }}">
               </label>
+              {% if w.sport in ("swim", "bike", "run") %}
               <label>Distans (km)
                 <input type="number" name="distance_km" min="0" step="0.1"
                        value="{{ w.status.actual.distance_km if w.status.actual and w.status.actual.distance_km else '' }}">
@@ -324,6 +328,7 @@
                 <input type="number" name="avg_hr" min="0" step="1"
                        value="{{ w.status.actual.avg_hr if w.status.actual and w.status.actual.avg_hr else '' }}">
               </label>
+              {% endif %}
               <label>Känsla (RPE 1–10)
                 <input type="number" name="rpe" min="1" max="10" step="1" placeholder="1–10">
               </label>
@@ -388,6 +393,7 @@
               <option value="bike">Cykel</option>
               <option value="run">Löpning</option>
               <option value="strength">Styrka</option>
+              <option value="yoga">Yoga</option>
             </select>
           </label>
           <label>Sträcka (valfritt)
@@ -398,6 +404,12 @@
           </label>
           <label>Beskrivning
             <input type="text" name="description" placeholder="Kort beskrivning av passet">
+          </label>
+          {# Adepten som lägger in gårdagens yoga planerar inte — hen rapporterar.
+             Utan rutan blev raden en plan utan utfall och stod som "Missad". #}
+          <label style="display: flex; align-items: center; gap: 8px;">
+            <input type="checkbox" name="already_done" value="1" style="width: auto; margin: 0;">
+            Passet är redan gjort — logga det direkt
           </label>
           <button type="submit">Lägg till pass</button>
         </form>

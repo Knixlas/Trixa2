@@ -30,12 +30,12 @@ _PROGRESSION_DAYS = 120
 # Discipliner: lagras svenska i planned_sessions, exponeras engelska i läs-svar.
 _EN_TO_SV = {
     "bike": "Cykel", "run": "Löpning", "swim": "Sim",
-    "strength": "Styrka", "rest": "Vila", "brick": "Brick",
+    "strength": "Styrka", "rest": "Vila", "brick": "Brick", "yoga": "Yoga",
 }
 _SV_TO_EN = {
     "Cykel": "bike", "Cykling": "bike", "Löpning": "run", "Lopning": "run",
     "Sim": "swim", "Simning": "swim", "Styrka": "strength", "Vila": "rest",
-    "Brick": "brick", "Yoga": "rest", "Promenad": "rest",
+    "Brick": "brick", "Yoga": "yoga", "Promenad": "rest",
 }
 
 

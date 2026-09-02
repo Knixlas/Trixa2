@@ -420,6 +420,26 @@ Första skarpa kollen visade tomt. Tre orsaker, ingen i räknemodellen:
   det adepten körde och progressionen sitter helt i vikten. Kroppsvikt
   (ingen loggad vikt) progredierar i reps som vanligt.
 
+**Yoga som gren + pass som går att markera gjorda (2026-09-02):**
+Skarp användning av en andra adept (Sarah, `acb82415-…`): hon lade in
+"Yoga" som eget pass, valde Styrka eftersom Yoga inte fanns, och passet
+stod som "Missad" morgonen efter utan väg att säga emot.
+- `_PLANNED_SV_SPORT["Yoga"] = "yoga"` — egen gren, inte vila. Mappat till
+  rest fick ett gjort yogapass statusen "Tränade på vilodag". Promenad/
+  vandring är fortsatt vila. `_TL_SPORT`/`_RELEVANT_SPORTS` hade redan yoga.
+- "Logga pass"-formuläret gäller nu även styrka och yoga ("Markera som
+  gjort"); `_LOGGABLE_SPORTS` är enda listan över vad som får loggas/läggas
+  in. Distans/puls visas bara för konditionsgrenar.
+- Eget pass har kryssrutan "Passet är redan gjort — logga det direkt":
+  gårdagens yoga inlagd i efterhand är en rapport, inte en plan. Skriver en
+  training_log-rad länkad till planraden.
+- `_mark_done_from_exercise_logs`: avbockade övningar (effort ≠ −1) gör ett
+  "Missad" styrkepass till "Genomförd" vid läsning. Ingen rad skrivs.
+  Bedömningen från en riktig training_log-aktivitet skrivs aldrig över.
+- Nils kan planera yoga via MCP (`_SPORT_ENUM`, `_EN_TO_SV`).
+- Sarahs rad rättad i DB (`sport` Styrka → Yoga). Hennes yoga står
+  fortfarande som missad tills hon markerar den — det vet bara hon.
+
 **Onboarding generaliserad (2026-08-25):**
 - Formuläret antog erfaren triatlet. Nu: aktiva discipliner + erfarenhetsnivå
   frågas först och styr resten. Tröskelvärden visas för advanced/elite (eller
