@@ -8,7 +8,9 @@ Hanterar:
 
 from __future__ import annotations
 
+import copy
 from dataclasses import dataclass
+from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
@@ -80,12 +82,15 @@ def discover_workout_files(workout_dir: Path | None = None) -> dict[str, list[Pa
     return result
 
 
-def load_workouts(workout_dir: Path | None = None) -> list[dict[str, Any]]:
-    """Ladda alla pass från alla disciplin-filer.
+# Passbanken är 28 YAML-filer, ~330 KB, ~250 ms att parsa. Utan cache lästes
+# den om vid varje anrop — upp till fyra gånger för ett enda "byt gren"-klick
+# (docs/12 H1). Nu en gång per process och katalog; anropare får en djup
+# kopia så att de kan mutera (planeraren gör det) utan att förgifta cachen.
 
-    Returnerar en flat lista med pass-objekt. Disciplin finns som fält
-    i varje pass-objekt, så den behövs inte som extra struktur.
-    """
+
+@lru_cache(maxsize=4)
+def _load_workouts_cached(dir_key: str) -> tuple[dict[str, Any], ...]:
+    workout_dir = Path(dir_key)
     files = discover_workout_files(workout_dir)
     workouts: list[dict[str, Any]] = []
     for disc, paths in files.items():
@@ -101,26 +106,43 @@ def load_workouts(workout_dir: Path | None = None) -> list[dict[str, Any]]:
                 if "discipline" not in w:
                     w["discipline"] = disc
                 workouts.append(w)
-    return workouts
+    return tuple(workouts)
+
+
+@lru_cache(maxsize=4)
+def _load_catalogue_cached(path_key: str, key: str) -> tuple[dict[str, Any], ...]:
+    path = Path(path_key)
+    if not path.exists():
+        return ()
+    data = yaml.safe_load(path.read_text(encoding="utf-8"))
+    return tuple(data.get(key, [])) if data else ()
+
+
+def clear_workout_cache() -> None:
+    """Töm passbankscachen (tester som skriver egna YAML-filer)."""
+    _load_workouts_cached.cache_clear()
+    _load_catalogue_cached.cache_clear()
+
+
+def load_workouts(workout_dir: Path | None = None) -> list[dict[str, Any]]:
+    """Ladda alla pass från alla disciplin-filer.
+
+    Returnerar en flat lista med pass-objekt. Disciplin finns som fält
+    i varje pass-objekt, så den behövs inte som extra struktur.
+    """
+    dir_key = str((workout_dir or DEFAULT_WORKOUT_DIR).resolve())
+    return copy.deepcopy(list(_load_workouts_cached(dir_key)))
 
 
 def load_strength_exercises(
     workout_dir: Path | None = None,
 ) -> list[dict[str, Any]]:
     """Ladda styrkeövningskatalogen."""
-    workout_dir = workout_dir or DEFAULT_WORKOUT_DIR
-    path = workout_dir / "strength_exercises.yaml"
-    if not path.exists():
-        return []
-    data = yaml.safe_load(path.read_text(encoding="utf-8"))
-    return data.get("exercises", []) if data else []
+    path = (workout_dir or DEFAULT_WORKOUT_DIR) / "strength_exercises.yaml"
+    return copy.deepcopy(list(_load_catalogue_cached(str(path.resolve()), "exercises")))
 
 
 def load_drills(workout_dir: Path | None = None) -> list[dict[str, Any]]:
     """Ladda drill-katalogen (sim-drills idag, framtida även för andra)."""
-    workout_dir = workout_dir or DEFAULT_WORKOUT_DIR
-    drill_path = workout_dir / "swim_drills.yaml"
-    if not drill_path.exists():
-        return []
-    data = yaml.safe_load(drill_path.read_text(encoding="utf-8"))
-    return data.get("drills", []) if data else []
+    path = (workout_dir or DEFAULT_WORKOUT_DIR) / "swim_drills.yaml"
+    return copy.deepcopy(list(_load_catalogue_cached(str(path.resolve()), "drills")))

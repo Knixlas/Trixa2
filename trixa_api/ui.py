@@ -51,10 +51,13 @@ _TEMPLATES_DIR = Path(__file__).resolve().parent / "templates"
 
 # Använder Jinja2 direkt (inte starlette's Jinja2Templates) för att
 # kringgå en cache-bugg i kombinationen Jinja2 3.1.6 + Python 3.14.
+# cache_size=0 låg kvar från samma felsökning och tvingade varje render att
+# läsa, lexa och kompilera ~45 KB mallar (docs/12 H5). Standardcachen
+# (400) räcker; auto_reload plockar upp ändrade filer i dev.
 _jinja_env = Environment(
     loader=FileSystemLoader(str(_TEMPLATES_DIR)),
     autoescape=select_autoescape(["html"]),
-    cache_size=0,
+    auto_reload=os.environ.get("TRIXA_TEMPLATE_RELOAD", "1") == "1",
 )
 # Passbeskrivningar är markdown i fritext (både motorns och coachens). Filtret
 # escapar indata innan det formaterar — se markdown_lite.
@@ -1567,18 +1570,18 @@ def _attach_strength_logs(client, week: dict, user_id: str) -> None:
             .limit(1000)
             .execute()
         )
-        prev = (
-            client.table("exercise_logs").select("exercise_name")
-            .eq("user_id", user_id).limit(500).execute()
-        )
     except Exception:  # noqa: BLE001
         return
     by_date: dict[str, list[dict]] = {}
     for lg in logs.data or []:
         by_date.setdefault(str(lg.get("session_date"))[:10], []).append(lg)
+    # Namnlistan för snabbinmatning härleds ur historiken vi redan hämtat.
+    # Den egna .limit(500)-frågan utan sortering gav ett godtyckligt urval så
+    # snart adepten passerat 500 loggrader (docs/12 H3).
     week["exercise_suggestions"] = sorted({
         (r.get("exercise_name") or "").strip()
-        for r in (prev.data or []) if (r.get("exercise_name") or "").strip()
+        for r in list(history.data or []) + list(logs.data or [])
+        if (r.get("exercise_name") or "").strip()
     })
     # Förslag per övningsNAMN, för övningar som inte står i någon plan: pass
     # som bär övningarna som prosa, och egna tillägg utanför planen. Utan det

@@ -232,7 +232,11 @@ def _week_plan(client, user_id: str, monday: date_type) -> dict:
         .order("date")
         .execute()
     )
-    history = _strength_history(client, user_id, monday, sunday)
+    # 120 dagars exercise_logs hämtades även för veckor utan ett enda
+    # styrkepass (docs/12 H6). Bara när det finns något att räkna på.
+    rows = [w for w in (res.data or []) if w.get("status") != "cancelled"]
+    has_strength = any(sports.canon(w.get("sport")) == "strength" for w in rows)
+    history = _strength_history(client, user_id, monday, sunday) if has_strength else []
     sessions = [
         {
             "id": w["id"],
@@ -256,10 +260,7 @@ def _week_plan(client, user_id: str, monday: date_type) -> dict:
             "status": w.get("status") or "",
             "origin": w.get("origin") or "",
         }
-        for w in (res.data or [])
-        # Ersatta rader är inte plan. Coachen resonerade förut om ett
-        # cykelpass som planeraren dragit tillbaka (docs/12 F4).
-        if w.get("status") != "cancelled"
+        for w in rows   # cancelled bortfiltrerade ovan (docs/12 F4)
     ]
     return {"week_start": monday.isoformat(), "sessions": sessions}
 
