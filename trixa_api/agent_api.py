@@ -18,7 +18,17 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from coach.trixa.db import get_postgrest
-from coach.trixa.exercise_plan import normalize_exercises
+from functools import lru_cache
+
+from coach.trixa.exercise_plan import normalize_exercises, planned_exercises
+
+
+@lru_cache(maxsize=1)
+def _exercise_catalogue() -> dict[str, dict]:
+    """Passbankens övningskatalog, kod → post. Läses en gång per process."""
+    from coach.engine.loader import load_strength_exercises
+
+    return {e["code"]: e for e in load_strength_exercises()}
 from coach.trixa.strength_progression import apply_suggestions
 from trixa_api.agent_auth import AgentScope, resolve_agent_scope
 
@@ -207,7 +217,7 @@ def _week_plan(client, user_id: str, monday: date_type) -> dict:
     res = (
         client.table("planned_sessions")
         .select("id, date, sport, title, workout_code, intensity, duration_min,"
-                " details, purpose, status, origin, exercises")
+                " details, purpose, status, origin, exercises, steps")
         .eq("user_id", user_id)
         .gte("date", monday.isoformat())
         .lte("date", sunday.isoformat())
@@ -231,7 +241,7 @@ def _week_plan(client, user_id: str, monday: date_type) -> dict:
             # Bara loggar FÖRE passets datum räknas: ett senare pass i veckan
             # får inte styra ett tidigare bakåt i tiden.
             "exercises": apply_suggestions(
-                w.get("exercises") or [],
+                planned_exercises(w, _exercise_catalogue()),
                 [h for h in history if str(h.get("session_date"))[:10] < str(w["date"])[:10]],
                 coach_prescribed=(w.get("origin") or "") != "trixa2",
             ),
@@ -399,6 +409,12 @@ def write_plan_session(
         "details": body.details.strip(),
         "workout_code": body.workout_code.strip(),
         "exercises": normalize_exercises(body.exercises) or None,
+        # Coachens pass ersätter motorns helt. Lämnades steps kvar från en
+        # övertagen trixa2-rad föll loggformuläret tillbaka på dem — adepten
+        # såg motorns knäböj under coachens "Rörlighet 20 min", medan
+        # get_week visade en tom lista.
+        "steps": None,
+        "purpose": None,
         "status": "planned",
         "origin": "nils",
     }

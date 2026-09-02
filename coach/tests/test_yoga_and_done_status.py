@@ -165,10 +165,20 @@ def test_bara_overhoppade_ovningar_raddar_inte_passet():
     assert week["workouts"][0]["status"]["key"] == "missed"
 
 
-def test_training_log_status_skrivs_inte_over():
-    """Finns en riktig aktivitet ska dess bedömning stå — avvikelse i tid
-    är information, inte något övningslistan ska sudda."""
+def test_avviken_med_avbockade_ovningar_blir_genomford():
+    """"Avviken" på en styrkedag betyder att dagen hade någon ANNAN aktivitet
+    och ingen styrkerad i loggen. Avbockade övningar är styrkepassets eget
+    kvitto — passet är gjort, cykelturen är en bonus (docs/12 D4)."""
     ui, fake = _ui_with({"exercise_logs": [_exlog(2)]})
     week = _strength_week("deviated")
     ui._attach_strength_logs(fake, week, UID)
-    assert week["workouts"][0]["status"]["key"] == "deviated"
+    assert week["workouts"][0]["status"]["key"] == "done"
+
+
+def test_genomford_med_riktig_aktivitet_rors_inte():
+    """Finns en riktig styrkeaktivitet i training_log står dess bedömning."""
+    ui, fake = _ui_with({"exercise_logs": [_exlog(2)]})
+    week = _strength_week("done")
+    week["workouts"][0]["status"]["actual"] = {"summary": "Genomfört: 50 min"}
+    ui._attach_strength_logs(fake, week, UID)
+    assert week["workouts"][0]["status"]["actual"]["summary"] == "Genomfört: 50 min"

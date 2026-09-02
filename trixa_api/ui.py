@@ -11,6 +11,7 @@ import json
 import logging
 import os
 from datetime import date as date_type, datetime, timedelta, timezone
+from functools import lru_cache
 from pathlib import Path
 from uuid import uuid4
 
@@ -21,8 +22,16 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 from coach.trixa.db import get_postgrest
-from coach.trixa.exercise_plan import exercises_from_steps
+from coach.trixa.exercise_plan import planned_exercises
 from coach.trixa.strength_progression import apply_suggestions, suggestions_by_name
+
+
+@lru_cache(maxsize=1)
+def _exercise_catalogue() -> dict[str, dict]:
+    """Passbankens övningskatalog, kod → post. Läses en gång per process."""
+    from coach.engine.loader import load_strength_exercises
+
+    return {e["code"]: e for e in load_strength_exercises()}
 from coach.trixa.planner import (
     generate_week,
     swap_workout_discipline_and_replan,
@@ -932,6 +941,22 @@ def _compliance_by_week(client, athlete_id, today, user_id) -> dict:
     except Exception:  # noqa: BLE001
         pass
 
+    # Styrkepassets eget kvitto: avbockade övningar. Utan dem räknades ett
+    # pass som veckokortet visade "Genomförd" som missat i säsongsvyn.
+    exercise_logs_by_date: dict[str, list[dict]] = {}
+    try:
+        ex_res = (
+            client.table("exercise_logs").select("session_date, effort")
+            .eq("user_id", user_id)
+            .gte("session_date", window_start.isoformat())
+            .lte("session_date", today.isoformat())
+            .execute()
+        )
+        for r in ex_res.data or []:
+            exercise_logs_by_date.setdefault(str(r.get("session_date"))[:10], []).append(r)
+    except Exception:  # noqa: BLE001
+        pass
+
     weeks: dict[tuple[int, int], list[dict]] = {}
     for ps in sessions:
         try:
@@ -942,11 +967,17 @@ def _compliance_by_week(client, athlete_id, today, user_id) -> dict:
             ps.get("sport"), (ps.get("sport") or "").strip().lower()
         )
         code = ps.get("workout_code") or ""
+        day = str(ps["date"])[:10]
         status = _compute_status(
             ps["date"], sport, code or (ps.get("title") or ""),
             ps.get("duration_min") or 0,
-            activities_by_date.get(str(ps["date"])[:10], []), today,
+            activities_by_date.get(day, []), today,
         )
+        if sport == "strength" and exercise_logs_by_date.get(day):
+            carrier = {"status": status, "title": ps.get("title"),
+                       "duration_minutes": ps.get("duration_min")}
+            _mark_done_from_exercise_logs(carrier, exercise_logs_by_date[day])
+            status = carrier["status"]
         iso = d.isocalendar()
         weeks.setdefault((iso[0], iso[1]), []).append({"status": status})
 
@@ -1745,15 +1776,23 @@ def _mark_done_from_exercise_logs(w: dict, logged: list[dict]) -> None:
     if not performed:
         return
     status = w.get("status") or {}
-    if status.get("key") not in ("missed", "today"):
+    # "Avviken" uppstår när dagen har någon ANNAN aktivitet (pendelcykling)
+    # och ingen styrkerad i training_log. Avbockade övningar är styrkepassets
+    # eget kvitto — det är genomfört, cykelturen är en bonus, inte en
+    # avvikelse. Bara "done" med en riktig styrkeaktivitet lämnas orörd.
+    if status.get("key") not in ("missed", "deviated", "today"):
         return
     n = len(performed)
+    summary = f"Genomfört: {n} övning{'ar' if n != 1 else ''} loggade"
+    previous = (status.get("actual") or {}).get("summary")
+    if status.get("key") == "deviated" and previous:
+        summary += f" · även {previous.removeprefix('Genomfört: ')}"
     actual = {
-        "summary": f"Genomfört: {n} övning{'ar' if n != 1 else ''} loggade",
+        "summary": summary,
         "name": w.get("title"), "duration_min": w.get("duration_minutes"),
         "activity_type": "Styrka",
     }
-    if status.get("key") == "missed":
+    if status.get("key") in ("missed", "deviated"):
         w["status"] = {**_STATUS["done"], "key": "done", "actual": actual}
     elif not status.get("actual"):
         w["status"] = {**status, "actual": actual}
@@ -1863,9 +1902,7 @@ def _fetch_current_week_data(
             # Äldre rader (och rader från skrivare som bara fyllt steps) bär
             # övningarna i main_set — härled listan så loggen kan förifyllas
             # även där, i stället för att kräva en ombyggnad av gamla veckor.
-            "planned_exercises": (
-                ps.get("exercises") or exercises_from_steps(ps.get("steps"))
-            ),
+            "planned_exercises": planned_exercises(ps, _exercise_catalogue()),
             # Vilodagen lagras som en rad i planned_sessions men är frånvaro av
             # träning. Yoga/Promenad mappar också till sport "rest" — de ÄR pass
             # och räknas som sådana, därför tittar vi på det lagrade värdet.
