@@ -40,7 +40,13 @@ from coach.engine.overtraining import (
     assess_overtraining,
     recommend_adjustment,
 )
-from coach.engine.phases import AthleteState, determine_phase, transition_days_for
+from coach.engine.phases import (
+    AthleteState,
+    PhaseRecommendation,
+    determine_phase,
+    period_position,
+    transition_days_for,
+)
 from coach.engine.profile import profile_from_athlete_row
 from coach.engine.renderer import render_workout
 from coach.engine.strength import current_strength_protocol
@@ -810,13 +816,25 @@ def _run_engine(
     week_in_period: int,
     weeks_in_period: int,
     phase_rec=None,
+    weeks_in_phase: int | None = None,
 ) -> dict:
     """Kör alla engine-funktioner och samla beslut i en spårbar dict.
 
     phase_rec kan skickas in förberäknad (generate_week behöver fasen för att
     resolva veckoposition INNAN engine körs) — annars beräknas den här.
+
+    week_in_period/weeks_in_period är VILOVECKOCYKELNS position (3 eller 4
+    veckor) och styr kategorival och volymskalning. weeks_in_phase är hur
+    långt in i fasen veckan ligger; ur den räknas PERIODENS position för
+    styrkeprotokollet. Förut fick styrkan cykelpositionen och halverade
+    den — MT→MS→MS→MT var tredje vecka i stället för en gång per base_1.
     """
     phase_rec = phase_rec or determine_phase(state)
+    strength_week, strength_len = week_in_period, weeks_in_period
+    if weeks_in_phase is not None:
+        pos = period_position(phase_rec.phase, phase_rec.period, weeks_in_phase)
+        if pos:
+            strength_week, strength_len = pos
     categories = select_workout_types(
         phase=phase_rec.phase,
         period=phase_rec.period,
@@ -838,8 +856,8 @@ def _run_engine(
         strength = current_strength_protocol(
             phase=phase_rec.phase,
             period=phase_rec.period,
-            week_in_period=week_in_period,
-            weeks_in_period=weeks_in_period,
+            week_in_period=strength_week,
+            weeks_in_period=strength_len,
         )
         strength_code = strength.protocol_code
         strength_detail = {
@@ -1643,6 +1661,52 @@ def _persist_to_planned_sessions(client, plan: WeekPlan, user_id: str) -> dict:
 # ---------- Override-hantering ----------
 
 
+def _apply_phase_override(
+    phase_rec: PhaseRecommendation, overrides: list[dict]
+) -> tuple[PhaseRecommendation, list[dict]]:
+    """Coachens fas-override, applicerad INNAN veckopositionen räknas.
+
+    Applicerades den efteråt (som förut) räknades vilovecko-cykel,
+    kategorier, volymskalning och nutrition för motorns fas medan
+    passfiltret och phase_state fick override-fasen. Nästa vecka jämförde
+    positionsräknaren lagrad fas (override) med motorns fas → olika →
+    weeks_in_phase = 1 om och om igen: ingen vilovecka, ingen taper.
+    """
+    honored: list[dict] = []
+    for ov in overrides:
+        decision = ov.get("override_decision") or {}
+        if ov.get("scope") == "phase" and decision.get("phase"):
+            phase_rec = PhaseRecommendation(
+                phase=decision["phase"],
+                period=decision.get("period"),
+                optimal_phase=phase_rec.optimal_phase,
+                behind=phase_rec.behind,
+                unmet_criteria=list(phase_rec.unmet_criteria),
+                reason=f"Override: {ov.get('motivation', '')}",
+            )
+            honored.append(ov)
+    return phase_rec, honored
+
+
+def effective_phase_rec(athlete: dict, client, today: date) -> PhaseRecommendation:
+    """Fasen som gäller för adepten just nu — samma väg som generate_week.
+
+    Med databas (tävlingen i public.races, faktisk volym) och med coachens
+    fas-override. Dashboard och pass-byten körde förut hela motorn utan
+    klient och med "vecka 1 av 6" hårdkodat, och kunde landa i en annan fas
+    än den planen faktiskt byggts i.
+    """
+    actual_hours = _fetch_actual_weekly_hours(client, athlete.get("user_id"), today)
+    state = _build_athlete_state(
+        athlete, None, today, actual_weekly_hours=actual_hours, client=client
+    )
+    phase_rec = determine_phase(state)
+    if athlete.get("id"):
+        overrides = _fetch_active_overrides(client, athlete["id"])
+        phase_rec, _ = _apply_phase_override(phase_rec, overrides)
+    return phase_rec
+
+
 def _adjustment_dict(adjustment) -> dict | None:
     """PlanAdjustment → spårbar dict i decisions."""
     if not adjustment:
@@ -1673,6 +1737,7 @@ def _active_volume_factor(decisions: dict) -> float:
 def _apply_overrides(
     engine_decisions: dict,
     overrides: list[dict],
+    skip_phase: bool = False,
 ) -> tuple[dict, list[dict]]:
     """Applicera aktiva coach_overrides på engine-beslut.
 
@@ -1692,6 +1757,8 @@ def _apply_overrides(
         scope = ov.get("scope")
         decision = ov.get("override_decision") or {}
         motivation = ov.get("motivation", "")
+        if scope == "phase" and skip_phase:
+            continue  # redan applicerad på phase_rec före veckopositionen
         if scope == "phase" and decision.get("phase"):
             modified["phase_recommendation"] = {
                 **modified["phase_recommendation"],
@@ -1868,12 +1935,16 @@ def generate_week(
     # 3. Kör engine. Fasen behövs FÖRE engine för att resolva veckoposition
     # (vilovecko-cykeln räknas per fas via phase_state).
     phase_rec = determine_phase(state)
+    # Fas-override FÖRE positionsräkningen, så att cykel, kategorier,
+    # skalning och phase_state alla gäller samma fas.
+    phase_rec, phase_honored = _apply_phase_override(phase_rec, overrides)
     week_in_period, weeks_in_period, weeks_in_phase = _resolve_period_position(
         athlete, phase_rec.phase, week_start,
         override_week=week_in_period, override_len=weeks_in_period,
     )
     decisions = _run_engine(
-        state, ot_signals, week_in_period, weeks_in_period, phase_rec=phase_rec
+        state, ot_signals, week_in_period, weeks_in_period,
+        phase_rec=phase_rec, weeks_in_phase=weeks_in_phase,
     )
     decisions["_weeks_in_period"] = weeks_in_period
     decisions["_week_in_period"] = week_in_period
@@ -1886,7 +1957,8 @@ def generate_week(
     )
     if nutrition:
         decisions["nutrition"] = nutrition
-    decisions, honored = _apply_overrides(decisions, overrides)
+    decisions, honored = _apply_overrides(decisions, overrides, skip_phase=True)
+    honored = phase_honored + honored
 
     # Spårbarhet: visa vad Trixa ser av TP-cache och utförd mastervolym.
     decisions["_data_sources"] = {
@@ -2305,10 +2377,9 @@ def swap_workout_to_next_alternative(
     )
 
     athlete = _fetch_athlete(client, user_id)
-    state = _build_athlete_state(athlete, None, date.today())
-    decisions = _run_engine(state, _build_ot_signals(athlete, None), 1, 6)
-    phase = decisions["phase_recommendation"]["phase"]
-    period = decisions["phase_recommendation"]["period"]
+    phase_rec = effective_phase_rec(athlete, client, date.today())
+    phase = phase_rec.phase
+    period = phase_rec.period
     candidates = list_workout_alternatives(
         category, discipline, phase, period, old.get("workout_code")
     )
@@ -2380,11 +2451,8 @@ def swap_workout_discipline_and_replan(
 
     # Hämta engine-state för phase
     athlete_full = _fetch_athlete(client, athlete_user_id)
-    state = _build_athlete_state(athlete_full, None, date.today())
-    decisions = _run_engine(state, _build_ot_signals(athlete_full, None), 1, 6)
-    phase = decisions["phase_recommendation"]["phase"]
-    period = decisions["phase_recommendation"]["period"]
-    phase_filter = _phase_filter_value(phase, period)
+    phase_rec = effective_phase_rec(athlete_full, client, date.today())
+    phase_filter = _phase_filter_value(phase_rec.phase, phase_rec.period)
 
     # Välj nytt pass — slumpvis från matching
     rng = random.Random(_seed_for(athlete_full["id"], week_start))
