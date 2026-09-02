@@ -92,8 +92,16 @@ def _all_athletes() -> list[dict]:
     pushad till TrainingPeaks, innan hen hunnit säga vad hen tränar för.
     """
     client = get_postgrest()
-    res = client.table("athlete_profiles").select("user_id, onboarded_at").execute()
+    res = client.table("athlete_profiles").select("user_id, onboarded_at, phase_state").execute()
     return [a for a in (res.data or []) if a.get("onboarded_at")]
+
+
+def _already_planned(athlete: dict, week_start: date) -> bool:
+    """Har veckan redan genererats? Läses ur phase_state som planeraren
+    skriver — inte ur processens minne. Förut fanns last_run bara i RAM, så
+    en omstart under söndagskvällen kunde ge en andra körning (docs/12 B4)."""
+    ps = athlete.get("phase_state") or {}
+    return ps.get("last_planned_week_start") == week_start.isoformat()
 
 
 def _run_once_for(athlete_user_id: str) -> None:
@@ -241,9 +249,15 @@ def main() -> int:
         if _should_run_now(now, last_run):
             athletes = _all_athletes()
             logger.info("Triggerar planner för %d adepter", len(athletes))
+            next_mon = _next_monday(clock.today())
             for a in athletes:
-                if a.get("user_id"):
-                    _run_once_for(a["user_id"])
+                if not a.get("user_id"):
+                    continue
+                if _already_planned(a, next_mon):
+                    logger.info("Vecka %s redan genererad för %s — hoppar",
+                                next_mon.isoformat(), a["user_id"])
+                    continue
+                _run_once_for(a["user_id"])
             last_run = now
         # TP läs-sync (gated). Intervalläge (var N:e timme) eller dagligen
         # vid TP-sync-timmen. -60s-marginal så timpollen inte missar slottet.

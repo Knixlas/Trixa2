@@ -28,6 +28,43 @@ def _dur(row: dict) -> float:
         return 0.0
 
 
+LOG_COLUMNS = (
+    "date, sport, title, duration_min, distance_km, avg_hr, max_hr,"
+    " avg_power, normalized_power, tss, source, planned_session_id"
+)
+
+
+def clean_log_rows(rows: list[dict]) -> list[dict]:
+    """Bara träningsgrenar, en rad per fysiskt pass. Vad varje aggregat vill ha."""
+    relevant = [r for r in rows if sports.is_training(sports.canon(r.get("sport")))]
+    return dedup_cross_source(relevant)
+
+
+def fetch_clean_log(client, user_id: str, start: str, end: str) -> list[dict]:
+    """training_log för [start, end] (ISO-datum, inklusive), städad.
+
+    En läsning som sedan skivas per konsument — dashboarden läste förut
+    samma tabell tre gånger över överlappande fönster (docs/12 H4/I9).
+    """
+    if not user_id:
+        return []
+    res = (
+        client.table("training_log")
+        .select(LOG_COLUMNS)
+        .eq("user_id", user_id)
+        .gte("date", start)
+        .lte("date", end)
+        .order("date")
+        .execute()
+    )
+    return clean_log_rows(res.data or [])
+
+
+def slice_by_date(rows: list[dict], start: str, end: str, key: str = "date") -> list[dict]:
+    """Rader med ``key`` i [start, end] (ISO-datum, inklusive)."""
+    return [r for r in rows if start <= str(r.get(key) or "")[:10] <= end]
+
+
 def dedup_cross_source(rows: list[dict]) -> list[dict]:
     """Behåll en rad per fysiskt pass, tvärs källor."""
     kept: list[dict] = []

@@ -82,17 +82,21 @@ def metrics_to_daily_rows(tp_days: list[dict], athlete_id: str) -> list[dict]:
         if not d:
             continue
         sleep_h = _metric_value(rec, TYPE_SLEEP_HOURS)
+        # readiness_score/stress_avg är Garmin-proprietära och kommer inte
+        # via TP. De UTELÄMNAS ur raden — skrevs de som None nollade varje
+        # upsert det en annan källa satt (docs/12 G5).
         rows.append({
             "athlete_id": athlete_id,
             "metric_date": d,
             "resting_hr": _to_int(_metric_value(rec, TYPE_PULSE)),
             "hrv_last_night_ms": _metric_value(rec, TYPE_HRV),
             "sleep_score": sleep_hours_to_score(sleep_h),
-            "readiness_score": None,   # Garmin-proprietärt, korsar ej
-            "stress_avg": None,
         })
     rows.sort(key=lambda r: r["metric_date"])
     return rows
+
+
+HRV_BASELINE_MIN_SAMPLES = 14   # en vecka gav en brusig SD; två är golvet
 
 
 def add_hrv_baselines(rows: list[dict], window: int = 60) -> None:
@@ -100,14 +104,16 @@ def add_hrv_baselines(rows: list[dict], window: int = 60) -> None:
 
     baseline = rullande medel ± 1 SD över trailing `window` dagar (TP saknar
     Garmins baseline). weekly_avg = trailing 7-dagars medel. Rader antas
-    sorterade stigande på metric_date.
+    sorterade stigande på metric_date. Baseline sätts först vid
+    HRV_BASELINE_MIN_SAMPLES dagar — med 7 flaggade en enda dålig natt
+    "HRV sänkt" mot ett medel som knappt fanns (docs/12 G5).
     """
     hist: list[float] = []
     week: list[float] = []
     for r in rows:
         hrv = r.get("hrv_last_night_ms")
         # baseline från historik FÖRE denna dag (undvik läckage)
-        if len(hist) >= 7:
+        if len(hist) >= HRV_BASELINE_MIN_SAMPLES:
             pool = hist[-window:]
             mean = statistics.mean(pool)
             sd = statistics.pstdev(pool) if len(pool) > 1 else 0.0

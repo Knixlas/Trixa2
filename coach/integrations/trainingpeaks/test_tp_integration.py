@@ -206,17 +206,17 @@ def test_metrics_to_daily_rows():
     assert rows[0]["sleep_score"] == 100
     assert rows[1]["resting_hr"] == 52
     assert rows[1]["hrv_last_night_ms"] is None
-    assert rows[0]["readiness_score"] is None   # degraderar
+    assert "readiness_score" not in rows[0]      # utelämnas — nollar inte andra källor (docs/12 G5)
 
 
 def test_hrv_baselines_computed():
     rows = [
         {"metric_date": f"2026-06-{d:02d}", "hrv_last_night_ms": 70 + (d % 3)}
-        for d in range(1, 13)
+        for d in range(1, 21)
     ]
     sync.add_hrv_baselines(rows, window=60)
     assert rows[0]["hrv_baseline_low"] is None          # ingen historik
-    assert rows[-1]["hrv_baseline_low"] is not None      # efter ≥7 dagar
+    assert rows[-1]["hrv_baseline_low"] is not None      # efter ≥14 dagar (docs/12 G5)
     assert rows[-1]["hrv_baseline_high"] >= rows[-1]["hrv_baseline_low"]
     assert rows[-1]["hrv_weekly_avg_ms"] is not None
 
