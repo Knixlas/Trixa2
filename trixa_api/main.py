@@ -452,7 +452,6 @@ def get_current_week(
             plan_adjustment=None,
             workouts=workouts,
             warnings=[],
-            persisted_week_id=None,
         )
 
     # Ingen plan i mastern (planned_sessions) för veckan.
@@ -510,7 +509,7 @@ def post_generate_plan(req: GeneratePlanRequest) -> WeekPlanResponse:
             for w in plan.workouts
         ],
         warnings=plan.warnings,
-        persisted_week_id=plan.engine_decisions.get("persisted_week_id"),
+        persisted_sessions=(plan.engine_decisions.get("planned_sessions_persist") or {}).get("written"),
         alerts_written=plan.engine_decisions.get("alerts_written", 0),
     )
 

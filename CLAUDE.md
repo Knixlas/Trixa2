@@ -34,7 +34,7 @@ Engine + Adapter ───┤
 ```
 
 - **Engine** (`coach/engine/`): Bestämmer fas, kategori (AE/ME/AC/...), volym, tak.
-- **Adapter** (`coach/adapters/`): Hämtar Supabase-data, bygger engine-inputs.
+- **Adapter** (`coach/trixa/planner.py::_build_athlete_state` / `_build_ot_signals`): Hämtar Supabase-data, bygger engine-inputs. (`coach/adapters/` och `coach/engine/garmin.py` finns inte längre — den senare var död kod, borttagen 2026-09-02.)
 - **Passbank** (`coach/data/workouts/` — *ej byggd än*): Konkreta pass per kategori. Renderar mot adeptens zoner till människoläsbar text + `.fit`-fil.
 - **Trixa-skikt** (*ej byggt än*): Formulär-input, protokoll-output, veckoplan-generator.
 - **Nils-skikt** (`coach/personas/` — *ej formaliserat än*): LLM-personlighet, manual_override-beslut.
@@ -92,7 +92,7 @@ All plan- och utfört-data bor i **två master-tabeller**. Nils, Trixa2 och mobi
 
 **PENSIONERADE (DROPPADE) tabeller — finns INTE längre:** `training_weeks`, `workouts`, `training_plans` (migration `retire_redundant_plan_tables`, 2026-06-07). Gamla instruktioner som pekar dit ger tomma svar/fel — fråga `planned_sessions`/`training_log` istället.
 
-**Nils skriver plan:** direkt i `planned_sessions` med `origin='nils'` (eller via `garmin_coach.planned_workouts` som planeraren speglar in). **Nils vinner alltid:** motorn genererar aldrig pass för dagar som redan har mänskligt skapade rader.
+**Nils skriver plan:** direkt i `planned_sessions` med `origin='nils'` — via MCP `plan_session` eller `/agent/plan/session`. (`garmin_coach.planned_workouts` speglas INTE längre in; skriv aldrig dit.) **Nils vinner alltid:** motorn genererar aldrig pass för dagar som redan har mänskligt skapade rader.
 
 **Overrides:** `coach_overrides.athlete_id` pekar på **`athlete_profiles.id`** (Niklas: `81b667bc-f37c-4311-a45e-1b0a28d1ada7`), INTE user_id.
 
@@ -268,7 +268,7 @@ Projektet (CLAUDE.md + md-källdokument + kod) bär delad kunskap. Tråden är a
 
 1. Niklas öppnar ny tråd "Vecka XX — planering"
 2. Claude (Nils-personlighet) läser CLAUDE.md och relevanta md-filer
-3. Nils anropar `adapters.garmin.build_athlete_state()` och `build_overtraining_signals()`
+3. Nils läser läget via MCP (`get_athlete`, `get_constraints`, `get_recovery`, `get_week`) — motsvarar `planner._build_athlete_state()` / `_build_ot_signals()`
 4. Nils kör engine
 5. **Verifierar utgångsläget** med adepten om engine flaggar något
 6. Bygger veckan; om coach-beslut avviker från engine, dokumentera som manual_override
@@ -419,6 +419,34 @@ Första skarpa kollen visade tomt. Tre orsaker, ingen i räknemodellen:
   reps klättrar i all evighet och vikten stiger aldrig. Reps låses därför vid
   det adepten körde och progressionen sitter helt i vikten. Kroppsvikt
   (ingen loggad vikt) progredierar i reps som vanligt.
+
+**Kodöversyn 2026-09-02 — 50 verifierade fynd, åtgärdade i sju PR:er:**
+Hela listan med status per fynd: `docs/12_KODOVERSYN_2026-09-02.md`.
+Det som ändrar hur man ska tänka om koden:
+- **`coach/trixa/sports.py` är enda sportvokabulären.** Tretton tabeller
+  ersatta av tunna vyer. Ny gren = en rad där. `walk` (Promenad) bedöms
+  som vila men är en aktivitet; `brick` matchar TP:s ett-pass-brick.
+- **`coach/trixa/clock.py::today()`** i stället för `date.today()` —
+  Railway kör UTC; ett test vägrar nya serverlokala anrop.
+- **`coach/trixa/training_log.py::dedup_cross_source`** är enda dedupen;
+  bara OLIKA källor slås ihop.
+- **`coach/trixa/config.py`** bär `TRIXA_DEFAULT_USER_ID` — ingen
+  adept-UUID som literal någonstans; CLI:er kräver `--user` eller miljö.
+- **Planeraren:** genomförda/passerade rader skrivs aldrig över vid
+  regenerering; plan-skrivfel kastas (inte sväljs); Nils-grinden kastar
+  vid DB-fel; fas-override appliceras FÖRE veckopositionen; perioden
+  avancerar (`_current_period_estimate`); styrkan får periodposition
+  (`period_position`), inte cykelposition.
+- **Testfaken (`_C/_Q`) filtrerar datumintervall på riktigt** och
+  utvärderar UPDATE-villkor före uppdateringen. Fixturer måste ligga
+  inom sina fönster (`_RECENT` i test_agent_api).
+- **Kör `pytest -q` från roten** (som CI), inte bara `coach/tests` — #43
+  föll på CI efter grönt lokalt.
+- `/health/integrations` kräver `TRIXA_OPS_TOKEN` för detaljer.
+  ACWR-gränser i `overtraining.yaml` (`acwr_high/low`).
+- Kvar (docs/12): H4 (säsongsvyns dubbelläsningar), I9–I13 (hjälpar-
+  dubbletter, statusdubbel, `generate_week`-uppdelning, origin-register),
+  B4-syskon (cron `last_run` bara i minne), G5 (HRV-baseline från 7 sampel).
 
 **Yoga som gren + pass som går att markera gjorda (2026-09-02):**
 Skarp användning av en andra adept (Sarah, `acb82415-…`): hon lade in

@@ -12,9 +12,9 @@
 #
 # KONTRAINDIKATIONS-SWAP (fork 3, bekräftad): varje block kan ha `alt` —
 # en ersättningsövning som renderaren byter in om primärövningens flagga
-# matchar adeptens aktiva tillstånd. För Niklas just nu gate:as
-# biceps_tendon, shoulder, overhead_loading → tunga vertikaldrag och
-# overhead-press byts automatiskt.
+# matchar adeptens aktiva tillstånd. Exempel: en adept med
+# biceps_tendon, shoulder eller overhead_loading flaggad får tunga
+# vertikaldrag och overhead-press utbytta automatiskt.
 #
 # READINESS-GATE: samma regel som övriga banken. readiness < 30 →
 # rendera RIR +1 (lättare) eller dra ett block. Loggas som manual_override

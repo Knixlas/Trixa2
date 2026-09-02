@@ -23,8 +23,11 @@ DELOAD_EVERY = 4        # var fjärde vecka = avlastning (3:1-stegring)
 DELOAD_FACTOR = 0.80    # avlastningsvecka = 80% av trenden
 BUILD_BLOCK_MIN_WEEKS = 4  # minst så många v build-volym före tapering för "i tid"
 
-# Ramp-vakt (acute:chronic-aktig kvot på veckovolym).
-RAMP_WARN = 1.30
+# Ramp-vakt (acute:chronic-aktig kvot på veckovolym). Varningsgränsen är
+# samma ACWR-tak som resten av systemet (overtraining.yaml, docs/12 I8).
+from coach.engine.overtraining import acwr_thresholds as _acwr
+
+RAMP_WARN = _acwr()[1]
 RAMP_CRITICAL = 1.50
 
 

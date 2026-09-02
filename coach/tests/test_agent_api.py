@@ -73,6 +73,7 @@ def _check_columns(table, payload):
 class _Q:
     def __init__(self, t, st):
         self.t, self.st, self._f, self._u, self._ins, self._del, self._isnull = t, st, {}, None, None, False, None
+        self._ranges: list = []
 
     def select(self, *a, **k):
         return self
@@ -89,13 +90,28 @@ class _Q:
         self._f[c] = ("__in__", v)
         return self
 
+    # Datumintervallen filtrerar på riktigt. Som no-ops (förut) returnerade
+    # varje fönsterfråga hela tabellen, och sviten kunde inte se ett enda
+    # gränsfel — t.ex. om planeraren cancel:ade grannveckans rader eller om
+    # ett senare pass i veckan styrde ett tidigare (docs/12 I7).
     def gte(self, c, v):
+        self._ranges.append((c, lambda x, v=v: x is not None and str(x) >= str(v)))
+        return self
+
+    def gt(self, c, v):
+        self._ranges.append((c, lambda x, v=v: x is not None and str(x) > str(v)))
         return self
 
     def lte(self, c, v):
+        self._ranges.append((c, lambda x, v=v: x is not None and str(x) <= str(v)))
         return self
 
     def lt(self, c, v):
+        self._ranges.append((c, lambda x, v=v: x is not None and str(x) < str(v)))
+        return self
+
+    def neq(self, c, v):
+        self._ranges.append((c, lambda x, v=v: x != v))
         return self
 
     def order(self, *a, **k):
@@ -125,6 +141,9 @@ class _Q:
                 return False
         if self._isnull and r.get(self._isnull) is not None:
             return False
+        for col, pred in self._ranges:
+            if not pred(r.get(col)):
+                return False
         return True
 
     def execute(self):
@@ -172,13 +191,20 @@ class _C:
         return _Q(n, self.st)
 
 
+import datetime as _dt
+
+_RECENT = (_dt.date.today() - _dt.timedelta(days=3)).isoformat()
+
+
 def _client_and_store():
     st = {
         "api_tokens": [],
         "profiles": [{"id": UID, "name": "Niklas"}],
         "athlete_profiles": [{"id": "81b667bc", "user_id": UID, "garmin_athlete_id": "g1", "goal": "ironman"}],
         "planned_sessions": [],
-        "training_log": [{"user_id": UID, "date": "2026-06-14", "sport": "Cykel", "duration_min": 60, "source": "tp"}],
+        # Inom get_log:s 28-dagarsfönster. Ett fast juni-datum passerade bara
+        # så länge faken ignorerade datumintervall (docs/12 I7).
+        "training_log": [{"user_id": UID, "date": _RECENT, "sport": "Cykel", "duration_min": 60, "source": "tp"}],
         "coach_athletes": [{"athlete_id": UID, "coach_id": "coach1", "status": "accepted"}],
     }
     fake = _C(st)

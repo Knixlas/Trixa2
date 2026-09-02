@@ -46,7 +46,9 @@ class WeekPlanResponse(BaseModel):
     plan_adjustment: dict | None
     workouts: list[WorkoutSummary]
     warnings: list[str]
-    persisted_week_id: str | None = None
+    # Antal pass skrivna till planned_sessions. Ersätter det gamla week-id-
+    # fältet (PK i droppade training_weeks, alltid None — docs/12 I2).
+    persisted_sessions: int | None = None
     alerts_written: int = 0
 
 

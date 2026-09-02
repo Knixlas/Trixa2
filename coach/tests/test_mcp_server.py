@@ -18,7 +18,7 @@ import os  # noqa: E402
 os.environ.setdefault("SUPABASE_URL", "https://fake.supabase.co")
 os.environ.setdefault("SUPABASE_SERVICE_KEY", "fake")
 
-from coach.tests.test_agent_api import UID, _C, _with_token  # noqa: E402
+from coach.tests.test_agent_api import _RECENT, UID, _C, _with_token  # noqa: E402
 
 
 def _client_and_store():
@@ -30,7 +30,8 @@ def _client_and_store():
         ],
         "planned_sessions": [],
         "training_log": [
-            {"user_id": UID, "date": "2026-06-14", "sport": "Cykel",
+            # Inom 28-dagarsfönstret — faken filtrerar datum på riktigt nu (docs/12 I7).
+            {"user_id": UID, "date": _RECENT, "sport": "Cykel",
              "duration_min": 60, "source": "tp"}
         ],
         "coach_athletes": [{"athlete_id": UID, "coach_id": "coach1", "status": "accepted"}],

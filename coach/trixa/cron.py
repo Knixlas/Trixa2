@@ -105,12 +105,14 @@ def _run_once_for(athlete_user_id: str) -> None:
             week_start=next_mon,
             dry_run=False,
         )
+        persist = plan.engine_decisions.get("planned_sessions_persist") or {}
         logger.info(
-            "Klar: fas=%s, pass=%d, alerts=%d, week_id=%s",
+            "Klar: fas=%s, pass=%d, skrivna=%s, behållna=%s, alerts=%d",
             plan.phase,
             len(plan.workouts),
+            persist.get("written"),
+            persist.get("kept"),
             plan.engine_decisions.get("alerts_written", 0),
-            plan.engine_decisions.get("persisted_week_id"),
         )
     except Exception as exc:  # noqa: BLE001
         logger.error("Fel vid generering för %s: %s", athlete_user_id, exc)
