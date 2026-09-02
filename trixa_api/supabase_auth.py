@@ -64,7 +64,17 @@ def sign_up(email: str, password: str, name: str | None = None) -> tuple[dict | 
     ingen e-postbekräftelse/SMTP behövs, och vännen är inloggad direkt.
     handle_new_user-triggern skapar profil-raden (id, name, email).
     """
-    url, key = _base()
+    url, _ = _base()
+    # Admin-endpointen kräver service-role; anon-nyckeln som _base() föredrar
+    # för lösenordsinloggning ger 401 här och adepten ser "Kunde inte skapa
+    # kontot" för korrekta uppgifter. Det fungerade bara så länge anon-nyckeln
+    # råkade saknas i miljön.
+    key = (
+        os.environ.get("SUPABASE_SERVICE_KEY")
+        or os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
+    )
+    if not key:
+        return None, "Kontoskapande är inte konfigurerat (saknar service-nyckel)."
     body: dict = {"email": email, "password": password, "email_confirm": True}
     if name:
         body["user_metadata"] = {"name": name}
