@@ -45,6 +45,25 @@ def select_workout_types(
     Returns:
         Lista med passtypskoder, t.ex. ["AE", "SS", "ME", "BW"]
     """
+    return [
+        d["code"] for d in workout_type_decisions(phase, period, week_in_period, weeks_in_period)
+        if d["allowed"]
+    ]
+
+
+def workout_type_decisions(
+    phase: PhaseCode,
+    period: str | None,
+    week_in_period: int,
+    weeks_in_period: int,
+) -> list[dict]:
+    """Varje passtyp i fasen med beslut OCH skäl.
+
+    ``select_workout_types`` gav bara koderna. När TE/ME försvann sista
+    veckan i cykeln kunde ingen yta säga "vilovecka — hårda kategorier
+    borttagna"; coachen såg en tunnare vecka utan något att peka på
+    (docs/12 I6). Engine-output ska bära reason.
+    """
     details = load_yaml("phase_details.yaml")["phase_details"]
     if phase not in details:
         raise ValueError(f"Okänd fas: {phase}")
@@ -52,30 +71,33 @@ def select_workout_types(
     workout_types = details[phase].get("workout_types", [])
     is_last_week = week_in_period == weeks_in_period
 
-    result: list[str] = []
+    out: list[dict] = []
     for wt in workout_types:
         constraint = wt.get("constraint", "always")
+        code = wt["code"]
 
         if constraint == "always":
-            allowed = True
+            allowed, why = True, "alltid i fasen"
         elif constraint == "not_last_week":
             allowed = not is_last_week
+            why = "uteslutet: sista veckan i cykeln (vilovecka)" if not allowed else "ej sista veckan"
         elif constraint == "last_week_only":
             allowed = is_last_week
+            why = "bara sista veckan i cykeln" if allowed else "uteslutet: bara sista veckan"
         elif constraint == "period_only":
             allowed = period in wt.get("periods", [])
+            why = (f"period {period}" if allowed
+                   else f"uteslutet: bara i {', '.join(wt.get('periods', []))}")
         else:
             raise ValueError(f"Okänd constraint: {constraint}")
 
         # Extra flagga: uteslut sista veckan (återhämtningsveckan) även för
         # period_only-kategorier — kombinerar period-villkor med vilovecka.
         if allowed and wt.get("exclude_last_week") and is_last_week:
-            allowed = False
+            allowed, why = False, "uteslutet: vilovecka (exclude_last_week)"
 
-        if allowed:
-            result.append(wt["code"])
-
-    return result
+        out.append({"code": code, "allowed": allowed, "reason": why})
+    return out
 
 
 # ---------- Volymfördelning ----------

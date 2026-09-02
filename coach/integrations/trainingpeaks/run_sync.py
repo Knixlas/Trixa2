@@ -18,10 +18,12 @@ from .client import TPClient
 from .sync import sync_activities, sync_completed_to_training_log, sync_daily
 
 # garmin_coach.athlete_profile.id (recovery-cachen nycklas på detta) — se CLAUDE.md
-DEFAULT_ATHLETE_ID = "98057fa1-4fb9-48f5-be86-b31272dcfed0"
+from coach.trixa.config import default_athlete_id, default_user_id, require
+
+DEFAULT_ATHLETE_ID = default_athlete_id()   # TRIXA_DEFAULT_ATHLETE_ID (docs/12 I3)
 # user_id (public.profiles.id) för TP-cookien — skilt från athlete_id ovan.
 # Multi-tenant: --user väljer vems cookie som läses ur public.tp_auth.
-DEFAULT_USER_ID = "09db449d-b8fd-409a-b475-3401b0de9858"
+DEFAULT_USER_ID = default_user_id()         # TRIXA_DEFAULT_USER_ID
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -33,6 +35,8 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--dry-run", action="store_true",
                     help="hämta + transformera men skriv inte till Supabase")
     args = ap.parse_args(argv)
+    args.user = require(args.user, "--user", "TRIXA_DEFAULT_USER_ID")
+    args.athlete_id = require(args.athlete_id, "--athlete-id", "TRIXA_DEFAULT_ATHLETE_ID")
     started_at = datetime.now(timezone.utc)
 
     pg = None

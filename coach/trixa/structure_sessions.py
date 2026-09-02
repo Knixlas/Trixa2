@@ -33,7 +33,9 @@ from coach.trixa.session_mapping import (
     resolve_session,
 )
 
-DEFAULT_USER_ID = "09db449d-b8fd-409a-b475-3401b0de9858"
+from coach.trixa.config import default_user_id, require
+
+DEFAULT_USER_ID = default_user_id()   # TRIXA_DEFAULT_USER_ID; ingen literal (docs/12 I3)
 
 
 @dataclass
@@ -147,6 +149,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--apply", action="store_true",
                         help="skriv workout_code + steps till planned_sessions")
     args = parser.parse_args(argv)
+    args.user = require(args.user, "--user", "TRIXA_DEFAULT_USER_ID")
 
     from coach.engine.loader import load_workouts
     from coach.trixa.db import get_postgrest

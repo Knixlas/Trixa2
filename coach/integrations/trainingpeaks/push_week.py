@@ -18,7 +18,9 @@ from .client import TPClient
 from .workout_writer import sync_planned_week_to_tp
 
 # Niklas (profiles.id). Multi-adept: skicka --user-id.
-DEFAULT_USER_ID = "09db449d-b8fd-409a-b475-3401b0de9858"
+from coach.trixa.config import default_user_id, require
+
+DEFAULT_USER_ID = default_user_id()   # TRIXA_DEFAULT_USER_ID; ingen literal (docs/12 I3)
 
 
 def _next_monday(today: date) -> date:
@@ -32,6 +34,7 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--dry-run", action="store_true", help="bygg payloads utan att skriva till TP")
     ap.add_argument("--out", default=None, help="skriv resultatet till denna fil (robust mot shell-redirect)")
     args = ap.parse_args(argv)
+    args.user_id = require(args.user_id, "--user-id", "TRIXA_DEFAULT_USER_ID")
 
     lines: list[str] = []
     rc = 0

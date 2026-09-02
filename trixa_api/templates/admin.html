@@ -46,7 +46,7 @@ en specifik vecka — t.ex. efter en override eller om datan ändrats.</p>
   <h2>Resultat</h2>
   <p>
     <strong>Fas:</strong> {{ result.phase }}
-    {% if result.persisted_week_id %} — week_id: <code>{{ result.persisted_week_id }}</code>{% endif %}<br>
+    {% if result.persisted_sessions is not none %} — {{ result.persisted_sessions }} pass skrivna{% endif %}<br>
     <strong>Pass genererade:</strong> {{ result.workouts | length }}<br>
     <strong>Alerts skrivna:</strong> {{ result.alerts_written }}
   </p>

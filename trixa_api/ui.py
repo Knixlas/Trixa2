@@ -22,7 +22,9 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 from coach.trixa import clock
+from coach.engine.overtraining import acwr_thresholds
 from coach.trixa import sports
+from coach.trixa.config import default_user_id
 from coach.trixa.db import get_postgrest
 from coach.trixa.exercise_plan import planned_exercises
 from coach.trixa.strength_progression import apply_suggestions, suggestions_by_name
@@ -90,9 +92,10 @@ def _safe_int(value, default: int = 0) -> int:
 
 
 # Default-adept-id för MVP — Niklas. När vi har auth byts detta till cookien.
-_DEFAULT_USER_ID = os.environ.get(
-    "TRIXA_DEFAULT_USER_ID", "09db449d-b8fd-409a-b475-3401b0de9858"
-)
+# Dev-escape (TRIXA_ALLOW_NO_AUTH) — vem webben låtsas vara. Inget hårdkodat
+# fall: en utvecklare mot den delade databasen redigerade förut Niklas plan
+# utan att ha valt det (docs/12 I3).
+_DEFAULT_USER_ID = default_user_id()
 
 
 def _current_user_id(request: Request) -> str | None:
@@ -497,23 +500,6 @@ def _connections_update(conn_ai, conn_tp, conn_strava) -> dict:
         "conn_tp": conn_tp == "1",
         "conn_strava": conn_strava == "1",
     }
-
-
-@router.post("/settings/connections")
-def settings_connections(
-    request: Request,
-    conn_ai: str | None = Form(None),
-    conn_tp: str | None = Form(None),
-    conn_strava: str | None = Form(None),
-) -> Any:
-    """Bakåtkompatibel ingång — inställningssidan postar allt till /ui/settings."""
-    uid = _current_user_id(request)
-    if not uid:
-        raise HTTPException(401, "Inte inloggad")
-    get_postgrest().table("athlete_profiles").update(
-        _connections_update(conn_ai, conn_tp, conn_strava)
-    ).eq("user_id", uid).execute()
-    return RedirectResponse("/ui/settings?saved=1", status_code=303)
 
 
 @router.post("/api-tokens", response_class=HTMLResponse)
@@ -2539,12 +2525,14 @@ def _avg7(metrics: list[dict], key: str) -> float | None:
 
 
 def _load_zone(ratio: float | None) -> dict | None:
-    """ACWR-zon: under 0.8 = lugnt, 0.8-1.3 = lagom, över 1.3 = hög risk."""
+    """ACWR-zon: under låg = lugnt, mellan = lagom, över hög = skaderisk.
+    Gränserna ur overtraining.yaml (docs/12 I8)."""
     if ratio is None:
         return None
-    if ratio > 1.3:
+    low, high = acwr_thresholds()
+    if ratio > high:
         return {"label": "Hög — över skadezonen", "color": "var(--coral)"}
-    if ratio >= 0.8:
+    if ratio >= low:
         return {"label": "Lagom belastningsökning", "color": "var(--palm)"}
     return {"label": "Lugn — utrymme att bygga", "color": "var(--lagoon)"}
 
@@ -3066,7 +3054,6 @@ def workout_change_discipline(
 @router.post("/workouts/custom", response_class=HTMLResponse)
 def workout_add_custom(
     request: Request,
-    week_id: str = Form(""),   # legacy, ignoreras (passet kopplas via user_id+date)
     date: str = Form(...),
     sport: str = Form(...),
     distance: str = Form(""),

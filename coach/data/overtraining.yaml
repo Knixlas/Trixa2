@@ -59,6 +59,12 @@ thresholds:
     # Hur många % under förväntad prestation (puls/watt/pace) räknas som droppe
     drop_pct_vs_expected: 5
   consecutive_high_load_weeks: 3  # >3 tunga veckor i rad utan vilovecka
+  # ACWR (akut:kronisk belastning). Låg förut som literalen 1.3 på fyra
+  # ställen i koden — adapter, planerare, dashboard, readiness — och kunde
+  # inte nås av custom_thresholds. En masters-adept som bör flagga vid 1.2
+  # kan nu konfigureras här (docs/12 I8).
+  acwr_high: 1.3     # över = tung vecka / skadezon
+  acwr_low: 0.8      # under = utrymme att bygga
 
 # Bedömningsnivåer baserat på VIKTAT antal flaggor.
 # Severe-signaler (kraftigt förhöjd RHR, kraftigt sänkt HRV, skada,

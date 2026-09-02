@@ -30,6 +30,7 @@ class StrengthProtocol:
     exercise_groups: dict[str, list[str]]
     note: str | None = None
     sessions_per_week: tuple[int, int] | None = None
+    reason: str = ""   # varför just det här protokollet den här veckan
 
 
 def current_strength_protocol(
@@ -65,7 +66,19 @@ def current_strength_protocol(
     params = strength.get("protocol_parameters", {}).get(protocol_code, {})
     sessions = params.get("sessions_per_week")
 
+    # Engine-output bär reason (CLAUDE.md-konvention). MT→MS-växlingen mitt
+    # i base_1 var förut ett beslut utan förklaring (docs/12 I6).
+    if isinstance(phase_data.get("protocol_by_period", {}).get(period), dict):
+        half = "första" if protocol_code == phase_data["protocol_by_period"][period]["first_half"] else "andra"
+        reason = (f"{protocol_code}: {half} halvan av {period} "
+                  f"(vecka {week_in_period} av {weeks_in_period})")
+    elif period:
+        reason = f"{protocol_code}: protokoll för {phase}/{period}"
+    else:
+        reason = f"{protocol_code}: protokoll för fasen {phase}"
+
     return StrengthProtocol(
+        reason=reason,
         protocol_code=protocol_code,
         protocol_name=strength["protocol_types"].get(protocol_code, protocol_code),
         goal=phase_data.get("goal", ""),

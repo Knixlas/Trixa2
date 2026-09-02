@@ -38,6 +38,7 @@ from coach.engine.loader import (
 from coach.engine.overtraining import (
     OvertrainingAssessment,
     OvertrainingSignals,
+    acwr_thresholds,
     assess_overtraining,
     recommend_adjustment,
 )
@@ -58,6 +59,7 @@ from coach.engine.workouts import (
     max_session_minutes,
     select_workout_types,
 )
+from coach.engine.workouts import workout_type_decisions
 from coach.trixa import sports
 from coach.trixa.db import get_supabase
 from coach.trixa.exercise_plan import exercises_from_steps
@@ -430,10 +432,11 @@ def _compute_consecutive_high_load_weeks(metrics: list[dict]) -> int | None:
     if not by_week:
         return None
     sorted_weeks = sorted(by_week.keys(), reverse=True)
+    _, acwr_high = acwr_thresholds()
     streak = 0
     for wk in sorted_weeks:
         avg_ratio = sum(by_week[wk]) / len(by_week[wk])
-        if avg_ratio > 1.3:
+        if avg_ratio > acwr_high:
             streak += 1
         else:
             break
@@ -834,12 +837,13 @@ def _run_engine(
         pos = period_position(phase_rec.phase, phase_rec.period, weeks_in_phase)
         if pos:
             strength_week, strength_len = pos
-    categories = select_workout_types(
+    category_decisions = workout_type_decisions(
         phase=phase_rec.phase,
         period=phase_rec.period,
         week_in_period=week_in_period,
         weeks_in_period=weeks_in_period,
     )
+    categories = [d["code"] for d in category_decisions if d["allowed"]]
     discipline_hours = distribute_weekly_hours(
         phase_rec.phase, state.weekly_training_hours
     )
@@ -865,6 +869,7 @@ def _run_engine(
             "intensity": strength.intensity,
             "reps": list(strength.reps),
             "sets": list(strength.sets),
+            "reason": strength.reason,
             "sessions_per_week": (
                 list(strength.sessions_per_week)
                 if strength.sessions_per_week
@@ -884,6 +889,7 @@ def _run_engine(
             "behind": phase_rec.behind,
         },
         "categories": categories,
+        "category_decisions": category_decisions,   # kod + tillåten + skäl
         "discipline_hours": discipline_hours,
         "hard_training_cap": hard_cap,
         "overtraining": {
@@ -2208,7 +2214,6 @@ def generate_week(
             raise
         plan.engine_decisions["planned_sessions_written"] = persist_result["written"]
         plan.engine_decisions["planned_sessions_persist"] = persist_result
-        plan.engine_decisions["persisted_week_id"] = None
 
         # Stäng honoring-loopen för respekterade overrides.
         plan.engine_decisions["overrides_honored_marked"] = _mark_overrides_honored(
@@ -2682,8 +2687,10 @@ def _cli() -> int:
         print(render_plan_markdown(plan))
 
     if args.apply:
+        persist = plan.engine_decisions.get("planned_sessions_persist") or {}
         print(
-            f"\n[Skrev till DB — week_id={plan.engine_decisions.get('persisted_week_id')}]",
+            f"\n[Skrev till planned_sessions — {persist.get('written', 0)} pass, "
+            f"{persist.get('kept', 0)} behållna, {persist.get('cancelled', 0)} cancel:ade]",
             file=sys.stderr,
         )
     else:

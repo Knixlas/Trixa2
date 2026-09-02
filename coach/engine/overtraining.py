@@ -86,6 +86,19 @@ class PlanAdjustment:
 # ---------- Publika funktioner ----------
 
 
+def acwr_thresholds(custom_thresholds: dict | None = None) -> tuple[float, float]:
+    """(acwr_low, acwr_high) ur overtraining.yaml, med per-adept-override.
+
+    Enda källan för "vad är en tung vecka". Alla lager som bedömer
+    load_ratio (planerarens streak-räknare, dashboardens zon, readiness-
+    vakten) läser härifrån.
+    """
+    thresholds = load_yaml("overtraining.yaml")["thresholds"]
+    if custom_thresholds:
+        thresholds = {**thresholds, **custom_thresholds}
+    return float(thresholds.get("acwr_low", 0.8)), float(thresholds.get("acwr_high", 1.3))
+
+
 def assess_overtraining(
     signals: OvertrainingSignals,
     custom_thresholds: dict | None = None,
