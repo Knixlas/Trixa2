@@ -39,7 +39,10 @@ def _week(date="2026-09-09"):
     return {
         "week_start": "2026-09-07", "week_end": "2026-09-13",
         "workouts": [{
-            "date": date, "sport": "strength", "title": "Ben",
+            # Genererat pass: passbankens reps är en startpunkt, inte en
+            # föreskrift, så progressionen får flytta dem. Saknat origin
+            # räknas som människoskrivet och låser reps.
+            "date": date, "sport": "strength", "title": "Ben", "origin": "trixa2",
             "planned_exercises": [dict(SQUAT)],
         }],
     }

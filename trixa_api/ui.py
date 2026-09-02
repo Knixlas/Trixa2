@@ -1721,7 +1721,11 @@ def _attach_strength_logs(client, week: dict, user_id: str) -> None:
             lg for lg in list(history.data or []) + list(logs.data or [])
             if str(lg.get("session_date"))[:10] < cutoff
         ]
-        w["exercises_to_log"] = apply_suggestions(todo, relevant)
+        # Coachens (eller adeptens egna) rep-tal är en föreskrift; bara
+        # passbankens genererade pass får sina reps flyttade av progressionen.
+        w["exercises_to_log"] = apply_suggestions(
+            todo, relevant, coach_prescribed=(w.get("origin") or "") != "trixa2"
+        )
 
 
 def _mark_done_from_exercise_logs(w: dict, logged: list[dict]) -> None:
