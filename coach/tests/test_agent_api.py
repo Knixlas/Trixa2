@@ -117,6 +117,11 @@ class _Q:
     def order(self, *a, **k):
         return self
 
+    def single(self):
+        # PostgREST: data blir EN rad (dict), inte en lista.
+        self._single = True
+        return self
+
     def limit(self, n):
         return self
 
@@ -174,7 +179,10 @@ class _Q:
         if self._del:
             self.st[self.t] = [r for r in rows if not self._match(r)]
             return _R([])
-        return _R([r for r in rows if self._match(r)])
+        matched = [r for r in rows if self._match(r)]
+        if getattr(self, "_single", False):
+            return _R(matched[0] if matched else None)
+        return _R(matched)
 
 
 class _C:
