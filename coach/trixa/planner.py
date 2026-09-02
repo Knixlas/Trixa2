@@ -19,6 +19,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import logging
 import os
 import random
 import sys
@@ -34,6 +35,7 @@ from coach.engine.loader import (
     load_workouts,
 )
 from coach.engine.overtraining import (
+    OvertrainingAssessment,
     OvertrainingSignals,
     assess_overtraining,
     recommend_adjustment,
@@ -51,6 +53,8 @@ from coach.engine.workouts import (
 )
 from coach.trixa.db import get_supabase
 from coach.trixa.exercise_plan import exercises_from_steps
+
+logger = logging.getLogger("trixa.planner")
 
 
 # ---------- Datatyper ----------
@@ -146,20 +150,26 @@ def _fetch_active_overrides(client, athlete_id: str) -> list[dict]:
     return res.data or []
 
 
-def _fetch_recent_workouts(client, user_id: str, weeks_back: int = 4) -> list[dict]:
+def _fetch_recent_workouts(
+    client, user_id: str, weeks_back: int = 4, before: date | None = None
+) -> list[dict]:
     """Passhistorik från MASTER planned_sessions för variation-constraint i
     pass-val. Nyckel: user_id. (Tidigare från workouts; docs/08.)"""
     if not user_id:
         return []
     since = (date.today() - timedelta(weeks=weeks_back)).isoformat()
-    res = (
+    query = (
         client.table("planned_sessions")
         .select("date, sport, workout_code, intensity, status")
         .eq("user_id", user_id)
         .gte("date", since)
-        .order("date", desc=True)
-        .execute()
     )
+    # Historiken slutar där veckan som planeras börjar. Utan taket hamnade
+    # veckans egna koder i "nyligen kört" vid en regenerering, variations-
+    # filtret uteslöt dem, och redan genomförda dagar fick andra pass.
+    if before is not None:
+        query = query.lt("date", before.isoformat())
+    res = query.order("date", desc=True).execute()
     return [row for row in (res.data or []) if row.get("status") != "cancelled"]
 
 
@@ -193,17 +203,18 @@ def _human_planned_sessions(
     dag en människa redan planerat, oavsett vilken väg planen kom in.
     """
     end = week_start + timedelta(days=6)
-    try:
-        res = (
-            client.table("planned_sessions")
-            .select("date, sport, origin, status")
-            .eq("user_id", user_id)
-            .gte("date", week_start.isoformat())
-            .lte("date", end.isoformat())
-            .execute()
-        )
-    except Exception:  # noqa: BLE001
-        return []
+    # Inget tyst fallback här. Ett svalt fel gav [] → grinden av → motorn
+    # fyllde sju dagar bredvid Nils rader och pushen gav dubbletter på
+    # klockan, utan en enda varning. Kan vi inte läsa vad människan planerat
+    # ska vi inte planera alls; cron loggar felet och veckan får köras om.
+    res = (
+        client.table("planned_sessions")
+        .select("date, sport, origin, status")
+        .eq("user_id", user_id)
+        .gte("date", week_start.isoformat())
+        .lte("date", end.isoformat())
+        .execute()
+    )
     return [
         row for row in (res.data or [])
         if row.get("status") != "cancelled"
@@ -262,6 +273,9 @@ def _fetch_garmin_metrics(
         )
         return res.data or []
     except Exception:  # noqa: BLE001
+        # Degradera, men inte tyst: utan metrics ser motorn ingen recovery
+        # alls och planerar som om allt vore grönt.
+        logger.warning("Kunde inte läsa daily_metrics för %s", garmin_athlete_id, exc_info=True)
         return []
 
 
@@ -285,6 +299,9 @@ def _fetch_actual_weekly_hours(
             .execute()
         )
     except Exception:  # noqa: BLE001
+        # None betyder "ingen data" nedströms och stänger datalucke-
+        # varningen — ett läsfel får inte se ut som en tom logg.
+        logger.warning("Kunde inte läsa training_log för %s", user_id, exc_info=True)
         return None
     rows = res.data or []
     if not rows:
@@ -858,18 +875,7 @@ def _run_engine(
             "flag_count": ot.flag_count,
             "flags": list(ot.flags),
         },
-        "plan_adjustment": (
-            {
-                "level": adjustment.level,
-                "volume_reduction_pct": adjustment.volume_reduction_pct,
-                "intensity_reduction_pct": adjustment.intensity_reduction_pct,
-                "extra_rest_days": adjustment.extra_rest_days,
-                "swap_to_low_intensity": adjustment.swap_to_low_intensity,
-                "consider_medical_consultation": adjustment.consider_medical_consultation,
-            }
-            if adjustment
-            else None
-        ),
+        "plan_adjustment": _adjustment_dict(adjustment),
         "strength_protocol": strength_code,
         "strength_protocol_detail": strength_detail,
     }
@@ -1574,6 +1580,8 @@ def _persist_to_planned_sessions(client, plan: WeekPlan, user_id: str) -> dict:
     used_ids: set[str] = set()
     inserted = 0
     updated = 0
+    kept = 0
+    today = date.today()
     exercise_map = {e["code"]: e for e in load_strength_exercises()}
     for sw in plan.workouts:
         payload = _planned_session_row(sw, user_id, exercise_map)
@@ -1582,6 +1590,18 @@ def _persist_to_planned_sessions(client, plan: WeekPlan, user_id: str) -> dict:
             (row for row in candidates if row.get("status") != "cancelled"),
             candidates[0] if candidates else None,
         )
+        # Det som redan hänt är historik, inte plan. En regenerering mitt i
+        # veckan (t.ex. "byt gren" på lördag) skrev förut om måndagens
+        # genomförda pass till 'planned' med ett annat innehåll — och pushade
+        # det till klockan igen. Genomförda rader och passerade dagar rörs
+        # inte; de behålls som de står.
+        if current and (
+            current.get("status") == "completed"
+            or str(current.get("date"))[:10] < today.isoformat()
+        ):
+            used_ids.add(str(current["id"]))
+            kept += 1
+            continue
         if current:
             (
                 client.table("planned_sessions")
@@ -1615,11 +1635,39 @@ def _persist_to_planned_sessions(client, plan: WeekPlan, user_id: str) -> dict:
         "written": inserted + updated,
         "updated": updated,
         "inserted": inserted,
+        "kept": kept,
         "cancelled": cancelled,
     }
 
 
 # ---------- Override-hantering ----------
+
+
+def _adjustment_dict(adjustment) -> dict | None:
+    """PlanAdjustment → spårbar dict i decisions."""
+    if not adjustment:
+        return None
+    return {
+        "level": adjustment.level,
+        "volume_reduction_pct": adjustment.volume_reduction_pct,
+        "intensity_reduction_pct": adjustment.intensity_reduction_pct,
+        "extra_rest_days": adjustment.extra_rest_days,
+        "swap_to_low_intensity": adjustment.swap_to_low_intensity,
+        "consider_medical_consultation": adjustment.consider_medical_consultation,
+    }
+
+
+def _active_volume_factor(decisions: dict) -> float:
+    """Den skalning veckan redan bär (vilovecka, taper, transition)."""
+    recovery = decisions.get("recovery_week") or {}
+    if recovery.get("active"):
+        return float(recovery.get("volume_factor", 1.0))
+    if decisions.get("transition"):
+        return float(decisions["transition"].get("volume_factor", 1.0))
+    taper = decisions.get("taper") or {}
+    if taper.get("factor"):
+        return float(taper["factor"])
+    return 1.0
 
 
 def _apply_overrides(
@@ -1629,6 +1677,13 @@ def _apply_overrides(
     """Applicera aktiva coach_overrides på engine-beslut.
 
     Returnerar (modified_decisions, honored_list).
+
+    En override som kvitteras som hedrad måste också nå planen. Förut byttes
+    bara overtraining-*nivån*, medan plan_adjustment (volym-/intensitets-
+    reduktion, extra vilodagar) stod kvar från motorns bedömning — hedrad på
+    pappret, ignorerad i praktiken. Och en volym-override kördes efter
+    vilovecko-skalningen och kastade ×0,6 medan renderingen fortfarande
+    påstod "vilovecka".
     """
     modified = dict(engine_decisions)
     honored: list[dict] = []
@@ -1636,24 +1691,44 @@ def _apply_overrides(
     for ov in overrides:
         scope = ov.get("scope")
         decision = ov.get("override_decision") or {}
+        motivation = ov.get("motivation", "")
         if scope == "phase" and decision.get("phase"):
             modified["phase_recommendation"] = {
                 **modified["phase_recommendation"],
                 "phase": decision["phase"],
                 "period": decision.get("period"),
-                "reason": f"Override: {ov.get('motivation', '')}",
+                "reason": f"Override: {motivation}",
             }
             honored.append(ov)
-        elif scope == "volume" and decision.get("weekly_hours"):
+        elif scope == "volume" and decision.get("weekly_hours") is not None:
             new_hours = float(decision["weekly_hours"])
             phase = modified["phase_recommendation"]["phase"]
-            modified["discipline_hours"] = distribute_weekly_hours(phase, new_hours)
+            factor = _active_volume_factor(modified)
+            modified["discipline_hours"] = {
+                d: round(h * factor, 2)
+                for d, h in distribute_weekly_hours(phase, new_hours).items()
+            }
+            modified["volume_override"] = {
+                "weekly_hours": new_hours, "scaled_by": factor,
+                "reason": f"Override: {motivation}",
+            }
             honored.append(ov)
         elif scope == "overtraining" and decision.get("level"):
+            current = modified.get("overtraining") or {}
+            assessment = OvertrainingAssessment(
+                level=decision["level"],
+                label=f"Override: {motivation}",
+                flag_count=int(current.get("flag_count") or 0),
+                flags=list(current.get("flags") or []),
+            )
             modified["overtraining"] = {
-                **modified["overtraining"],
-                "level": decision["level"],
+                **current,
+                "level": assessment.level,
+                "label": assessment.label,
             }
+            modified["plan_adjustment"] = _adjustment_dict(
+                recommend_adjustment(assessment)
+            )
             honored.append(ov)
         # week/workout-overrides hanteras inte här — de gäller specifika rader
         # och tillämpas av Nils direkt på planned_sessions.
@@ -1749,7 +1824,9 @@ def generate_week(
     athlete_id = athlete["id"]
     overrides = _fetch_active_overrides(client, athlete_id)
     weekly_report = _fetch_latest_weekly_report(client, athlete_id)
-    recent_workouts = _fetch_recent_workouts(client, athlete_user_id, weeks_back=4)
+    recent_workouts = _fetch_recent_workouts(
+        client, athlete_user_id, weeks_back=4, before=week_start
+    )
 
     # 1b. Nils/adeptens pass i MASTER är auktoritativa. Motorn rör aldrig dagar
     #     som redan har origin nils/manual/legacy-NULL.
@@ -2045,14 +2122,22 @@ def generate_week(
         # MASTER-persist: planen skrivs till planned_sessions (docs/08 steg 4-7).
         # De gamla engine-tabellerna (workouts/training_weeks/training_plans)
         # skrivs INTE längre — planned_sessions är enda plan-källan.
+        # Landar inte planen ska inget annat avanceras: förut sväljdes felet
+        # här, phase_state räknades upp, ett plan_generated-alert skrevs och
+        # cron loggade "Klar" — adepten öppnade en tom vecka på måndagen
+        # medan coachens inkorg sade att en plan fanns.
         try:
             persist_result = _persist_to_planned_sessions(
                 client, plan, athlete_user_id
             )
-            plan.engine_decisions["planned_sessions_written"] = persist_result["written"]
-            plan.engine_decisions["planned_sessions_persist"] = persist_result
-        except Exception as exc:  # noqa: BLE001
-            plan.engine_decisions["planned_sessions_error"] = str(exc)
+        except Exception:
+            logger.exception(
+                "Kunde inte skriva veckan %s för %s till planned_sessions",
+                week_start.isoformat(), athlete_user_id,
+            )
+            raise
+        plan.engine_decisions["planned_sessions_written"] = persist_result["written"]
+        plan.engine_decisions["planned_sessions_persist"] = persist_result
         plan.engine_decisions["persisted_week_id"] = None
 
         # Stäng honoring-loopen för respekterade overrides.

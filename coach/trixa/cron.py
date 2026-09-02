@@ -58,10 +58,17 @@ def _next_monday(today: date) -> date:
 
 
 def _should_run_now(now_utc: datetime, last_run: datetime | None) -> bool:
-    """Returnerar True om vi ska köra just nu."""
+    """Returnerar True om vi ska köra just nu.
+
+    Slotten är "söndag från kl 20 UTC", inte "söndag exakt kl 20". Med
+    exakt-matchning och en poll som drev framåt lika mycket som arbetet tog
+    hoppade söndagsslotten periodiskt över helt — ingen plan den veckan,
+    inget fel loggat. Nu räcker det att timmen passerats och veckan inte
+    redan körts.
+    """
     if now_utc.weekday() != _RUN_WEEKDAY:
         return False
-    if now_utc.hour != _RUN_HOUR_UTC:
+    if now_utc.hour < _RUN_HOUR_UTC:
         return False
     if last_run and (now_utc - last_run).total_seconds() < 23 * 3600:
         # Skydd: kör inte två gånger samma vecka
@@ -69,10 +76,23 @@ def _should_run_now(now_utc: datetime, last_run: datetime | None) -> bool:
     return True
 
 
+def _seconds_to_next_hour(now_utc: datetime) -> float:
+    """Sov till nästa hela timme i stället för fasta 3600 s efter arbetet —
+    annars driver varje tick framåt med arbetstiden och timslottarna missas."""
+    return 3600 - (now_utc.minute * 60 + now_utc.second) + 5
+
+
 def _all_athletes() -> list[dict]:
+    """Adepter som ska få en vecka genererad.
+
+    Bara onboardade. Signup skapar en placeholder-profil (ironman, sim/
+    cykel/löp, 6 h) med onboarded_at=NULL; förut fick en 10k-löpare som
+    registrerat sig på lördagen en full Ironman-vecka på söndagen, ev.
+    pushad till TrainingPeaks, innan hen hunnit säga vad hen tränar för.
+    """
     client = get_postgrest()
-    res = client.table("athlete_profiles").select("user_id").execute()
-    return res.data or []
+    res = client.table("athlete_profiles").select("user_id, onboarded_at").execute()
+    return [a for a in (res.data or []) if a.get("onboarded_at")]
 
 
 def _run_once_for(athlete_user_id: str) -> None:
@@ -243,7 +263,7 @@ def main() -> int:
         if _PUSH_ENABLED and now.hour == _PUSH_HOUR_UTC and last_push != now.date():
             _run_structure_and_push()
             last_push = now.date()
-        time.sleep(_POLL_INTERVAL_SEC)
+        time.sleep(min(_POLL_INTERVAL_SEC, _seconds_to_next_hour(datetime.now(timezone.utc))))
 
 
 if __name__ == "__main__":
