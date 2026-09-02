@@ -25,7 +25,9 @@ from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.concurrency import run_in_threadpool
 
+from coach.trixa import clock
 from coach.engine.loader import load_workouts, load_drills
+from coach.trixa import sports
 from coach.trixa.db import get_postgrest
 from coach.trixa.planner import generate_week, render_plan_markdown
 from trixa_api import supabase_auth
@@ -366,11 +368,17 @@ def get_athlete(user_id: str) -> AthleteResponse:
 # ---------- Plan ----------
 
 # planned_sessions använder svenska sportnamn; API svarar med Trixas discipliner.
-_SV_EN_SPORT = {
-    "Cykel": "bike", "Cykling": "bike", "Löpning": "run", "Lopning": "run",
-    "Sim": "swim", "Simning": "swim", "Styrka": "strength", "Vila": "rest",
-    "Brick": "brick", "Yoga": "rest", "Promenad": "rest",
-}
+class _SvEnSportMap(dict):
+    """Svensk etikett → disciplin via registret (coach/trixa/sports.py).
+
+    Den handskrivna tabellen här hade kvar Yoga→rest efter att ui och
+    agent_api rättats — tre lager, tre svar."""
+
+    def get(self, key, default=None):  # noqa: D102
+        return sports.canon(key, default)
+
+
+_SV_EN_SPORT = _SvEnSportMap()
 
 
 @app.get(
@@ -394,7 +402,7 @@ def get_current_week(
     )
     athlete_id = athlete_res.data[0]["id"] if athlete_res.data else None
 
-    today = date_type.today()
+    today = clock.today()
     iso_year, iso_week, _ = today.isocalendar()
     week_start = date_type.fromisocalendar(iso_year, iso_week, 1)
     week_end = date_type.fromisocalendar(iso_year, iso_week, 7)

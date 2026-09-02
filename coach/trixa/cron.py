@@ -16,6 +16,7 @@ import sys
 import time
 from datetime import date, datetime, timedelta, timezone
 
+from coach.trixa import clock
 from coach.trixa.db import get_postgrest
 from coach.trixa.planner import generate_week
 
@@ -96,7 +97,7 @@ def _all_athletes() -> list[dict]:
 
 
 def _run_once_for(athlete_user_id: str) -> None:
-    next_mon = _next_monday(date.today())
+    next_mon = _next_monday(clock.today())
     logger.info("Genererar vecka %s för adept %s", next_mon.isoformat(), athlete_user_id)
     try:
         plan = generate_week(
@@ -178,7 +179,7 @@ def _run_structure_and_push() -> None:
 
         pg = get_postgrest()
         pool = {w["code"]: w for w in load_workouts()}
-        monday = date.today() - timedelta(days=date.today().weekday())
+        monday = clock.today() - timedelta(days=clock.today().weekday())
         weeks = [monday, monday + timedelta(days=7)]
         for a in _all_athletes():
             uid = a.get("user_id")

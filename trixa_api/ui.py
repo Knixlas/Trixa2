@@ -21,9 +21,12 @@ from fastapi import APIRouter, Form, HTTPException, Request, status
 from fastapi.responses import HTMLResponse, RedirectResponse
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
+from coach.trixa import clock
+from coach.trixa import sports
 from coach.trixa.db import get_postgrest
 from coach.trixa.exercise_plan import planned_exercises
 from coach.trixa.strength_progression import apply_suggestions, suggestions_by_name
+from coach.trixa.training_log import dedup_cross_source
 
 
 @lru_cache(maxsize=1)
@@ -699,9 +702,8 @@ def _profile_update(
 # ett styrkepass kunde bara kvitteras övning för övning, och yoga gick inte
 # att välja alls — adepten valde "Styrka" för att komma vidare, och passet
 # stod sedan som "Missad" utan någon väg att markera det gjort.
-_LOGGABLE_SPORTS = ("swim", "bike", "run", "strength", "yoga")
-_EN_TO_PLANNED_SV = {"swim": "Sim", "bike": "Cykel", "run": "Löpning",
-                     "strength": "Styrka", "yoga": "Yoga"}
+_LOGGABLE_SPORTS = sports.LOGGABLE_KEYS
+_EN_TO_PLANNED_SV = {k: sports.sv(k) for k in sports.LOGGABLE_KEYS}
 
 
 @router.post("/log/session")
@@ -781,61 +783,6 @@ _COMPLIANCE_MAX_WEEKS = 12
 _PROGRESSION_DAYS = 120
 
 
-def _fetch_activities_range(
-    client, garmin_id, strava_user_id, start: date_type, end: date_type
-) -> dict[str, list[dict]]:
-    """Aktiviteter över ett datumspann, grupperade på lokalt datum.
-
-    EN query mot Garmin/TP-cachen + EN mot Strava (gap-fill per dag) — istället
-    för ett anrop per vecka. Samma normalisering som veckoläsarna.
-    """
-    by_date: dict[str, list[dict]] = {}
-    if garmin_id:
-        try:
-            res = (
-                client.schema("garmin_coach")
-                .table("activities")
-                .select(
-                    "start_time, start_time_local, activity_type, activity_name,"
-                    " duration_sec, avg_hr, max_hr, training_load, distance_m,"
-                    " normalized_power, avg_power"
-                )
-                .eq("athlete_id", garmin_id)
-                .gte("start_time", (start - timedelta(days=1)).isoformat())
-                .lt("start_time", (end + timedelta(days=2)).isoformat())
-                .order("start_time")
-                .execute()
-            )
-            for act in res.data or []:
-                day = _activity_local_date(act)
-                if not day:
-                    continue
-                act["_sport"] = _ACTIVITY_SPORT_MAP.get(act.get("activity_type"))
-                act["_dur_min"] = (act.get("duration_sec") or 0) / 60.0
-                by_date.setdefault(day, []).append(act)
-        except Exception:  # noqa: BLE001
-            pass
-    if strava_user_id:
-        try:
-            res = (
-                client.table("strava_activities")
-                .select("date, type, name, duration_min, distance_km, avg_hr, avg_power")
-                .eq("user_id", strava_user_id)
-                .gte("date", start.isoformat())
-                .lte("date", end.isoformat())
-                .order("date")
-                .execute()
-            )
-            for row in res.data or []:
-                day = str(row.get("date"))[:10]
-                if not day or day in by_date:
-                    continue  # Garmin/TP har dagen → den datan vinner
-                by_date.setdefault(day, []).append(_normalize_strava_activity(row))
-        except Exception:  # noqa: BLE001
-            pass
-    return by_date
-
-
 # ---------- Källdedup: ett fysiskt pass kan ligga som flera training_log-rader ----------
 #
 # Samma pass kan komma från TP-sync (source='tp'), Strava-backfill ('strava')
@@ -849,18 +796,9 @@ _LOG_SOURCE_RANK = {"tp": 0, "strava": 1, "manual": 2}
 
 def _canon_log_sport(sport: str | None) -> str:
     """training_log.sport är blandad vokabulär (Sim/swim/Simning). Normalisera
-    så dedup matchar tvärs källor."""
-    raw = (sport or "").strip()
-    low = raw.lower()
-    if raw in ("Löpning", "Lopning") or "run" in low or "löp" in low:
-        return "run"
-    if raw in ("Cykel", "Cykling") or "cycl" in low or "bike" in low or "ride" in low:
-        return "bike"
-    if raw in ("Sim", "Simning") or "swim" in low:
-        return "swim"
-    if raw == "Styrka" or "strength" in low or "weight" in low:
-        return "strength"
-    return low
+    så dedup matchar tvärs källor. Registret i coach/trixa/sports.py är
+    sanningen; okänt blir 'other'."""
+    return sports.canon(sport, "other") or "other"
 
 
 def _dedup_log_rows(rows: list[dict]) -> list[dict]:
@@ -869,29 +807,16 @@ def _dedup_log_rows(rows: list[dict]) -> list[dict]:
     Source-rank styr ordningen: TP-rader processas först → behålls; senare
     strava/manuella rader som matchar samma pass hoppas. Okänd källa sist.
     """
-    kept: list[dict] = []
-    for r in sorted(
-        rows, key=lambda x: _LOG_SOURCE_RANK.get((x.get("source") or "").lower(), 3)
-    ):
-        day = str(r.get("date"))[:10]
-        sport = _canon_log_sport(r.get("sport"))
-        dur = float(_fnum(r.get("duration_min")) or 0)
-        tol = max(2.0, dur * 0.10)
-        if any(
-            str(k.get("date"))[:10] == day
-            and _canon_log_sport(k.get("sport")) == sport
-            and abs(float(_fnum(k.get("duration_min")) or 0) - dur) <= tol
-            for k in kept
-        ):
-            continue
-        kept.append(r)
-    return kept
+    # En regel för alla lager (coach/trixa/training_log.py): bara KÄLL-
+    # dubbletter slås ihop. Två rader från samma källa är två pass —
+    # pendlingen till jobbet och hem är 2×25 min, inte 1 (docs/12 F1, G4).
+    return dedup_cross_source(rows)
 
 
 # Trixa räknar styrke-, konditions- och yogapass. Allt annat (alpint, vandring,
 # promenad, paddel …) ignoreras i volym/load/compliance. ("Yoga" → canon "yoga"
 # via lowercase, så det räcker att ha med "yoga" här.)
-_RELEVANT_SPORTS = {"run", "bike", "swim", "strength", "yoga"}
+_RELEVANT_SPORTS = sports.TRAINING_KEYS   # inkl. brick — TP loggar ett bricks som ETT pass
 
 
 def _clean_log_rows(rows: list[dict]) -> list[dict]:
@@ -917,7 +842,7 @@ def _compliance_by_week(client, athlete_id, today, user_id) -> dict:
     try:
         ps_res = (
             client.table("planned_sessions")
-            .select("date, sport, title, workout_code, duration_min")
+            .select("date, sport, title, workout_code, duration_min, status")
             .eq("user_id", user_id)
             .gte("date", window_start.isoformat())
             .lte("date", today.isoformat())
@@ -926,7 +851,9 @@ def _compliance_by_week(client, athlete_id, today, user_id) -> dict:
         )
     except Exception:  # noqa: BLE001
         return {}
-    sessions = ps_res.data or []
+    # Planeraren cancel:ar ersatta rader i stället för att radera dem. Utan
+    # filtret räknades spökraderna som "Missad" (docs/12 F3).
+    sessions = [r for r in (ps_res.data or []) if r.get("status") != "cancelled"]
     if not sessions:
         return {}
 
@@ -998,16 +925,6 @@ def _compliance_by_week(client, athlete_id, today, user_id) -> dict:
     return out
 
 
-def _decorate_timeline(timeline: dict, comp_map: dict, today, this_monday) -> None:
-    """Lägg på vecko-cellernas färg/etikett (compliance bakåt, faint framåt)."""
-    for w in timeline["weeks"]:
-        bucket = comp_map.get((w["iso_year"], w["iso_week"]))
-        w["is_current"] = w["monday"] == this_monday
-        w["future"] = w["monday"] > today
-        w["compliance"] = bucket  # rå bucket ("green"/"yellow"/"red"/None) för temat
-        w["monday_iso"] = w["monday"].isoformat()
-
-
 def _add_week_hours(by_week: dict, day_iso: str, hours: float) -> None:
     try:
         d = date_type.fromisoformat(str(day_iso)[:10])
@@ -1015,30 +932,6 @@ def _add_week_hours(by_week: dict, day_iso: str, hours: float) -> None:
         return
     iso = d.isocalendar()
     by_week[(iso[0], iso[1])] = by_week.get((iso[0], iso[1]), 0.0) + hours
-
-
-def _actual_hours_by_week(client, user_id, start, today) -> dict:
-    """Faktisk veckovolym (h) ur MASTER training_log. {(iso_year, iso_week): h}.
-
-    Samma källa som Nyckeltal-sidan, så säsongsvyn och nyckeltalen är överens.
-    """
-    out: dict[tuple[int, int], float] = {}
-    if not user_id:
-        return out
-    try:
-        res = (
-            client.table("training_log")
-            .select("date, sport, duration_min, source")
-            .eq("user_id", user_id)
-            .gte("date", start.isoformat())
-            .lte("date", today.isoformat())
-            .execute()
-        )
-    except Exception:  # noqa: BLE001
-        return out
-    for r in _clean_log_rows(res.data or []):
-        _add_week_hours(out, r.get("date") or "", (_fnum(r.get("duration_min")) or 0) / 60.0)
-    return out
 
 
 def _planned_hours_by_week(client, user_id, start, end) -> dict:
@@ -1054,7 +947,7 @@ def _planned_hours_by_week(client, user_id, start, end) -> dict:
     try:
         res = (
             client.table("planned_sessions")
-            .select("date, duration_min")
+            .select("date, duration_min, status")
             .eq("user_id", user_id)
             .gte("date", start.isoformat())
             .lte("date", end.isoformat())
@@ -1063,6 +956,8 @@ def _planned_hours_by_week(client, user_id, start, end) -> dict:
     except Exception:  # noqa: BLE001
         return out
     for r in res.data or []:
+        if r.get("status") == "cancelled":
+            continue   # ersatta rader dubblade planerade timmar (docs/12 F3)
         _add_week_hours(out, r.get("date") or "", (_fnum(r.get("duration_min")) or 0) / 60.0)
     return out
 
@@ -1275,7 +1170,7 @@ def dashboard(request: Request) -> HTMLResponse:
         return RedirectResponse(url="/ui/onboarding", status_code=303)
 
     # Hämta båda veckorna från DB
-    today = date_type.today()
+    today = clock.today()
     this_monday = _monday_of(today)
     next_monday = this_monday + timedelta(days=7)
     this_iso = this_monday.isocalendar()
@@ -1421,7 +1316,8 @@ def _sport_matches(plan_sport: str, code: str, activity_sport: str | None) -> bo
     if activity_sport is None:
         return False
     if _is_brick(code, plan_sport):
-        return activity_sport in ("bike", "run")
+        # TP loggar ett brick som ETT pass (typ 4); Garmin/Strava som två.
+        return activity_sport in ("brick", "bike", "run")
     return activity_sport == plan_sport
 
 
@@ -1481,7 +1377,7 @@ def _compute_status(
     """Plan-vs-actual-status för ett pass. Ren funktion, inga sidoeffekter.
 
     Varje element i `day_activities` förväntas ha precomputed `_sport` (mappad
-    disciplin) och `_dur_min` (float minuter) — se `_fetch_week_activities`.
+    disciplin) och `_dur_min` (float minuter) — se `_fetch_completed_week`.
     """
     try:
         w_date = date_type.fromisoformat(str(w_date_iso)[:10])
@@ -1493,7 +1389,7 @@ def _compute_status(
     if w_date == today:
         # Visa även dagens utförda pass (om något loggats) — behåll "Idag"-badgen.
         actual = None
-        if sport != "rest" and day_activities:
+        if sports.status_kind(sport) == "training" and day_activities:
             linked = [
                 a for a in day_activities
                 if planned_session_id
@@ -1506,7 +1402,9 @@ def _compute_status(
         return {**_STATUS["today"], "key": "today", "actual": actual}
 
     # --- Passerat datum ---
-    if sport == "rest":
+    # Vila OCH promenad bedöms som vila: en planerad promenad som inte blev
+    # av är inget missat pass (registret: sports.status_kind).
+    if sports.status_kind(sport) == "rest":
         if day_activities:
             # Tränade på en planerad vilodag → avvikelse, visa vad som gjordes.
             best = min(day_activities, key=lambda a: a["_dur_min"])
@@ -1538,74 +1436,26 @@ def _compute_status(
     return {**_STATUS["deviated"], "key": "deviated", "actual": actual}
 
 
-def _normalize_training_log_activity(row: dict) -> dict:
-    """En training_log-rad → formen som status/rendering konsumerar."""
-    dur_min = _safe_float(row.get("duration_min"))
-    dist_km = row.get("distance_km")
-    return {
-        "_sport": _PLANNED_SV_SPORT.get(
-            row.get("sport"), (row.get("sport") or "").strip().lower()
-        ),
-        "_dur_min": dur_min,
-        "activity_name": row.get("title"),
-        "activity_type": row.get("sport"),
-        "duration_sec": int(round(dur_min * 60)),
-        "avg_hr": row.get("avg_hr"),
-        "max_hr": row.get("max_hr"),
-        "training_load": row.get("tss"),
-        "distance_m": round(_safe_float(dist_km) * 1000) if dist_km else None,
-        "normalized_power": row.get("normalized_power"),
-        "avg_power": row.get("avg_power"),
-        "start_time_local": row.get("date"),
-        "planned_session_id": row.get("planned_session_id"),
-        "source": row.get("source"),
-    }
+class _PlannedSportMap(dict):
+    """planned_sessions.sport → disciplin, via registret.
+
+    Var en handskriven tabell som saknade "Cykling", "Simning" i vissa lager
+    och satte Yoga som vila. Registret känner alla stavningar; okänt faller
+    till 'other' så att status kan bedömas i stället för att jämföra en
+    gemenad råsträng mot en disciplin som aldrig matchar.
+    """
+
+    def get(self, key, default=None):  # noqa: D102 — dict-kompatibelt
+        return sports.canon(key, "other")
+
+    def __getitem__(self, key):
+        return sports.canon(key, "other")
+
+    def __contains__(self, key):
+        return sports.canon(key) is not None
 
 
-def _fetch_week_activities(
-    client, user_id: str | None, week_monday: date_type
-) -> dict[str, list[dict]]:
-    """Hämta utförda pass från MASTER training_log, grupperade per datum."""
-    if not user_id:
-        return {}
-    week_start = week_monday.isoformat()
-    week_end = (week_monday + timedelta(days=7)).isoformat()
-    try:
-        res = (
-            client.table("training_log")
-            .select(
-                "date,sport,title,duration_min,distance_km,avg_hr,max_hr,"
-                "avg_power,normalized_power,tss,source,planned_session_id"
-            )
-            .eq("user_id", user_id)
-            .gte("date", week_start)
-            .lt("date", week_end)
-            .order("date")
-            .execute()
-        )
-    except Exception:  # noqa: BLE001
-        return {}
-
-    by_date: dict[str, list[dict]] = {}
-    for row in res.data or []:
-        day = str(row.get("date"))[:10] if row.get("date") else None
-        if not day:
-            continue
-        by_date.setdefault(day, []).append(_normalize_training_log_activity(row))
-    return by_date
-
-
-# Svenska sportnamn i planned_sessions (coach/Nils) → Trixas discipliner.
-_PLANNED_SV_SPORT = {
-    "Cykel": "bike", "Löpning": "run", "Lopning": "run",
-    "Simning": "swim", "Sim": "swim", "Styrka": "strength",
-    # Yoga är en egen gren, inte vila: ett yogapass som inte blev av är
-    # missat, och ett som gjordes är genomfört. Mappat till "rest" fick det
-    # vilodagens status ("Vila hållen" när inget gjordes) och kunde inte
-    # loggas. Promenad/vandring räknas fortsatt som vila — de bär ingen
-    # träningsavsikt.
-    "Vila": "rest", "Yoga": "yoga", "Promenad": "rest", "Vandring": "rest",
-}
+_PLANNED_SV_SPORT = _PlannedSportMap()
 
 
 def _normalize_log_activity(row: dict) -> dict:
@@ -1613,7 +1463,7 @@ def _normalize_log_activity(row: dict) -> dict:
     dur_min = float(_fnum(row.get("duration_min")) or 0)
     dist_km = _fnum(row.get("distance_km"))
     return {
-        "_sport": _TL_SPORT.get((row.get("sport") or "").strip().lower()),
+        "_sport": sports.canon(row.get("sport")),
         "_dur_min": dur_min,
         "activity_name": row.get("title"),
         "activity_type": row.get("sport"),
@@ -1846,7 +1696,7 @@ def _fetch_current_week_data(
     Planerad källa: MASTER planned_sessions. Utfört: MASTER training_log.
     """
     if today is None:
-        today = date_type.today()
+        today = clock.today()
     week_monday = date_type.fromisocalendar(year, week_num, 1)
 
     # Utfört (plan-vs-actual) läses ur MASTER training_log — alla källor
@@ -1950,7 +1800,7 @@ def report_form(request: Request) -> HTMLResponse:
         raise HTTPException(404, "Athlete saknas")
     athlete_id = a_res.data[0]["id"]
 
-    week_start = _monday_of(date_type.today())
+    week_start = _monday_of(clock.today())
     existing_res = (
         client.table("weekly_reports")
         .select("*")
@@ -2031,7 +1881,7 @@ def report_submit(
 @router.get("/admin", response_class=HTMLResponse)
 def admin_view(request: Request) -> HTMLResponse:
     user_id = _current_user_id(request)
-    next_monday = _monday_of(date_type.today())
+    next_monday = _monday_of(clock.today())
     return _render("admin.html", {
             "request": request,
             "default_user_id": user_id,
@@ -2290,7 +2140,7 @@ def onboarding_submit(
             return None
 
     source = threshold_source if threshold_source in ("estimate", "test") else "estimate"
-    today_iso = date_type.today().isoformat()
+    today_iso = clock.today().isoformat()
     threshold_meta = {
         key: {"source": source, "tested_at": today_iso}
         for key, filled in (
@@ -2429,7 +2279,7 @@ def onboarding_done(request: Request) -> HTMLResponse:
             .eq("athlete_id", athlete["id"])
             # Kvittensen ska visa vad adepten tränar MOT, inte gamla lopp som
             # råkar ligga kvar i kalendern.
-            .gte("date", date_type.today().isoformat())
+            .gte("date", clock.today().isoformat())
             .order("date")
             .execute()
         )
@@ -2665,17 +2515,7 @@ def settings_submit(
 
 # training_log.sport är blandad vokabulär (svenska + engelska, gamla + nya
 # skrivare). Normalisera till intern disciplin för aggregering.
-_TL_SPORT = {
-    "lopning": "run", "löpning": "run", "run": "run", "trailrun": "run",
-    "cykel": "bike", "bike": "bike", "ride": "bike", "cykling": "bike",
-    "sim": "swim", "swim": "swim", "simning": "swim",
-    "styrka": "strength", "strength": "strength", "weighttraining": "strength",
-    "yoga": "yoga",
-}
-_SPORT_LABEL = {
-    "swim": "Simning", "bike": "Cykel", "run": "Löpning", "yoga": "Yoga",
-    "strength": "Styrka", "other": "Övrigt",
-}
+_SPORT_LABEL = {k: s.sv for k, s in sports.SPORTS.items()}
 
 
 def _fnum(v) -> float | None:
@@ -2815,7 +2655,7 @@ def _build_data_context(client, athlete: dict, today: date_type) -> dict:
         week_hours[monday] = week_hours.get(monday, 0.0) + h
         week_tss[monday] = week_tss.get(monday, 0.0) + (_fnum(r.get("tss")) or 0.0)
         week_count[monday] = week_count.get(monday, 0) + 1
-        disc = _TL_SPORT.get((r.get("sport") or "").strip().lower(), "other")
+        disc = sports.canon(r.get("sport"), "other")
         if monday == this_monday:
             this_week_disc[disc] = this_week_disc.get(disc, 0.0) + h
         if four_w_start <= d < this_monday:
@@ -2900,7 +2740,7 @@ def data_view(request: Request) -> HTMLResponse:
     )
     if not a_res.data:
         raise HTTPException(404, "Athlete saknas")
-    ctx = _build_data_context(client, a_res.data[0], date_type.today())
+    ctx = _build_data_context(client, a_res.data[0], clock.today())
     ctx["request"] = request
     return _render("data.html", ctx)
 
@@ -2912,7 +2752,7 @@ def data_view(request: Request) -> HTMLResponse:
 def debug_view(request: Request) -> HTMLResponse:
     """Transparens-vy: alla datakällor + engine-beslut för aktuell vecka."""
     user_id = _current_user_id(request)
-    week_start = _monday_of(date_type.today())
+    week_start = _monday_of(clock.today())
 
     try:
         plan = generate_week(
@@ -3254,18 +3094,33 @@ def workout_add_custom(
     sv_sport = _EN_TO_PLANNED_SV.get(sport, sport)
     title = (description or "").strip() or "Eget pass"
     client = get_postgrest()
-    res = client.table("planned_sessions").insert({
-        "user_id": user_id,
-        "date": date,
-        "sport": sv_sport,
-        "title": title,
-        "duration_min": duration_minutes,
-        "details": (description or "").strip() or None,
-        "status": "planned",
-        "origin": "manual",
-    }).execute()
-    if already_done:
+    # UNIQUE (user_id, date, sport): finns redan ett pass i grenen den dagen
+    # (Nils, motorn, ett tidigare eget) gav en rå insert 409 → 500, och
+    # "redan gjort"-loggen efteråt nåddes aldrig (docs/12 F5). Nu: befintlig
+    # rad lämnas orörd — adepten skriver inte över coachens pass av misstag
+    # — men loggen skrivs ändå, länkad till den rad som finns.
+    existing = (
+        client.table("planned_sessions").select("id")
+        .eq("user_id", user_id).eq("date", date).eq("sport", sv_sport)
+        .limit(1).execute()
+    )
+    planned_id = (existing.data or [{}])[0].get("id") if existing.data else None
+    notice = ""
+    if planned_id:
+        notice = "?notice=finns"
+    else:
+        res = client.table("planned_sessions").insert({
+            "user_id": user_id,
+            "date": date,
+            "sport": sv_sport,
+            "title": title,
+            "duration_min": duration_minutes,
+            "details": (description or "").strip() or None,
+            "status": "planned",
+            "origin": "manual",
+        }).execute()
         planned_id = (res.data or [{}])[0].get("id") if res.data else None
+    if already_done:
         log_row: dict = {
             "user_id": user_id, "date": date, "sport": sport,
             "title": title, "source": "manual",
@@ -3275,7 +3130,7 @@ def workout_add_custom(
         if planned_id:
             log_row["planned_session_id"] = planned_id
         client.table("training_log").insert(log_row).execute()
-    return RedirectResponse(url="/ui/", status_code=303)
+    return RedirectResponse(url=f"/ui/{notice}", status_code=303)
 
 
 @router.post("/workouts/{workout_id}/delete-custom", response_class=HTMLResponse)

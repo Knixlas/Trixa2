@@ -18,21 +18,17 @@ from typing import Any
 
 from coach.engine._loader import load_yaml
 
-# Nils sport-etiketter (svenska) → passbank-disciplin.
-SPORT_TO_DISCIPLINE = {
-    "Sim": "swim", "Simning": "swim",
-    "Cykel": "bike", "Cykling": "bike",
-    "Löpning": "run", "Lopning": "run", "Löp": "run",
-    "Styrka": "strength",
-    "Vila": "rest", "Brick": "brick",
-}
+from coach.trixa import sports
 
 
 def discipline_for_sport(sport: str | None) -> str:
-    """Översätt en (svensk) sport-etikett till passbank-disciplin."""
+    """Översätt en (svensk) sport-etikett till passbank-disciplin.
+
+    Via registret (coach/trixa/sports.py) — den handskrivna tabellen här var
+    en av tretton och saknade bl.a. yoga."""
     if not sport:
         return ""
-    return SPORT_TO_DISCIPLINE.get(sport, str(sport).strip().lower())
+    return sports.canon(sport) or str(sport).strip().lower()
 
 
 def load_session_mapping(data_dir: Any = None) -> list[dict]:

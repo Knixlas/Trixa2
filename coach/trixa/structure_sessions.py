@@ -25,6 +25,7 @@ from dataclasses import dataclass, field
 from datetime import date, timedelta
 from typing import Any
 
+from coach.trixa import clock
 from coach.engine.templates import resolve_template
 from coach.trixa.session_mapping import (
     discipline_for_sport,
@@ -152,7 +153,7 @@ def main(argv: list[str] | None = None) -> int:
 
     week_start = (
         date.fromisoformat(args.week_start) if args.week_start
-        else _monday_of(date.today())
+        else _monday_of(clock.today())
     )
     pool = {w["code"]: w for w in load_workouts()}
     pg = get_postgrest()
