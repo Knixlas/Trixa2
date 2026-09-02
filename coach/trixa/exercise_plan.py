@@ -47,8 +47,15 @@ def _rep_bounds(value: Any, fallback: Any = None) -> tuple[int | None, int | Non
     spannet vet ingen när reps-ökningen ska växlas mot en tyngre stång.
     Spannet finns antingen i steget (``reps: {range: [3, 6]}``) eller på
     passets parameter (``parameters.reps.range``).
+
+    Mallspannet gäller passets huvudlyft. Ett steg vars föreskrivna reps
+    ligger utanför det (pallof-press 10 mot [5, 8], planka ``reps: 1`` mot
+    [12, 15]) är en accessoar eller en hålltid — då är spannet fel för
+    steget, och progressionen skulle tvinga "för tungt" på en 30-sekunders
+    planka varje gång. Sådana steg får inget spann.
     """
-    for candidate in (value, fallback):
+    planned = _int_or_none(value)
+    for candidate, is_fallback in ((value, False), (fallback, True)):
         if isinstance(candidate, dict):
             span = candidate.get("range")
         else:
@@ -56,8 +63,26 @@ def _rep_bounds(value: Any, fallback: Any = None) -> tuple[int | None, int | Non
         if isinstance(span, (list, tuple)) and len(span) >= 2:
             low, high = _int_or_none(span[0]), _int_or_none(span[1])
             if low and high and high >= low:
+                if is_fallback and planned is not None and not (low <= planned <= high):
+                    return None, None
                 return low, high
     return None, None
+
+
+def planned_exercises(
+    row: dict, exercise_map: dict[str, dict] | None = None
+) -> list[dict]:
+    """Övningslistan för en planned_sessions-rad, oavsett hur den skrevs.
+
+    ``exercises`` är sanningen. Rader från före TX-4 bär bara ``steps`` —
+    då härleds listan, med katalognamn och mallspann som planeraren gör.
+    Både adeptens app och coachens get_week går genom den här funktionen,
+    så att de ser samma lista: förut hade appen en fallback och API:t ingen,
+    och för en steps-rad såg adepten sex övningar medan coachen såg noll.
+    """
+    if row.get("exercises"):
+        return list(row["exercises"])
+    return exercises_from_steps(row.get("steps"), exercise_map)
 
 
 def readable_name(code: str) -> str:
