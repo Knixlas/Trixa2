@@ -440,6 +440,24 @@ stod som "Missad" morgonen efter utan väg att säga emot.
 - Sarahs rad rättad i DB (`sport` Styrka → Yoga). Hennes yoga står
   fortfarande som missad tills hon markerar den — det vet bara hon.
 
+**Prosa-pass strukturerade + två progressionsregler (2026-09-02):**
+- Sarahs tolv styrkepass (2 trixa2 från före TX-4 med bara `steps`, 10 nils
+  med övningarna som prosa) har nu `exercises`. Engångsskript i
+  `db/backfill/2026-09-02_structure_prose_strength.py` — parsern lever
+  DÄR, inte i produkten. Tid/sträcka/"till utmattning" lämnar `reps` tomt
+  och följer med i `note`. Katalogkoder satta där övningen är samma.
+- **Coachens reps är en föreskrift.** `apply_suggestions(...,
+  coach_prescribed=True)` för alla pass som inte är `origin='trixa2'`
+  (nils/manual/NULL): reps står som skrivet, bara vikten följer
+  ansträngningen. "3×10, djupet ändras först när svullnaden varit tyst två
+  veckor" får inte bli 3×12 av en automat. Passbankens genererade pass får
+  full dubbel progression.
+- **Övningar utan rep-tal** (dödhäng, kryp, planka i sekunder) får inget
+  påhittat: `reps=None`, kroppsvikt → "öka tid eller sträcka", med vikt
+  (farmer's walk) → vikten progredierar som vanligt.
+- Kvar: passbankens hålltider (planka `reps: 1` + tid i `load_pct`) och
+  logg av sekunder (dödhäng) saknar fält — `exercise_logs` har bara reps.
+
 **Onboarding generaliserad (2026-08-25):**
 - Formuläret antog erfaren triatlet. Nu: aktiva discipliner + erfarenhetsnivå
   frågas först och styr resten. Tröskelvärden visas för advanced/elite (eller

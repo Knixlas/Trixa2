@@ -202,9 +202,14 @@ def suggest_next(planned: dict, history: list[dict] | None = None) -> LoadSugges
     ``planned`` är en post ur ``planned_sessions.exercises``; ``history`` är
     adeptens ``exercise_logs``-rader för samma övning, nyast först.
     """
-    low, high = rep_span(planned)
+    # Dödhäng "till nära utmattning", björnkryp "15 meter", planka "45 sek":
+    # övningar utan rep-tal. Att hitta på ett (8) och sedan räkna progression
+    # på det vore att föreslå åtta dödhäng. Vikten kan fortfarande följas
+    # (farmer's walk); reps lämnas tomma.
+    track_reps = planned.get("reps") is not None or bool(_as_int(planned.get("reps_min")))
+    low, high = rep_span(planned) if track_reps else (0, 0)
     planned_sets = _as_int(planned.get("sets"))
-    planned_reps = _as_int(planned.get("reps")) or low
+    planned_reps = _as_int(planned.get("reps")) or (low or None)
     bodyweight = _is_bodyweight(planned)
     performed = _performed(history or [])
 
@@ -215,11 +220,16 @@ def suggest_next(planned: dict, history: list[dict] | None = None) -> LoadSugges
 
     last = performed[0]
     last_weight = _as_float(last.get("weight_from"))
-    last_reps = _as_int(last.get("reps")) or planned_reps
+    last_reps = _as_int(last.get("reps")) or planned_reps or 0
     last_sets = _as_int(last.get("sets")) or planned_sets
     effort = _as_int(last.get("effort")) or EFFORT_MODERATE
     when = str(last.get("session_date") or "")[:10]
     warnings: list[str] = []
+
+    if not track_reps:
+        return _suggest_untracked(
+            last, last_weight, last_sets or planned_sets, effort, when, bodyweight
+        )
 
     # Klarade inte repspannets golv? Då var lasten för tung oavsett vad rutan
     # sade — kroppen räknas före kryssrutan.
@@ -319,6 +329,50 @@ def _bump_phrase(weight: float, low: int, high: int) -> str:
         return f"Upp till {_fmt_kg(weight)}, samma {low} reps."
     return (f"Taket i spannet nått — upp till {_fmt_kg(weight)} "
             f"och tillbaka till {low} reps.")
+
+
+def _suggest_untracked(
+    last: dict, last_weight: float | None, sets: int | None,
+    effort: int, when: str, bodyweight: bool,
+) -> LoadSuggestion:
+    """Övning utan rep-tal: tid, sträcka eller 'till utmattning'.
+
+    Bär den vikt (farmer's walk) följer vikten ansträngningen som vanligt.
+    Är den kroppsvikt finns inget tal att räkna på — säg det, i stället för
+    att låtsas.
+    """
+    label = EFFORT_LABELS.get(effort, "oklart")
+    sets_txt = f"{sets}×" if sets else ""
+    if last_weight is None or bodyweight:
+        context = f"Förra gången ({when}): {sets_txt}kroppsvikt, kändes {label}"
+        hint = {
+            EFFORT_LIGHT: "Öka tid eller sträcka.",
+            EFFORT_MODERATE: "Håll eller öka något.",
+            EFFORT_HARD: "Kör samma igen.",
+            EFFORT_TOO_HARD: "Dra ned tid eller sträcka.",
+        }.get(effort, "")
+        return LoadSuggestion(
+            weight=None, reps=None, sets=sets,
+            reason=f"{context}. Inget rep-tal att räkna på — {hint}".rstrip(),
+            trend="hold", previous=last,
+        )
+    context = f"Förra gången ({when}): {sets_txt}{_fmt_kg(last_weight)}, kändes {label}"
+    if effort == EFFORT_LIGHT:
+        weight = _bump(last_weight, _BUMP_LIGHT)
+        return LoadSuggestion(weight=weight, reps=None, sets=sets, trend="up", previous=last,
+                              reason=f"{context}. Upp till {_fmt_kg(weight)}.")
+    if effort == EFFORT_MODERATE:
+        weight = _bump(last_weight, _BUMP_MODERATE)
+        return LoadSuggestion(weight=weight, reps=None, sets=sets, trend="up", previous=last,
+                              reason=f"{context}. Upp till {_fmt_kg(weight)}.")
+    if effort == EFFORT_HARD:
+        return LoadSuggestion(weight=last_weight, reps=None, sets=sets, trend="hold",
+                              previous=last, reason=f"{context}. Kör samma igen.")
+    weight = round_load(last_weight * (1 - _BACKOFF_TOO_HARD))
+    if weight >= last_weight:
+        weight = round_load(last_weight - _min_step(last_weight))
+    return LoadSuggestion(weight=max(weight, 0.0), reps=None, sets=sets, trend="down",
+                          previous=last, reason=f"{context}. Ned till {_fmt_kg(weight)}.")
 
 
 def _suggest_first_time(
@@ -440,12 +494,23 @@ def suggestions_by_name(logs: Iterable[dict] | None) -> dict[str, dict]:
     return out
 
 
-def apply_suggestions(exercises: list[dict], logs: Iterable[dict] | None) -> list[dict]:
+def apply_suggestions(
+    exercises: list[dict],
+    logs: Iterable[dict] | None,
+    coach_prescribed: bool = False,
+) -> list[dict]:
     """Berika en övningslista med nästa last, utan att röra originalet.
 
     Varje post får ``weight_from``/``reps`` satta till förslaget och en
     ``suggestion``-dict med motivering, trend och raden förslaget vilar på —
     så att både formuläret, passtexten och coachen ser samma sak.
+
+    ``coach_prescribed``: passet är skrivet av en coach (eller adepten
+    själv), inte genererat ur passbanken. Då är rep-talet en föreskrift, inte
+    en startpunkt — "3×10, djupet ändras först när svullnaden varit tyst två
+    veckor" får inte bli 3×12 för att förra passet kändes lätt. Reps står
+    kvar som skrivet; vikten följer fortfarande ansträngningen, det är den
+    coachen inte kan se från sitt håll.
     """
     index = index_history(logs or [])
     out: list[dict] = []
@@ -454,15 +519,21 @@ def apply_suggestions(exercises: list[dict], logs: Iterable[dict] | None) -> lis
             continue
         entry = dict(planned)
         suggestion = suggest_next(entry, lookup_history(entry, index))
+        reps = suggestion.reps
+        reason = suggestion.reason
+        if coach_prescribed and planned.get("reps") is not None:
+            reps = _as_int(planned.get("reps"))
+            if suggestion.reps is not None and suggestion.reps != reps:
+                reason = f"{reason} Reps enligt coachens pass: {reps}."
         if suggestion.weight is not None:
             entry["weight_from"] = suggestion.weight
-        if suggestion.reps is not None:
-            entry["reps"] = suggestion.reps
+        if reps is not None:
+            entry["reps"] = reps
         entry["suggestion"] = {
             "weight": suggestion.weight,
-            "reps": suggestion.reps,
+            "reps": reps,
             "sets": suggestion.sets,
-            "reason": suggestion.reason,
+            "reason": reason,
             "trend": suggestion.trend,
             "previous": suggestion.previous,
             "warnings": suggestion.warnings,

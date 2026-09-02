@@ -233,6 +233,7 @@ def _week_plan(client, user_id: str, monday: date_type) -> dict:
             "exercises": apply_suggestions(
                 w.get("exercises") or [],
                 [h for h in history if str(h.get("session_date"))[:10] < str(w["date"])[:10]],
+                coach_prescribed=(w.get("origin") or "") != "trixa2",
             ),
             "status": w.get("status") or "",
             "origin": w.get("origin") or "",

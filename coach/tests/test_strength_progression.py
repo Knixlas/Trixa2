@@ -243,6 +243,61 @@ def test_historik_matchas_pa_kod_nar_namnet_skrivits_om():
     assert out[0]["weight_from"] == 62.5
 
 
+# ---------- coachens reps är en föreskrift ----------
+
+
+def test_coachens_reps_star_kvar_men_vikten_foljer_anstrangningen():
+    """"3×10, djupet ändras först när svullnaden varit tyst två veckor" får
+    inte bli 3×12 för att förra passet kändes lätt. Vikten är det coachen
+    inte kan se — den följer fortfarande."""
+    planned = [{"name": "Knäböj", "code": "back_squat", "sets": 3, "reps": 10,
+                "reps_min": 3, "reps_max": 6}]
+    logs = [_log("2026-08-25", weight=60.0, reps=6, effort=1)]
+    out = apply_suggestions(planned, logs, coach_prescribed=True)
+    assert out[0]["reps"] == 10                      # inte spannets golv
+    assert out[0]["weight_from"] == 62.5             # vikten rör sig ändå
+    assert "Reps enligt coachens pass: 10" in out[0]["suggestion"]["reason"]
+
+
+def test_genererat_pass_far_reps_flyttade():
+    planned = [{"name": "Knäböj", "code": "back_squat", "sets": 3, "reps": 5,
+                "reps_min": 3, "reps_max": 6}]
+    logs = [_log("2026-08-25", weight=60.0, reps=6, effort=1)]
+    out = apply_suggestions(planned, logs, coach_prescribed=False)
+    assert out[0]["reps"] == 3
+
+
+# ---------- övningar utan rep-tal ----------
+
+
+def test_ovning_utan_reptal_far_inget_pahittat():
+    """Dödhäng "till nära utmattning" har inget rep-tal. Att hitta på 8 och
+    räkna progression på det vore att föreslå åtta dödhäng."""
+    s = suggest_next({"name": "Dödhäng", "sets": 4, "load": "kroppsvikt"}, [{
+        "session_date": "2026-09-07", "exercise_name": "Dödhäng",
+        "sets": 4, "reps": None, "weight_from": None, "effort": 1,
+    }])
+    assert s.reps is None
+    assert s.weight is None
+    assert "Inget rep-tal" in s.reason and "Öka tid" in s.reason
+
+
+def test_ovning_utan_reptal_men_med_vikt_foljer_vikten():
+    """Farmer's walk: sträcka i noten, men vikten är mätbar och progredierar."""
+    s = suggest_next({"name": "Farmer's walk", "sets": 3, "load": "hantlar"}, [{
+        "session_date": "2026-09-07", "exercise_name": "Farmer's walk",
+        "sets": 3, "reps": None, "weight_from": 24.0, "effort": 1,
+    }])
+    assert s.reps is None
+    assert s.weight == 25.0          # 24 × 1,05 = 25,2 → närmaste hantelsteg
+    assert s.trend == "up"
+
+
+def test_forsta_gangen_utan_reptal_hittar_inte_pa_reps():
+    s = suggest_next({"name": "Dödhäng", "sets": 4, "load": "kroppsvikt"}, [])
+    assert s.reps is None
+
+
 # ---------- övningar utanför planen ----------
 
 
