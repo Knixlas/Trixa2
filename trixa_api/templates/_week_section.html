@@ -12,16 +12,7 @@
   'yoga':     ['leaf',       'var(--orchid)'],
   'rest':     ['moon',       'var(--ink-3)']
 } %}
-{# Plan-vs-actual-status → temats badge-klass/stil + accentfärg för actual-raden #}
-{% set statusbadge = {
-  'done':        ['badge', 'background: var(--palm-soft); color: var(--palm-deep);', 'var(--palm)'],
-  'rest_ok':     ['badge', 'background: var(--palm-soft); color: var(--palm-deep);', 'var(--palm)'],
-  'deviated':    ['badge warning',  '', 'var(--mango)'],
-  'rest_broken': ['badge warning',  '', 'var(--mango)'],
-  'missed':      ['badge critical', '', 'var(--coral)'],
-  'planned':     ['badge info',     '', 'var(--lagoon)'],
-  'today':       ['badge',          '', 'var(--ink-3)']
-} %}
+{# Plan-vs-actual-status: klass/stil/accent bärs av status-dicten (ui._STATUS). #}
 
 <section>
   <h2>{{ week_label }}{% if week %} — {{ week.week_start }}{% endif %}</h2>
@@ -83,8 +74,8 @@
         <div class="workout-date">{{ w.date }} · {{ w.sport }}</div>
         <strong>{{ w.title }}</strong>
         <div style="margin: 2px 0 6px; display: flex; gap: 5px; flex-wrap: wrap;">
-          {% if w.status %}{% set sb = statusbadge.get(w.status.key, ['badge', '', 'var(--ink-3)']) %}
-          <span class="{{ sb[0] }}" style="{{ sb[1] }}" title="{{ w.status.label }}">{{ w.status.emoji }} {{ w.status.label }}</span>{% endif %}
+          {% if w.status %}
+          <span class="{{ w.status.css or 'badge' }}" style="{{ w.status.style or '' }}" title="{{ w.status.label }}">{{ w.status.emoji }} {{ w.status.label }}</span>{% endif %}
           {% if w.is_manual %}<span class="badge" style="background: var(--orchid-soft); color: var(--orchid);" title="Adept-skapat pass">✋ Eget pass</span>{% endif %}
         </div>
         <div class="workout-meta">
@@ -101,7 +92,7 @@
 
         {# Faktiskt utfört (plan vs actual) under den alltid synliga plan-titeln #}
         {% if w.status and w.status.actual %}
-        {% set acc = statusbadge.get(w.status.key, ['badge', '', 'var(--ink-3)'])[2] %}
+        {% set acc = w.status.accent or 'var(--ink-3)' %}
         <details style="border-left: 3px solid {{ acc }}; padding-left: 10px; margin-top: 8px;">
           <summary>{{ w.status.actual.summary }}</summary>
           <ul style="font-size: 13px; color: var(--ink-3); margin: 6px 0; padding-left: 18px;">
@@ -339,7 +330,7 @@
         {% endif %}
 
         {# Justera planerat trixa2-pass: byt variant eller gren (Codex go-live). #}
-        {% if w.origin == "trixa2" and w.sport not in ("rest", "brick") %}
+        {% if w.can_swap %}
         <details style="margin-top: 8px;">
           <summary>Justera passet</summary>
           <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px;">

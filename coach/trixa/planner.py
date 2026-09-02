@@ -60,7 +60,7 @@ from coach.engine.workouts import (
     select_workout_types,
 )
 from coach.engine.workouts import workout_type_decisions
-from coach.trixa import sports
+from coach.trixa import origins, sports
 from coach.trixa.db import get_supabase
 from coach.trixa.exercise_plan import exercises_from_steps
 from coach.trixa.training_log import dedup_cross_source
@@ -229,7 +229,7 @@ def _human_planned_sessions(
     return [
         row for row in (res.data or [])
         if row.get("status") != "cancelled"
-        and (row.get("origin") or "") != "trixa2"
+        and origins.is_human(row.get("origin"))
     ]
 
 
@@ -1589,7 +1589,7 @@ def _persist_to_planned_sessions(client, plan: WeekPlan, user_id: str) -> dict:
         client.table("planned_sessions")
         .select("id,date,status")
         .eq("user_id", user_id)
-        .eq("origin", "trixa2")
+        .eq("origin", origins.ENGINE)
         .gte("date", week_start.isoformat())
         .lte("date", week_end)
         .execute()
@@ -1630,7 +1630,7 @@ def _persist_to_planned_sessions(client, plan: WeekPlan, user_id: str) -> dict:
                 .update(payload)
                 .eq("id", current["id"])
                 .eq("user_id", user_id)
-                .eq("origin", "trixa2")
+                .eq("origin", origins.ENGINE)
                 .execute()
             )
             used_ids.add(str(current["id"]))
@@ -1648,7 +1648,7 @@ def _persist_to_planned_sessions(client, plan: WeekPlan, user_id: str) -> dict:
             .update({"status": "cancelled"})
             .eq("id", row["id"])
             .eq("user_id", user_id)
-            .eq("origin", "trixa2")
+            .eq("origin", origins.ENGINE)
             .execute()
         )
         cancelled += 1
@@ -1864,6 +1864,210 @@ def _push_to_trainingpeaks(
 # ---------- Huvudfunktion ----------
 
 
+def _trace_data_sources(
+    actual_weekly_hours: float | None, athlete: dict,
+    garmin_metrics: list[dict] | None, ot_signals: OvertrainingSignals,
+) -> dict:
+    """Vad motorn såg av TP-cache och utförd volym — för spårbarhet i decisions."""
+    latest = garmin_metrics[0] if garmin_metrics else {}
+    return {
+        "actual_weekly_hours_4w_avg": (
+            round(actual_weekly_hours, 1) if actual_weekly_hours else None
+        ),
+        "declared_weekly_hours": float(athlete.get("weekly_hours") or 0),
+        "garmin_metrics_days": len(garmin_metrics) if garmin_metrics else 0,
+        "latest_metric_date": latest.get("metric_date"),
+        "latest_hrv": latest.get("hrv_last_night_ms"),
+        "latest_sleep_score": latest.get("sleep_score"),
+        "latest_readiness": latest.get("readiness_score"),
+        "ot_signals": {
+            "rhr_bpm_over_baseline": ot_signals.rhr_bpm_over_baseline,
+            "hrv_pct_below_baseline": ot_signals.hrv_pct_below_baseline,
+            "sleep_score_avg_7d": ot_signals.sleep_score_avg_7d,
+            "sleep_consecutive_low_days": ot_signals.sleep_consecutive_low_days,
+            "readiness_score": ot_signals.readiness_score,
+            "consecutive_high_load_weeks": ot_signals.consecutive_high_load_weeks,
+        },
+    }
+
+
+def _select_week_workouts(
+    decisions: dict, athlete: dict, athlete_id: str, week_start: date,
+    recent_workouts: list[dict], active_sports: list[str],
+    partial_disciplines: set[str], blocked_by_injury: list[str], raw_sports: list[str],
+    impacts: dict,
+) -> SimpleNamespace:
+    """Steg 4 i generate_week: välj konditions- och styrkepass ur passbanken.
+
+    Utbruten ur en 380-raders funktion (docs/12 I12). Samma rader som förut,
+    minus ett dött if-block som såg ut som skadehanteringen men inte var det.
+    """
+    phase = decisions["phase_recommendation"]["phase"]
+    period = decisions["phase_recommendation"]["period"]
+    categories = decisions["categories"]
+    workouts_pool = load_workouts()
+    drills = load_drills()
+    strength_exercises = load_strength_exercises()
+    recent_codes = {w.get("workout_code") for w in recent_workouts if w.get("workout_code")}
+    rng = random.Random(_seed_for(athlete_id, week_start))
+    phase_filter = _phase_filter_value(phase, period)
+    equipment = athlete.get("equipment") or {}
+    preferred_settings = athlete.get("preferred_settings") or {}
+
+    selected: list[dict] = []
+    warnings: list[str] = []
+    for disc in blocked_by_injury:
+        warnings.append(
+            f"{disc} skippad denna vecka — skada med impact=full"
+        )
+    for cat in categories:
+        # I disciplin med partial impact: skippa hårda kategorier, behåll bara AE
+        for disc in active_sports:
+            if disc in partial_disciplines and cat in ("ME", "AC", "MF", "TE", "SS"):
+                # Hård träning i partial-disciplin hoppas här; AE-reserven
+                # nedan ser till att grenen ändå får ett pass.
+                continue
+            # BW (brick) är sin egen disciplin i passbanken (brick_*.yaml).
+            # Väljs en gång per vecka (via bike-iterationen) och kräver att
+            # både bike och run är aktiva — det ÄR bike följt av run.
+            if cat == "BW":
+                if disc != "bike" or "run" not in active_sports:
+                    continue
+                lookup_disc = "brick"
+            else:
+                lookup_disc = disc
+            chosen = _select_workout_for(
+                cat, lookup_disc, phase_filter, workouts_pool, recent_codes, rng,
+                equipment=equipment, preferred_settings=preferred_settings,
+            )
+            if chosen is None:
+                warnings.append(
+                    f"Inget pass i passbanken matchar {cat} + {disc} + {phase_filter}"
+                )
+                continue
+            selected.append(chosen)
+
+    # För partial-disciplin: säkerställ att det finns minst ett AE-pass
+    # (om engine inte sa AE explicit har vi nu inga pass alls för den disc)
+    for disc in partial_disciplines:
+        if disc in active_sports and not any(
+            w.get("discipline") == disc for w in selected
+        ):
+            ae_pass = _select_workout_for(
+                "AE", disc, phase_filter, workouts_pool, recent_codes, rng,
+                equipment=equipment, preferred_settings=preferred_settings,
+            )
+            if ae_pass:
+                selected.append(ae_pass)
+                warnings.append(
+                    f"{disc}: hårda pass utbytta mot AE pga partial skadeimpact"
+                )
+
+    strength_workout = None
+    if "strength" in raw_sports and impacts.get("strength") != "full":
+        protocol = decisions["strength_protocol"]
+        protocol_type = "SM" if protocol == "light_maintenance" else protocol
+        strength_candidates = [
+            w for w in workouts_pool
+            if w.get("discipline") == "strength"
+            and w.get("type_code") == protocol_type
+            and phase_filter in (w.get("phase_appropriate") or [])
+        ]
+        if strength_candidates:
+            fresh = [
+                w for w in strength_candidates
+                if w.get("code") not in recent_codes
+            ]
+            strength_workout = rng.choice(fresh or strength_candidates)
+        else:
+            warnings.append(
+                f"Inget styrkepass matchar protokoll {protocol} + {phase_filter}"
+            )
+    elif "strength" in raw_sports and impacts.get("strength") == "full":
+        warnings.append("strength skippad denna vecka — skada med impact=full")
+    return SimpleNamespace(
+        selected=selected, strength_workout=strength_workout, warnings=warnings,
+        drills=drills, strength_exercises=strength_exercises,
+        equipment=equipment, preferred_settings=preferred_settings,
+    )
+
+
+def _persist_week(
+    client, plan: "WeekPlan", athlete: dict, athlete_id: str, athlete_user_id: str,
+    week_start: date, honored: list[dict], phase: str, period: str | None,
+    weeks_in_phase: int, zones_profile, today: date,
+) -> None:
+    """Steg 6 i generate_week: fem skrivningar med ett gemensamt felkontrakt.
+
+    planned_sessions först — landar den inte kastas felet och inget annat
+    avanceras. Övriga (overrides, phase_state, alerts, TP-push) är
+    best-effort och rapporterar i engine_decisions. Utbruten (docs/12 I12).
+    """
+    # MASTER-persist: planen skrivs till planned_sessions (docs/08 steg 4-7).
+    # De gamla engine-tabellerna (workouts/training_weeks/training_plans)
+    # skrivs INTE längre — planned_sessions är enda plan-källan.
+    # Landar inte planen ska inget annat avanceras: förut sväljdes felet
+    # här, phase_state räknades upp, ett plan_generated-alert skrevs och
+    # cron loggade "Klar" — adepten öppnade en tom vecka på måndagen
+    # medan coachens inkorg sade att en plan fanns.
+    try:
+        persist_result = _persist_to_planned_sessions(
+            client, plan, athlete_user_id
+        )
+    except Exception:
+        logger.exception(
+            "Kunde inte skriva veckan %s för %s till planned_sessions",
+            week_start.isoformat(), athlete_user_id,
+        )
+        raise
+    plan.engine_decisions["planned_sessions_written"] = persist_result["written"]
+    plan.engine_decisions["planned_sessions_persist"] = persist_result
+
+    # Stäng honoring-loopen för respekterade overrides.
+    plan.engine_decisions["overrides_honored_marked"] = _mark_overrides_honored(
+        client, honored
+    )
+
+    # Skriv tillbaka phase_state så vilovecko-cykeln räknar vidare nästa
+    # vecka (re-körning av samma vecka ökar inte räknaren — se
+    # _resolve_period_position). Trixa-lagret skriver; engine läser bara.
+    new_phase_state = {
+        **(athlete.get("phase_state") or {}),
+        "current_phase": phase,
+        "period": period,
+        "weeks_in_phase": weeks_in_phase,
+        "last_planned_week_start": week_start.isoformat(),
+        "updated_at": datetime.now(timezone.utc).isoformat(),
+    }
+    try:
+        client.table("athlete_profiles").update(
+            {"phase_state": new_phase_state}
+        ).eq("id", athlete_id).execute()
+        plan.engine_decisions["phase_state_written"] = new_phase_state
+    except Exception as exc:  # noqa: BLE001
+        plan.engine_decisions["phase_state_error"] = str(exc)
+
+    # Skriv strukturerade alerts till coach_alerts
+    from coach.trixa.alerts import build_alerts, persist_alerts
+
+    alerts = build_alerts(plan, athlete, today)
+    if alerts:
+        inserted = persist_alerts(
+            client,
+            alerts,
+            athlete_id=athlete_id,
+            athlete_user_id=athlete_user_id,
+        )
+        plan.engine_decisions["alerts_written"] = len(inserted)
+
+    # 6b. Pusha planerade pass till TrainingPeaks (TP→Garmin AutoSync → klockan).
+    # Best-effort + gated på TRIXA_PUSH_TO_TP. Plan-persisteringen ovan är klar
+    # och får inte påverkas av ev. TP-fel.
+    plan.engine_decisions["tp_push"] = _push_to_trainingpeaks(
+        plan, zones_profile, client, athlete_user_id
+    )
+
+
 def generate_week(
     athlete_user_id: str,
     week_start: date,
@@ -1965,33 +2169,9 @@ def generate_week(
     honored = phase_honored + honored
 
     # Spårbarhet: visa vad Trixa ser av TP-cache och utförd mastervolym.
-    decisions["_data_sources"] = {
-        "actual_weekly_hours_4w_avg": (
-            round(actual_weekly_hours, 1) if actual_weekly_hours else None
-        ),
-        "declared_weekly_hours": float(athlete.get("weekly_hours") or 0),
-        "garmin_metrics_days": len(garmin_metrics) if garmin_metrics else 0,
-        "latest_metric_date": (
-            garmin_metrics[0].get("metric_date") if garmin_metrics else None
-        ),
-        "latest_hrv": (
-            garmin_metrics[0].get("hrv_last_night_ms") if garmin_metrics else None
-        ),
-        "latest_sleep_score": (
-            garmin_metrics[0].get("sleep_score") if garmin_metrics else None
-        ),
-        "latest_readiness": (
-            garmin_metrics[0].get("readiness_score") if garmin_metrics else None
-        ),
-        "ot_signals": {
-            "rhr_bpm_over_baseline": ot_signals.rhr_bpm_over_baseline,
-            "hrv_pct_below_baseline": ot_signals.hrv_pct_below_baseline,
-            "sleep_score_avg_7d": ot_signals.sleep_score_avg_7d,
-            "sleep_consecutive_low_days": ot_signals.sleep_consecutive_low_days,
-            "readiness_score": ot_signals.readiness_score,
-            "consecutive_high_load_weeks": ot_signals.consecutive_high_load_weeks,
-        },
-    }
+    decisions["_data_sources"] = _trace_data_sources(
+        actual_weekly_hours, athlete, garmin_metrics, ot_signals
+    )
 
     # Volym-gap-varning
     if (
@@ -2027,90 +2207,14 @@ def generate_week(
     decisions["discipline_hours"] = discipline_hours
     decisions["_active_sports"] = active_sports
 
-    # 4. Välj pass från passbanken
-    workouts_pool = load_workouts()
-    drills = load_drills()  # noqa: F841 — används av render om vi vill rendra här
-    strength_exercises = load_strength_exercises()
-    recent_codes = {w.get("workout_code") for w in recent_workouts if w.get("workout_code")}
-    rng = random.Random(_seed_for(athlete_id, week_start))
-    phase_filter = _phase_filter_value(phase, period)
-    equipment = athlete.get("equipment") or {}
-    preferred_settings = athlete.get("preferred_settings") or {}
-
-    selected: list[dict] = []
-    warnings: list[str] = []
-    for disc in blocked_by_injury:
-        warnings.append(
-            f"{disc} skippad denna vecka — skada med impact=full"
-        )
-    for cat in categories:
-        # I disciplin med partial impact: skippa hårda kategorier, behåll bara AE
-        effective_cats_per_disc = {disc: cat for disc in active_sports}
-        for disc, effective_cat in effective_cats_per_disc.items():
-            if disc in partial_disciplines and cat in ("ME", "AC", "MF", "TE", "SS"):
-                # Hård träning i partial-disciplin → ersätt med AE-volym
-                if "AE" not in categories:
-                    # Lägg ändå till AE-pass — engine sa inte AE men skada kräver det
-                    pass
-                continue
-            # BW (brick) är sin egen disciplin i passbanken (brick_*.yaml).
-            # Väljs en gång per vecka (via bike-iterationen) och kräver att
-            # både bike och run är aktiva — det ÄR bike följt av run.
-            if cat == "BW":
-                if disc != "bike" or "run" not in active_sports:
-                    continue
-                lookup_disc = "brick"
-            else:
-                lookup_disc = disc
-            chosen = _select_workout_for(
-                cat, lookup_disc, phase_filter, workouts_pool, recent_codes, rng,
-                equipment=equipment, preferred_settings=preferred_settings,
-            )
-            if chosen is None:
-                warnings.append(
-                    f"Inget pass i passbanken matchar {cat} + {disc} + {phase_filter}"
-                )
-                continue
-            selected.append(chosen)
-
-    # För partial-disciplin: säkerställ att det finns minst ett AE-pass
-    # (om engine inte sa AE explicit har vi nu inga pass alls för den disc)
-    for disc in partial_disciplines:
-        if disc in active_sports and not any(
-            w.get("discipline") == disc for w in selected
-        ):
-            ae_pass = _select_workout_for(
-                "AE", disc, phase_filter, workouts_pool, recent_codes, rng,
-                equipment=equipment, preferred_settings=preferred_settings,
-            )
-            if ae_pass:
-                selected.append(ae_pass)
-                warnings.append(
-                    f"{disc}: hårda pass utbytta mot AE pga partial skadeimpact"
-                )
-
-    strength_workout = None
-    if "strength" in raw_sports and impacts.get("strength") != "full":
-        protocol = decisions["strength_protocol"]
-        protocol_type = "SM" if protocol == "light_maintenance" else protocol
-        strength_candidates = [
-            w for w in workouts_pool
-            if w.get("discipline") == "strength"
-            and w.get("type_code") == protocol_type
-            and phase_filter in (w.get("phase_appropriate") or [])
-        ]
-        if strength_candidates:
-            fresh = [
-                w for w in strength_candidates
-                if w.get("code") not in recent_codes
-            ]
-            strength_workout = rng.choice(fresh or strength_candidates)
-        else:
-            warnings.append(
-                f"Inget styrkepass matchar protokoll {protocol} + {phase_filter}"
-            )
-    elif "strength" in raw_sports and impacts.get("strength") == "full":
-        warnings.append("strength skippad denna vecka — skada med impact=full")
+    # 4. Välj pass från passbanken (utbrutet: _select_week_workouts)
+    picked = _select_week_workouts(
+        decisions, athlete, athlete_id, week_start, recent_workouts,
+        active_sports, partial_disciplines, blocked_by_injury, raw_sports, impacts,
+    )
+    selected, strength_workout, warnings = picked.selected, picked.strength_workout, picked.warnings
+    drills, strength_exercises = picked.drills, picked.strength_exercises
+    equipment, preferred_settings = picked.equipment, picked.preferred_settings
 
     # 5. Schemalägg på dagar — läs adept-preferenser från athlete-row
     long_bike_day = athlete.get("long_bike_day")  # None = "spelar ingen roll"
@@ -2193,70 +2297,11 @@ def generate_week(
         warnings=warnings,
     )
 
-    # 6. Persist om inte dry-run
+    # 6. Persist om inte dry-run (utbrutet: _persist_week)
     if not dry_run:
-        # MASTER-persist: planen skrivs till planned_sessions (docs/08 steg 4-7).
-        # De gamla engine-tabellerna (workouts/training_weeks/training_plans)
-        # skrivs INTE längre — planned_sessions är enda plan-källan.
-        # Landar inte planen ska inget annat avanceras: förut sväljdes felet
-        # här, phase_state räknades upp, ett plan_generated-alert skrevs och
-        # cron loggade "Klar" — adepten öppnade en tom vecka på måndagen
-        # medan coachens inkorg sade att en plan fanns.
-        try:
-            persist_result = _persist_to_planned_sessions(
-                client, plan, athlete_user_id
-            )
-        except Exception:
-            logger.exception(
-                "Kunde inte skriva veckan %s för %s till planned_sessions",
-                week_start.isoformat(), athlete_user_id,
-            )
-            raise
-        plan.engine_decisions["planned_sessions_written"] = persist_result["written"]
-        plan.engine_decisions["planned_sessions_persist"] = persist_result
-
-        # Stäng honoring-loopen för respekterade overrides.
-        plan.engine_decisions["overrides_honored_marked"] = _mark_overrides_honored(
-            client, honored
-        )
-
-        # Skriv tillbaka phase_state så vilovecko-cykeln räknar vidare nästa
-        # vecka (re-körning av samma vecka ökar inte räknaren — se
-        # _resolve_period_position). Trixa-lagret skriver; engine läser bara.
-        new_phase_state = {
-            **(athlete.get("phase_state") or {}),
-            "current_phase": phase,
-            "period": period,
-            "weeks_in_phase": weeks_in_phase,
-            "last_planned_week_start": week_start.isoformat(),
-            "updated_at": datetime.now(timezone.utc).isoformat(),
-        }
-        try:
-            client.table("athlete_profiles").update(
-                {"phase_state": new_phase_state}
-            ).eq("id", athlete_id).execute()
-            plan.engine_decisions["phase_state_written"] = new_phase_state
-        except Exception as exc:  # noqa: BLE001
-            plan.engine_decisions["phase_state_error"] = str(exc)
-
-        # Skriv strukturerade alerts till coach_alerts
-        from coach.trixa.alerts import build_alerts, persist_alerts
-
-        alerts = build_alerts(plan, athlete, today)
-        if alerts:
-            inserted = persist_alerts(
-                client,
-                alerts,
-                athlete_id=athlete_id,
-                athlete_user_id=athlete_user_id,
-            )
-            plan.engine_decisions["alerts_written"] = len(inserted)
-
-        # 6b. Pusha planerade pass till TrainingPeaks (TP→Garmin AutoSync → klockan).
-        # Best-effort + gated på TRIXA_PUSH_TO_TP. Plan-persisteringen ovan är klar
-        # och får inte påverkas av ev. TP-fel.
-        plan.engine_decisions["tp_push"] = _push_to_trainingpeaks(
-            plan, zones_profile, client, athlete_user_id
+        _persist_week(
+            client, plan, athlete, athlete_id, athlete_user_id, week_start,
+            honored, phase, period, weeks_in_phase, zones_profile, today,
         )
 
     return plan
@@ -2305,7 +2350,7 @@ def swap_workout_code(
         .select("*")
         .eq("id", workout_db_id)
         .eq("user_id", user_id)
-        .eq("origin", "trixa2")
+        .eq("origin", origins.ENGINE)
         .execute()
     )
     if not res.data:
@@ -2345,7 +2390,7 @@ def swap_workout_code(
         .update(update)
         .eq("id", workout_db_id)
         .eq("user_id", user_id)
-        .eq("origin", "trixa2")
+        .eq("origin", origins.ENGINE)
         .execute()
     )
     return upd.data[0] if upd.data else {}
@@ -2362,7 +2407,7 @@ def swap_workout_to_next_alternative(
         .select("*")
         .eq("id", workout_db_id)
         .eq("user_id", user_id)
-        .eq("origin", "trixa2")
+        .eq("origin", origins.ENGINE)
         .execute()
     )
     if not res.data:
@@ -2426,7 +2471,7 @@ def swap_workout_discipline_and_replan(
         .select("*")
         .eq("id", workout_db_id)
         .eq("user_id", user_id)
-        .eq("origin", "trixa2")
+        .eq("origin", origins.ENGINE)
         .execute()
     )
     if not res.data:

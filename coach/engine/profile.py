@@ -13,6 +13,8 @@ Använd `profile_from_athlete_row()` när du redan har athlete_profiles-raden
 
 from __future__ import annotations
 
+from coach.engine.numbers import to_float, to_int
+
 from pathlib import Path
 from typing import Any, Callable
 
@@ -320,18 +322,8 @@ def load_profile(
 
 
 def _as_float(value: Any) -> float | None:
-    if value is None:
-        return None
-    try:
-        return float(value)
-    except (TypeError, ValueError):
-        return None
+    return to_float(value)
 
 
 def _as_int(value: Any) -> int | None:
-    if value is None:
-        return None
-    try:
-        return int(value)
-    except (TypeError, ValueError):
-        return None
+    return to_int(value)

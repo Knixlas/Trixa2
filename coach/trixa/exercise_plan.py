@@ -20,6 +20,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from coach.engine.numbers import to_int
+
 
 def _scalar(value: Any) -> Any:
     """Passbankens tal kan vara mallar: {"range": [4, 10], "default": 6}."""
@@ -33,11 +35,7 @@ def _scalar(value: Any) -> Any:
 
 
 def _int_or_none(value: Any) -> int | None:
-    value = _scalar(value)
-    try:
-        return int(value)
-    except (TypeError, ValueError):
-        return None
+    return to_int(_scalar(value))
 
 
 def _rep_bounds(value: Any, fallback: Any = None) -> tuple[int | None, int | None]:

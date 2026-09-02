@@ -19,7 +19,7 @@ from pydantic import BaseModel, Field
 
 from functools import lru_cache
 
-from coach.trixa import clock, sports
+from coach.trixa import clock, origins, sports
 from coach.trixa.db import get_postgrest
 from coach.trixa.exercise_plan import normalize_exercises, planned_exercises
 from coach.trixa.strength_progression import apply_suggestions
@@ -255,7 +255,7 @@ def _week_plan(client, user_id: str, monday: date_type) -> dict:
             "exercises": apply_suggestions(
                 planned_exercises(w, _exercise_catalogue()),
                 [h for h in history if str(h.get("session_date"))[:10] < str(w["date"])[:10]],
-                coach_prescribed=(w.get("origin") or "") != "trixa2",
+                coach_prescribed=origins.reps_prescribed(w.get("origin")),
             ),
             "status": w.get("status") or "",
             "origin": w.get("origin") or "",

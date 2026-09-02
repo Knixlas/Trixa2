@@ -24,7 +24,8 @@ from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 from coach.trixa import clock
 from coach.engine.overtraining import acwr_thresholds
-from coach.trixa import sports
+from coach.trixa import origins, sports
+from coach.engine.numbers import to_float, to_int
 from coach.trixa.config import default_user_id
 from coach.trixa.db import get_postgrest
 from coach.trixa.exercise_plan import planned_exercises
@@ -82,22 +83,13 @@ def _render(template_name: str, context: dict, status_code: int = 200) -> HTMLRe
     return HTMLResponse(content=html, status_code=status_code)
 
 
+# Talhjälpare: en uppsättning i coach/trixa/numbers.py (docs/12 I10).
 def _safe_float(value, default: float = 0.0) -> float:
-    try:
-        if value in (None, ""):
-            return default
-        return float(value)
-    except (TypeError, ValueError):
-        return default
+    return to_float(value, default)
 
 
 def _safe_int(value, default: int = 0) -> int:
-    try:
-        if value in (None, ""):
-            return default
-        return int(float(value))
-    except (TypeError, ValueError):
-        return default
+    return to_int(value, default)
 
 
 # Default-adept-id för MVP — Niklas. När vi har auth byts detta till cookien.
@@ -1345,14 +1337,18 @@ def dashboard(request: Request) -> HTMLResponse:
 
 # Statusdefinitioner: emoji + label + badge-färger. Färgerna ligger inline här
 # (inte i base.html) för att hålla hela ändringen i UI-skiktets två filer.
+# Status → etikett + hur den ritas. Mallen läser css/style/accent härifrån;
+# förut bar den en egen tabell över samma nycklar medan bg/fg här var döda
+# (docs/12 I11). En ny status läggs till på ETT ställe.
+_OK_STYLE = "background: var(--palm-soft); color: var(--palm-deep);"
 _STATUS = {
-    "done":        {"emoji": "🟢", "label": "Genomförd",          "bg": "#d1fae5", "fg": "#065f46"},
-    "deviated":    {"emoji": "🟡", "label": "Avviken",            "bg": "#fef3c7", "fg": "#92400e"},
-    "missed":      {"emoji": "🔴", "label": "Missad",             "bg": "#fee2e2", "fg": "#991b1b"},
-    "planned":     {"emoji": "🔵", "label": "Planerad",           "bg": "#dbeafe", "fg": "#1e40af"},
-    "today":       {"emoji": "⚪", "label": "Idag",               "bg": "#e5e7eb", "fg": "#374151"},
-    "rest_ok":     {"emoji": "🟢", "label": "Vila hållen",        "bg": "#d1fae5", "fg": "#065f46"},
-    "rest_broken": {"emoji": "🟡", "label": "Tränade på vilodag", "bg": "#fef3c7", "fg": "#92400e"},
+    "done":        {"emoji": "🟢", "label": "Genomförd",          "css": "badge", "style": _OK_STYLE, "accent": "var(--palm)"},
+    "deviated":    {"emoji": "🟡", "label": "Avviken",            "css": "badge warning", "style": "", "accent": "var(--mango)"},
+    "missed":      {"emoji": "🔴", "label": "Missad",             "css": "badge critical", "style": "", "accent": "var(--coral)"},
+    "planned":     {"emoji": "🔵", "label": "Planerad",           "css": "badge info", "style": "", "accent": "var(--lagoon)"},
+    "today":       {"emoji": "⚪", "label": "Idag",               "css": "badge", "style": "", "accent": "var(--ink-3)"},
+    "rest_ok":     {"emoji": "🟢", "label": "Vila hållen",        "css": "badge", "style": _OK_STYLE, "accent": "var(--palm)"},
+    "rest_broken": {"emoji": "🟡", "label": "Tränade på vilodag", "css": "badge warning", "style": "", "accent": "var(--mango)"},
 }
 
 _DURATION_TOLERANCE = 0.30  # ±30 % räknas som "genomförd som planerat"
@@ -1680,7 +1676,7 @@ def _attach_strength_logs(client, week: dict, user_id: str, pre: dict | None = N
         # Coachens (eller adeptens egna) rep-tal är en föreskrift; bara
         # passbankens genererade pass får sina reps flyttade av progressionen.
         w["exercises_to_log"] = apply_suggestions(
-            todo, relevant, coach_prescribed=(w.get("origin") or "") != "trixa2"
+            todo, relevant, coach_prescribed=origins.reps_prescribed(w.get("origin"))
         )
 
 
@@ -1779,14 +1775,7 @@ def _fetch_current_week_data(
     if not sessions:
         return None
 
-    has_coach_rows = any((ps.get("origin") or "") == "nils" for ps in sessions)
-    has_engine_rows = any((ps.get("origin") or "") == "trixa2" for ps in sessions)
-    if has_coach_rows and has_engine_rows:
-        plan_source = "mixed"
-    elif has_coach_rows:
-        plan_source = "coach"
-    else:
-        plan_source = "engine"
+    plan_source = origins.plan_source(sessions)
 
     week = {
         "id": None,
@@ -1822,7 +1811,8 @@ def _fetch_current_week_data(
             "intensity": ps.get("intensity") or ps.get("purpose") or "",
             "notes": ps.get("details") or "", "steps": _display_steps(ps.get("steps")),
             "coach_notes": "",
-            "is_manual": (ps.get("origin") or "") == "manual",
+            "is_manual": origins.athlete_deletable(ps.get("origin")),
+            "can_swap": origins.swappable(ps.get("origin"), sport),
             "origin": ps.get("origin") or "",
             # Äldre rader (och rader från skrivare som bara fyllt steps) bär
             # övningarna i main_set — härled listan så loggen kan förifyllas
@@ -2588,12 +2578,7 @@ _SPORT_LABEL = {k: s.sv for k, s in sports.SPORTS.items()}
 
 def _fnum(v) -> float | None:
     """daily_metrics levererar numerics som strängar — tolerant float."""
-    if v is None:
-        return None
-    try:
-        return float(v)
-    except (TypeError, ValueError):
-        return None
+    return to_float(v)
 
 
 def _latest_value(metrics: list[dict], key: str):
@@ -3214,7 +3199,7 @@ def workout_delete_custom(request: Request, workout_id: str) -> Any:
         .delete()
         .eq("id", workout_id)
         .eq("user_id", user_id)
-        .eq("origin", "manual")
+        .eq("origin", origins.ATHLETE)
         .execute()
     )
     return RedirectResponse(url="/ui/", status_code=303)
