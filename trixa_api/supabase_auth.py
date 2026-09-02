@@ -16,6 +16,9 @@ import requests
 
 from coach.trixa.db import _load_env
 
+import hashlib
+import time
+
 _TIMEOUT = 15
 
 
@@ -104,10 +107,24 @@ def sign_up(email: str, password: str, name: str | None = None) -> tuple[dict | 
     return None, "Kunde inte skapa kontot. Kontrollera uppgifterna och försök igen."
 
 
+# Verifierad token → (user_id, giltig till). Varje /ui-anrop gjorde förut ett
+# HTTP-anrop till Supabase Auth bara för att läsa ut user-id ur en JWT som
+# inte ändrats sedan förra anropet en sekund tidigare (docs/12 H2). En kort
+# TTL räcker: en återkallad session slår igenom inom en minut, och det är
+# samma fönster som access-tokenens egen livslängd rör sig i.
+_VERIFIED: dict[str, tuple[str, float]] = {}
+_VERIFY_TTL_SEC = 60.0
+_VERIFY_MAX = 512
+
+
 def get_user_id(access_token: str) -> str | None:
     """Verifiera en access_token mot Supabase och returnera user-id, annars None."""
     if not access_token:
         return None
+    cache_key = hashlib.sha256(access_token.encode("utf-8")).hexdigest()
+    hit = _VERIFIED.get(cache_key)
+    if hit and hit[1] > time.monotonic():
+        return hit[0]
     url, key = _base()
     try:
         r = requests.get(
@@ -118,8 +135,14 @@ def get_user_id(access_token: str) -> str | None:
     except requests.RequestException:
         return None
     if r.status_code != 200:
+        _VERIFIED.pop(cache_key, None)
         return None
-    return (r.json() or {}).get("id")
+    uid = (r.json() or {}).get("id")
+    if uid:
+        if len(_VERIFIED) >= _VERIFY_MAX:
+            _VERIFIED.clear()
+        _VERIFIED[cache_key] = (uid, time.monotonic() + _VERIFY_TTL_SEC)
+    return uid
 
 
 def refresh_session(refresh_token: str) -> dict | None:

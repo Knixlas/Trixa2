@@ -104,7 +104,7 @@ def resolve_agent_scope(request: Request) -> AgentScope:
     try:
         res = (
             client.table("api_tokens")
-            .select("id, user_id, name, revoked_at")
+            .select("id, user_id, name, revoked_at, last_used_at")
             .eq("token_hash", hash_token(raw))
             .limit(1)
             .execute()
@@ -125,12 +125,25 @@ def resolve_agent_scope(request: Request) -> AgentScope:
             headers=unauthorized_headers(request),
         )
     row = rows[0]
+    # last_used_at är en indikation ("använd nyligen"), inte en logg. En
+    # UPDATE per verktygsanrop — claude.ai gör tre-fyra per tur — var en
+    # radskrivning för ingenting (docs/12 H6). Skriv bara om det är >5 min
+    # sedan sist.
     try:
-        from datetime import datetime, timezone
+        from datetime import datetime, timedelta, timezone
 
-        client.table("api_tokens").update(
-            {"last_used_at": datetime.now(timezone.utc).isoformat()}
-        ).eq("id", row["id"]).execute()
+        now = datetime.now(timezone.utc)
+        last = row.get("last_used_at")
+        stale = True
+        if last:
+            try:
+                stale = now - datetime.fromisoformat(str(last).replace("Z", "+00:00")) > timedelta(minutes=5)
+            except ValueError:
+                stale = True
+        if stale:
+            client.table("api_tokens").update(
+                {"last_used_at": now.isoformat()}
+            ).eq("id", row["id"]).execute()
     except Exception:  # noqa: BLE001 — best-effort, blockera aldrig anropet
         pass
     return AgentScope(user_id=row["user_id"], token_id=row["id"], name=row.get("name") or "")
