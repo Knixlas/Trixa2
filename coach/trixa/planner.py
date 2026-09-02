@@ -57,6 +57,7 @@ from coach.engine.workouts import (
     max_session_minutes,
     select_workout_types,
 )
+from coach.trixa import sports
 from coach.trixa.db import get_supabase
 from coach.trixa.exercise_plan import exercises_from_steps
 
@@ -1536,8 +1537,7 @@ def _scheduled_from_workout(
 #  togs bort 2026-07-02 — tabellerna droppades i datamodell-konsolideringen.)
 
 # Trixa2-disciplin → planned_sessions.sport (korrekt svenska, matchar Nils/dashboard).
-_PS_SPORT = {"swim": "Sim", "bike": "Cykel", "run": "Löpning",
-             "strength": "Styrka", "rest": "Vila", "brick": "Brick"}
+_PS_SPORT = {k: sports.sv(k) for k in sports.PLANNABLE_KEYS}
 
 
 def _planned_session_row(
@@ -2365,13 +2365,7 @@ def swap_workout_to_next_alternative(
     if not res.data:
         raise ValueError("Passet saknas eller ägs inte av användaren")
     old = res.data[0]
-    sport_map = {
-        "Sim": "swim", "Simning": "swim", "Cykel": "bike",
-        "Löpning": "run", "Lopning": "run", "Styrka": "strength",
-    }
-    discipline = sport_map.get(
-        old.get("sport"), (old.get("sport") or "").strip().lower()
-    )
+    discipline = sports.canon(old.get("sport"), "other") or "other"
     category = old.get("purpose") or (
         (old.get("workout_code") or "").split("_", 1)[0]
     )

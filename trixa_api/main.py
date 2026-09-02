@@ -25,6 +25,7 @@ from fastapi.staticfiles import StaticFiles
 from starlette.concurrency import run_in_threadpool
 
 from coach.engine.loader import load_workouts, load_drills
+from coach.trixa import sports
 from coach.trixa.db import get_postgrest
 from coach.trixa.planner import generate_week, render_plan_markdown
 from trixa_api import supabase_auth
@@ -324,11 +325,17 @@ def get_athlete(user_id: str) -> AthleteResponse:
 # ---------- Plan ----------
 
 # planned_sessions använder svenska sportnamn; API svarar med Trixas discipliner.
-_SV_EN_SPORT = {
-    "Cykel": "bike", "Cykling": "bike", "Löpning": "run", "Lopning": "run",
-    "Sim": "swim", "Simning": "swim", "Styrka": "strength", "Vila": "rest",
-    "Brick": "brick", "Yoga": "rest", "Promenad": "rest",
-}
+class _SvEnSportMap(dict):
+    """Svensk etikett → disciplin via registret (coach/trixa/sports.py).
+
+    Den handskrivna tabellen här hade kvar Yoga→rest efter att ui och
+    agent_api rättats — tre lager, tre svar."""
+
+    def get(self, key, default=None):  # noqa: D102
+        return sports.canon(key, default)
+
+
+_SV_EN_SPORT = _SvEnSportMap()
 
 
 @app.get(

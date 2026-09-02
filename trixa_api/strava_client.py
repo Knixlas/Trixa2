@@ -25,14 +25,19 @@ STRAVA_TOKEN_URL = "https://www.strava.com/oauth/token"
 STRAVA_API_BASE = "https://www.strava.com/api/v3"
 _TIMEOUT = 30
 
-# Strava activity_type → svenska namn som äldre strava_activities-reserven använder.
-SPORT_MAP = {
-    "Run": "Lopning", "TrailRun": "Lopning", "VirtualRun": "Lopning",
-    "Ride": "Cykel", "VirtualRide": "Cykel", "EBikeRide": "Cykel",
-    "MountainBikeRide": "Cykel", "GravelRide": "Cykel",
-    "Swim": "Sim", "OpenWaterSwim": "Sim",
-    "WeightTraining": "Styrka", "Workout": "Styrka", "Yoga": "Yoga",
-}
+from coach.trixa import sports
+
+
+class _StravaSportMap(dict):
+    """Strava activity_type → kanoniskt svenskt namn, via registret
+    (coach/trixa/sports.py). Skrev förut "Lopning" utan ö."""
+
+    def get(self, key, default=None):  # noqa: D102
+        k = sports.from_strava(key)
+        return sports.sv(k) if k != "other" else (default if default is not None else sports.sv("other"))
+
+
+SPORT_MAP = _StravaSportMap()
 
 
 def _creds() -> tuple[str, str]:

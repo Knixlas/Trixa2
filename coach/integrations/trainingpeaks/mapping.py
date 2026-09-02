@@ -49,8 +49,9 @@ from typing import Any
 from ...engine.zones import _BIKE_WATT_FRACTIONS, _RUN_PACE_FRACTIONS
 
 # Disciplin → TP-sportnamn (matchar SPORT_TYPE_MAP i workout_writer/MCP)
-SPORT_NAME = {"swim": "Swim", "bike": "Bike", "run": "Run",
-              "brick": "Brick", "strength": "Strength"}
+from coach.trixa import sports
+
+SPORT_NAME = {k: s.tp_name for k, s in sports.SPORTS.items() if s.tp_name}
 
 # Disciplin → primär intensitetsmetrik i TP-strukturen
 INTENSITY_METRIC = {

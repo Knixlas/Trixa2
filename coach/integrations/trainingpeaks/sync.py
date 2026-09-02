@@ -202,33 +202,29 @@ def workouts_to_activity_rows(tp_workouts: list[dict], athlete_id: str) -> list[
     return rows
 
 
+from coach.trixa import sports
+
+
 def _to_int(v: float | None) -> int | None:
     return int(round(v)) if v is not None else None
 
 
 # ---------- TP utfört → training_log (MASTER) ----------
 
-# TP workoutTypeValueId → training_log.sport. Matchar legacy-MAJORITETEN i
-# training_log (svenska namn) så TP-rader är konsekventa med strava-raderna.
-_TL_SPORT_BY_VALUE_ID = {1: "Sim", 2: "Cykel", 3: "Lopning", 4: "Brick",
-                         5: "Crosstrain", 8: "Cykel", 9: "Styrka", 12: "Rodd",
-                         13: "Promenad"}
-
-# Normalisering för dedup: folda alla stavningar/språk → kanonisk disciplin.
-_SPORT_CANON = {
-    "run": "run", "running": "run", "löpning": "run", "lopning": "run", "virtualrun": "run",
-    "bike": "bike", "biking": "bike", "cycling": "bike", "ride": "bike",
-    "cykel": "bike", "cykling": "bike", "mtb": "bike",
-    "swim": "swim", "swimming": "swim", "sim": "swim", "simning": "swim",
-    "strength": "strength", "styrka": "strength",
-    "brick": "brick",
-}
-
-
 def canon_sport(s: str | None) -> str:
-    """Folda en sport-sträng till kanonisk disciplin (run/bike/swim/strength/…)."""
-    key = (s or "").strip().lower()
-    return _SPORT_CANON.get(key, key)
+    """Folda en sport-sträng till kanonisk disciplin (run/bike/swim/strength/…).
+
+    Registret i coach/trixa/sports.py; okänt faller till råsträngen (gemener)
+    så dedup fortfarande kan jämföra lika med lika."""
+    return sports.canon(s) or (s or "").strip().lower()
+
+
+def _tl_sport_for_tp(type_id: int | None) -> str:
+    """TP workoutTypeValueId → training_log.sport (kanoniskt svenskt namn).
+
+    Skrev förut "Lopning" utan ö medan planeraren skrev "Löpning" — två
+    stavningar i samma kolumn som varje läsare fick bära båda av."""
+    return sports.sv(sports.from_tp_id(type_id))
 
 
 def tp_workout_to_training_log_row(w: dict, user_id: str) -> dict | None:
@@ -249,7 +245,7 @@ def tp_workout_to_training_log_row(w: dict, user_id: str) -> dict | None:
         "user_id": user_id,
         "tp_workout_id": tp_id,
         "date": str(day)[:10],
-        "sport": _TL_SPORT_BY_VALUE_ID.get(w.get("workoutTypeValueId"), "other"),
+        "sport": _tl_sport_for_tp(w.get("workoutTypeValueId")),
         "title": w.get("title"),
         "duration_min": round(float(actual_h) * 60.0, 1),
         "source": "tp",

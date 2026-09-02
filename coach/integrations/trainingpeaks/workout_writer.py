@@ -92,10 +92,18 @@ def create_planned_workout(
     )
 
 
-_PS_SPORT_TO_DISCIPLINE = {
-    "Sim": "swim", "Cykel": "bike", "Löpning": "run", "Lopning": "run",
-    "Styrka": "strength", "Vila": "rest", "Brick": "brick",
-}
+from coach.trixa import sports
+
+
+class _PsSportMap(dict):
+    """planned_sessions.sport → disciplin via registret (coach/trixa/sports.py).
+    Tabellen här saknade "Cykling"/"Simning" → TP fick "Other" med platt band."""
+
+    def get(self, key, default=None):  # noqa: D102
+        return sports.canon(key, default)
+
+
+_PS_SPORT_TO_DISCIPLINE = _PsSportMap()
 
 
 def push_week_from_planned_sessions(
@@ -260,7 +268,10 @@ def sync_planned_week_to_tp(
         discipline = _PS_SPORT_TO_DISCIPLINE.get(r.get("sport"), (r.get("sport") or "").lower())
         day = date_type.fromisoformat(str(r["date"])[:10])
         existing_id = r.get("tp_workout_id")
-        if not existing_id and discipline in SPORT_TYPE_MAP:
+        # discipline är gemener ("bike"), SPORT_TYPE_MAP har TP-namn ("Bike").
+        # Jämförelsen var alltid falsk, så cancelled-rader utan lagrat id
+        # städades aldrig från TP — spökpass på klockan (docs/12 G2).
+        if not existing_id and sports.tp_name(discipline) in SPORT_TYPE_MAP:
             existing_id = _find_existing_tp_id(
                 existing_tp, day.isoformat(), SPORT_TYPE_MAP[discipline][1]
             )

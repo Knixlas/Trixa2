@@ -20,6 +20,7 @@ from pydantic import BaseModel, Field
 from coach.trixa.db import get_postgrest
 from functools import lru_cache
 
+from coach.trixa import sports
 from coach.trixa.exercise_plan import normalize_exercises, planned_exercises
 
 
@@ -38,25 +39,31 @@ router = APIRouter(prefix="/agent", tags=["agent"])
 _PROGRESSION_DAYS = 120
 
 # Discipliner: lagras svenska i planned_sessions, exponeras engelska i läs-svar.
-_EN_TO_SV = {
-    "bike": "Cykel", "run": "Löpning", "swim": "Sim",
-    "strength": "Styrka", "rest": "Vila", "brick": "Brick", "yoga": "Yoga",
-}
-_SV_TO_EN = {
-    "Cykel": "bike", "Cykling": "bike", "Löpning": "run", "Lopning": "run",
-    "Sim": "swim", "Simning": "swim", "Styrka": "strength", "Vila": "rest",
-    "Brick": "brick", "Yoga": "yoga", "Promenad": "rest",
-}
+class _SvToEnMap(dict):
+    """Svensk etikett → disciplin via registret. Behåller dict-formen för
+    de läsare som gör .get(sport, fallback)."""
+
+    def get(self, key, default=None):  # noqa: D102
+        return sports.canon(key, default)
+
+
+_SV_TO_EN = _SvToEnMap()
 
 
 def _norm_sport_sv(sport: str) -> str:
-    """Engelska ELLER svenska in → svenskt lagringsnamn (planned_sessions)."""
-    s = (sport or "").strip()
-    if s in _EN_TO_SV:
-        return _EN_TO_SV[s]
-    if s in _SV_TO_EN:  # redan svenska
-        return s
-    return s.capitalize() or "Vila"
+    """Engelska ELLER svenska in → kanoniskt svenskt lagringsnamn.
+
+    Förut returnerades svenska alias verbatim ("Cykling", "Simning") och
+    okända ord kapitaliserades ("biking" → "Biking"). Raderna gick inte att
+    matcha mot utfört, och TP fick dem som "Other". Registret ger alltid
+    "Cykel"; okänt avvisas i stället för att bli en gren ingen känner till.
+    """
+    key = sports.canon(sport)
+    if key is None:
+        raise HTTPException(
+            400, f"Okänd gren: {sport!r}. Använd en av {', '.join(sports.PLANNABLE_KEYS)}."
+        )
+    return sports.sv(key)
 
 
 def _monday_of(d: date_type) -> date_type:

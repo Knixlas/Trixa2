@@ -67,7 +67,9 @@ def test_yogapass_utan_logg_ar_missat_inte_vila_hallen():
 def test_loggat_yogapass_ar_genomfort():
     import trixa_api.ui as ui
 
-    done = ui._normalize_training_log_activity({
+    # _normalize_log_activity är den dashboarden faktiskt använder; den döda
+    # tvillingen testet pekade på förut är borttagen (docs/12 E4).
+    done = ui._normalize_log_activity({
         "date": "2026-09-01", "sport": "yoga", "title": "Yoga",
         "duration_min": 30, "source": "manual",
     })
