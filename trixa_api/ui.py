@@ -686,6 +686,14 @@ def _profile_update(
 
 # ---------- Manuell passlogg (utfört → MASTER training_log, source='manual') ----------
 
+# Grenar adepten kan logga och lägga in själv. Styrka och yoga saknades:
+# ett styrkepass kunde bara kvitteras övning för övning, och yoga gick inte
+# att välja alls — adepten valde "Styrka" för att komma vidare, och passet
+# stod sedan som "Missad" utan någon väg att markera det gjort.
+_LOGGABLE_SPORTS = ("swim", "bike", "run", "strength", "yoga")
+_EN_TO_PLANNED_SV = {"swim": "Sim", "bike": "Cykel", "run": "Löpning",
+                     "strength": "Styrka", "yoga": "Yoga"}
+
 
 @router.post("/log/session")
 def log_session(
@@ -708,8 +716,8 @@ def log_session(
     uid = _current_user_id(request)
     if not uid:
         raise HTTPException(401, "Inte inloggad")
-    if sport not in ("swim", "bike", "run", "strength"):
-        raise HTTPException(400, "Gren måste vara swim, bike, run eller strength")
+    if sport not in _LOGGABLE_SPORTS:
+        raise HTTPException(400, f"Gren måste vara en av {', '.join(_LOGGABLE_SPORTS)}")
     if not date:
         raise HTTPException(400, "datum krävs")
     client = get_postgrest()
@@ -1551,7 +1559,12 @@ def _fetch_week_activities(
 _PLANNED_SV_SPORT = {
     "Cykel": "bike", "Löpning": "run", "Lopning": "run",
     "Simning": "swim", "Sim": "swim", "Styrka": "strength",
-    "Vila": "rest", "Yoga": "rest", "Promenad": "rest", "Vandring": "rest",
+    # Yoga är en egen gren, inte vila: ett yogapass som inte blev av är
+    # missat, och ett som gjordes är genomfört. Mappat till "rest" fick det
+    # vilodagens status ("Vila hållen" när inget gjordes) och kunde inte
+    # loggas. Promenad/vandring räknas fortsatt som vila — de bär ingen
+    # träningsavsikt.
+    "Vila": "rest", "Yoga": "yoga", "Promenad": "rest", "Vandring": "rest",
 }
 
 
@@ -1693,6 +1706,7 @@ def _attach_strength_logs(client, week: dict, user_id: str) -> None:
         logged = by_date.get(str(w["date"])[:10], [])
         w["logged_exercises"] = logged
         done = {(lg.get("exercise_name") or "").strip().casefold() for lg in logged}
+        _mark_done_from_exercise_logs(w, logged)
         # Förifyll formuläret, skriv ALDRIG loggraden. Att registrera pass som
         # inte utförts förstör just den datakvalitet motorn vilar på — adepten
         # justerar vikt och ansträngning och bekräftar själv.
@@ -1708,6 +1722,35 @@ def _attach_strength_logs(client, week: dict, user_id: str) -> None:
             if str(lg.get("session_date"))[:10] < cutoff
         ]
         w["exercises_to_log"] = apply_suggestions(todo, relevant)
+
+
+def _mark_done_from_exercise_logs(w: dict, logged: list[dict]) -> None:
+    """Avbockade övningar är ett utfört pass, även utan training_log-rad.
+
+    Statusen räknas ur training_log, men styrkepassets egen kvittens är
+    övning för övning i exercise_logs. Ett pass där adepten bockat av sex
+    övningar stod ändå som "Missad" — appen hade tagit emot kvittot i ena
+    handen och letade efter det i den andra. Härleds vid läsning; ingen
+    rad skrivs.
+    """
+    performed = [
+        lg for lg in logged if (lg.get("effort") if lg.get("effort") is not None else 0) != -1
+    ]
+    if not performed:
+        return
+    status = w.get("status") or {}
+    if status.get("key") not in ("missed", "today"):
+        return
+    n = len(performed)
+    actual = {
+        "summary": f"Genomfört: {n} övning{'ar' if n != 1 else ''} loggade",
+        "name": w.get("title"), "duration_min": w.get("duration_minutes"),
+        "activity_type": "Styrka",
+    }
+    if status.get("key") == "missed":
+        w["status"] = {**_STATUS["done"], "key": "done", "actual": actual}
+    elif not status.get("actual"):
+        w["status"] = {**status, "actual": actual}
 
 
 def _display_steps(steps) -> list[dict]:
@@ -3143,26 +3186,45 @@ def workout_add_custom(
     distance: str = Form(""),
     duration_minutes: int | None = Form(None),
     description: str = Form(""),
+    already_done: str = Form(""),
 ) -> Any:
-    """Lägg till ett eget pass i MASTER planned_sessions (origin='manual')."""
-    if sport not in ("swim", "bike", "run", "strength"):
-        raise HTTPException(400, "Gren måste vara swim, bike, run eller strength")
+    """Lägg till ett eget pass i MASTER planned_sessions (origin='manual').
+
+    ``already_done``: passet är redan gjort. Adepten som lägger in gårdagens
+    yoga i efterhand planerar inte — hen rapporterar. Utan kryssrutan blev
+    raden en plan utan utfall och stod som "Missad" nästa morgon, trots att
+    det var adepten själv som just berättat att passet ägt rum. Skrivs som
+    en training_log-rad länkad till planraden, samma väg som "Logga pass".
+    """
+    if sport not in _LOGGABLE_SPORTS:
+        raise HTTPException(400, f"Gren måste vara en av {', '.join(_LOGGABLE_SPORTS)}")
     user_id = _current_user_id(request)
     if not user_id:
         raise HTTPException(401, "Inte inloggad")
-    sv_sport = {"swim": "Sim", "bike": "Cykel", "run": "Löpning",
-                "strength": "Styrka"}.get(sport, sport)
+    sv_sport = _EN_TO_PLANNED_SV.get(sport, sport)
+    title = (description or "").strip() or "Eget pass"
     client = get_postgrest()
-    client.table("planned_sessions").insert({
+    res = client.table("planned_sessions").insert({
         "user_id": user_id,
         "date": date,
         "sport": sv_sport,
-        "title": (description or "").strip() or "Eget pass",
+        "title": title,
         "duration_min": duration_minutes,
         "details": (description or "").strip() or None,
         "status": "planned",
         "origin": "manual",
     }).execute()
+    if already_done:
+        planned_id = (res.data or [{}])[0].get("id") if res.data else None
+        log_row: dict = {
+            "user_id": user_id, "date": date, "sport": sport,
+            "title": title, "source": "manual",
+        }
+        if duration_minutes is not None:
+            log_row["duration_min"] = duration_minutes
+        if planned_id:
+            log_row["planned_session_id"] = planned_id
+        client.table("training_log").insert(log_row).execute()
     return RedirectResponse(url="/ui/", status_code=303)
 
 

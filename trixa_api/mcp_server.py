@@ -135,7 +135,7 @@ def _tool_log_override(scope: AgentScope, args: dict) -> Any:
     return agent_api.write_override(body=body, scope=scope)
 
 
-_SPORT_ENUM = ["bike", "run", "swim", "strength", "brick", "rest"]
+_SPORT_ENUM = ["bike", "run", "swim", "strength", "brick", "yoga", "rest"]
 
 # (namn, beskrivning, inputSchema, handler). Beskrivningarna är det AI-klienten
 # faktiskt ser — de ska räcka för att välja rätt verktyg utan att läsa docs.
