@@ -1302,14 +1302,16 @@ def dashboard(request: Request) -> HTMLResponse:
     optimal_phase = None
     behind = False
     try:
-        from coach.trixa.planner import _build_athlete_state, _build_ot_signals, _run_engine
-        state = _build_athlete_state(athlete, None, today)
-        decisions = _run_engine(state, _build_ot_signals(athlete, None), 1, 6)
-        phase_rec = decisions.get("phase_recommendation") or {}
-        phase = phase_rec.get("phase")
-        period = phase_rec.get("period")
-        optimal_phase = phase_rec.get("optimal_phase")
-        behind = phase_rec.get("behind", False)
+        # Samma fasuppslag som planeraren använder: med databasen (tävlingen
+        # i public.races, faktisk volym) och med coachens fas-override. Förut
+        # kördes hela motorn här med "vecka 1 av 6" hårdkodat och utan
+        # klient, så dashboarden kunde visa en annan fas än planen byggts i.
+        from coach.trixa.planner import effective_phase_rec
+        phase_rec = effective_phase_rec(athlete, client, today)
+        phase = phase_rec.phase
+        period = phase_rec.period
+        optimal_phase = phase_rec.optimal_phase
+        behind = phase_rec.behind
     except Exception:  # noqa: BLE001
         pass
 

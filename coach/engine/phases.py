@@ -246,7 +246,14 @@ def determine_phase(state: AthleteState) -> PhaseRecommendation:
     else:
         phase = sustainable
     behind = _phase_rank(phase) < _phase_rank(optimal)
-    period = _first_period(phase)
+    # Perioden följer hur länge adepten varit i fasen. Förut returnerades
+    # alltid den första — hela basfasen var base_1, så kategorierna som bara
+    # finns i base_2/base_3 (TE, MF) nåddes aldrig och styrkeprotokollet
+    # satt fast i base_1:s MT/MS-växling.
+    if state.current_phase == phase:
+        period = _current_period_estimate(state)
+    else:
+        period = _first_period(phase)
 
     if behind:
         phases = load_yaml("phases.yaml")["phases"]
@@ -289,24 +296,58 @@ def _first_period(phase: PhaseCode) -> str | None:
     return periods[0]["code"] if periods else None
 
 
-def _current_period_estimate(state: AthleteState) -> str | None:
-    """Grov gissning av aktuell period baserat på veckor i fasen.
+def _period_lengths(phase: PhaseCode) -> list[tuple[str, int]]:
+    """Periodkoder med planerad längd (övre gränsen i phases.yaml)."""
+    phases = load_yaml("phases.yaml")["phases"]
+    info = phases.get(phase) or {}
+    if not info.get("has_periods"):
+        return []
+    out: list[tuple[str, int]] = []
+    for p in info.get("periods", []):
+        span = p.get("duration_weeks") or [4, 6]
+        out.append((p["code"], int(span[-1])))
+    return out
 
-    För base: base_1 = v1-6, base_2 = v7-12, base_3 = v13+
-    För build: build_1 = v1-6, build_2 = v7+
+
+def period_position(
+    phase: PhaseCode, period: str | None, weeks_in_phase: int
+) -> tuple[int, int] | None:
+    """(vecka i perioden, periodens längd) för en given vecka i fasen.
+
+    Det är den positionen ett periodbundet beslut ska räkna på — t.ex.
+    styrkans MT→MS-växling halvvägs genom base_1. Viloveckocykelns position
+    (3- eller 4-veckors) är något annat och får inte blandas in här.
     """
-    if not state.current_phase or state.weeks_in_current_phase is None:
-        return _first_period(state.current_phase) if state.current_phase else None
-
-    weeks = state.weeks_in_current_phase
-    if state.current_phase == "base":
-        if weeks <= 6:
-            return "base_1"
-        if weeks <= 12:
-            return "base_2"
-        return "base_3"
-    if state.current_phase == "build":
-        if weeks <= 6:
-            return "build_1"
-        return "build_2"
+    if not period:
+        return None
+    offset = 0
+    for code, length in _period_lengths(phase):
+        if code == period:
+            week = max(1, weeks_in_phase - offset)
+            return min(week, length), length
+        offset += length
     return None
+
+
+def _current_period_estimate(state: AthleteState) -> str | None:
+    """Vilken period veckan som planeras ligger i.
+
+    ``weeks_in_current_phase`` är antalet veckor som redan planerats i fasen
+    (planeraren skriver tillbaka det efter varje vecka), så veckan som
+    planeras är nästa: ``weeks + 1``. Periodlängderna kommer ur phases.yaml
+    (övre gränsen); sista perioden tar allt som blir över.
+    """
+    if not state.current_phase:
+        return None
+    lengths = _period_lengths(state.current_phase)
+    if not lengths:
+        return None
+    if state.weeks_in_current_phase is None:
+        return lengths[0][0]
+    week_no = int(state.weeks_in_current_phase) + 1
+    offset = 0
+    for code, length in lengths:
+        if week_no <= offset + length:
+            return code
+        offset += length
+    return lengths[-1][0]
