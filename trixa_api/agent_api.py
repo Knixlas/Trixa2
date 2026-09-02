@@ -550,6 +550,17 @@ def write_override(
         raise HTTPException(400, "scope=week kräver week_start (veckans måndag).")
     if body.scope == "workout" and not body.planned_session_id:
         raise HTTPException(400, "scope=workout kräver planned_session_id.")
+    if body.planned_session_id:
+        # Främmande nyckeln godtar vilken adepts pass som helst. Utan kollen
+        # kunde en token för adept A hänga en override — med medicinsk
+        # kontext — på adept B:s pass.
+        own = (
+            client.table("planned_sessions").select("id")
+            .eq("id", body.planned_session_id).eq("user_id", scope.user_id)
+            .limit(1).execute()
+        )
+        if not own.data:
+            raise HTTPException(404, "planned_session_id tillhör inte adepten.")
 
     row = {
         "athlete_id": athlete_id,

@@ -144,10 +144,14 @@ class _Q:
             return _R([new])
         if self._u is not None:
             _check_columns(self.t, self._u)
-            for r in rows:
-                if self._match(r):
-                    r.update(self._u)
-            return _R([r for r in rows if self._match(r)])
+            # Som PostgREST: filtret utvärderas FÖRE uppdateringen och de
+            # träffade raderna returneras. Att matcha om efteråt gjorde att
+            # en villkorad UPDATE (`.is_("consumed_at","null")`) alltid gav
+            # tomt svar — själva uppdateringen ogiltigförklarade villkoret.
+            matched = [r for r in rows if self._match(r)]
+            for r in matched:
+                r.update(self._u)
+            return _R(matched)
         if self._del:
             self.st[self.t] = [r for r in rows if not self._match(r)]
             return _R([])

@@ -198,6 +198,11 @@ def test_override_writes_columns_that_actually_exist():
 def test_override_workout_scope_uses_planned_session_id():
     c, st, aa, fake = _client_and_store()
     H = _with_token(st, aa)
+    # Passet måste vara adeptens eget — ett främmande id avvisas sedan
+    # kodöversynen 2026-09-02 (docs/12 A4).
+    st.setdefault("planned_sessions", []).append(
+        {"id": "sess-1", "user_id": UID, "date": "2026-09-03", "sport": "Cykel"}
+    )
     r = c.post("/agent/override", headers=H, json={
         "scope": "workout", "planned_session_id": "sess-1",
         "engine_recommendation": {"code": "AC1"}, "override_decision": {"code": "AE2"},

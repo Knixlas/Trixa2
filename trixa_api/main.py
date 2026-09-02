@@ -13,6 +13,7 @@ för lokal dev utan auth (osäkert för produktion).
 from __future__ import annotations
 
 import os
+import secrets
 from datetime import date as date_type, datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -228,9 +229,47 @@ def health_db() -> dict:
         )
 
 
+def _require_own_session(client, planned_session_id: str | None, user_id: str) -> None:
+    """Ett pass-id som skickas in måste tillhöra adepten det gäller.
+
+    Främmande nyckeln accepterar vilken adepts rad som helst, så utan den
+    här kollen kunde en override eller logg pekas på någon annans pass —
+    och den som senare läser via passet får texten (inklusive medicinsk
+    kontext) i fel adepts sammanhang.
+    """
+    if not planned_session_id:
+        return
+    res = (
+        client.table("planned_sessions").select("id")
+        .eq("id", planned_session_id).eq("user_id", user_id).limit(1).execute()
+    )
+    if not res.data:
+        raise HTTPException(404, "planned_session_id tillhör inte adepten.")
+
+
+def _ops_authorized(request: Request) -> bool:
+    """Får anroparen se per-adept-detaljer i hälsokollen?
+
+    Endpointen är publik för att Railway och en uptime-monitor ska kunna
+    fråga den utan inloggning. Men user_id, TP-felsträngar och synk-metadata
+    är adeptdata — det låg öppet för hela internet. Detaljerna kräver nu
+    `TRIXA_OPS_TOKEN` i `X-Trixa-Ops-Token`; utan den svarar kollen bara med
+    aggregatet (ok/stale + antal), vilket är allt en monitor behöver.
+    """
+    expected = os.environ.get("TRIXA_OPS_TOKEN", "")
+    given = request.headers.get("x-trixa-ops-token", "")
+    return bool(expected) and secrets.compare_digest(given, expected)
+
+
 @app.get("/health/integrations")
-def health_integrations(max_age_hours: int = Query(30, ge=1, le=168)) -> dict:
-    """Senaste beständiga TP-synk. Returnerar 503 om den saknas/fallit efter."""
+def health_integrations(
+    request: Request, max_age_hours: int = Query(30, ge=1, le=168)
+) -> dict:
+    """Senaste beständiga TP-synk. Returnerar 503 om den saknas/fallit efter.
+
+    Utan ops-token: bara aggregat. Med: per-adept-rader som förut.
+    """
+    detailed = _ops_authorized(request)
     try:
         client = get_postgrest()
         res = (
@@ -269,12 +308,15 @@ def health_integrations(max_age_hours: int = Query(30, ge=1, le=168)) -> dict:
                 "latest": latest,
             })
 
-        payload = {
+        payload: dict = {
             "status": "ok" if healthy else "stale",
             "integration": "trainingpeaks",
             "max_age_hours": max_age_hours,
-            "users": users,
+            "users_ok": sum(1 for u in users if u["status"] == "ok"),
+            "users_stale": sum(1 for u in users if u["status"] != "ok"),
         }
+        if detailed:
+            payload["users"] = users
         if not healthy:
             raise HTTPException(status_code=503, detail=payload)
         return payload
@@ -518,6 +560,7 @@ def post_override(req: CoachOverrideRequest) -> CoachOverrideResponse:
     if not a_res.data:
         raise HTTPException(404, f"Athlete saknas: {req.athlete_user_id}")
     athlete_id = a_res.data[0]["id"]
+    _require_own_session(client, req.planned_session_id, req.athlete_user_id)
 
     # Hitta coach_user_id via coach_athletes
     coach_res = (

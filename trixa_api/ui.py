@@ -734,7 +734,14 @@ def log_session(
     if rpe is not None and 1 <= rpe <= 10:
         row["rpe"] = rpe
     if planned_session_id:
-        row["planned_session_id"] = planned_session_id
+        # Formulärfältet är klientstyrt: länka bara mot ett pass som faktiskt
+        # är adeptens eget, annars lämnas loggen olänkad.
+        own = (
+            client.table("planned_sessions").select("id")
+            .eq("id", planned_session_id).eq("user_id", uid).limit(1).execute()
+        )
+        if own.data:
+            row["planned_session_id"] = planned_session_id
     existing = (
         client.table("training_log").select("id")
         .eq("user_id", uid).eq("date", date).eq("sport", sport).eq("source", "manual")

@@ -111,8 +111,10 @@ Partial impact byter hårda pass mot lugna AE-pass i den disciplinen.</p>
     </form>
   </details>
 
+  {# tojson: HTML-escape räcker inte i ett JS-strängliteral — attributparsern
+     avkodar &#39; tillbaka till ' innan skriptet körs. #}
   <form method="post" action="/ui/health/remove" style="margin-top: 0.75rem;"
-        onsubmit="return confirm('Ta bort concern {{ c.name }}?');">
+        onsubmit='return confirm({{ ("Ta bort concern " ~ c.name ~ "?") | tojson }});'>
     <input type="hidden" name="index" value="{{ loop.index0 }}">
     <input type="hidden" name="concern_id" value="{{ c.id or '' }}">
     <button type="submit" class="secondary" style="font-size: 13px; padding: 8px 14px;"><i data-lucide="trash-2"></i> Ta bort</button>

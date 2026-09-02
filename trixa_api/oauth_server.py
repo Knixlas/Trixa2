@@ -362,7 +362,12 @@ def _validate_authorize_params(request: Request, params: dict) -> tuple[dict | N
         "state": state,
         "code_challenge": challenge,
         "code_challenge_method": method,
-        "resource": resource or canonical_resource(request),
+        # Alla accepterade stavningar (med/utan path, med/utan avslutande
+        # snedstreck) är samma resurs. Lagrades råvärdet blev audience
+        # "…/mcp/" medan /mcp bara godtog "…/mcp" — token utfärdad, token
+        # avvisad, klienten fick börja om vid varje anrop. Kanonisera här,
+        # så bär varje token samma audience oavsett hur klienten stavade.
+        "resource": canonical_resource(request),
         "scope": (params.get("scope") or "").strip(),
     }, None
 
@@ -551,12 +556,20 @@ def _grant_authorization_code(request: Request, form: dict) -> Response:
     if not _verify_pkce(verifier, row["code_challenge"]):
         return _oauth_error("invalid_grant", "code_verifier matchar inte code_challenge.")
 
+    # Förbrukningen måste vara atomisk: två samtidiga /token med samma kod
+    # läste båda consumed_at=NULL ovan och skulle båda få tokens. Villkoret
+    # på UPDATE:n gör att bara en vinner; den som får noll rader tillbaka
+    # har mött en redan förbrukad kod och behandlas som återanvändning.
     try:
-        db.table("oauth_authorization_codes").update(
+        consumed = db.table("oauth_authorization_codes").update(
             {"consumed_at": _iso(_now())}
-        ).eq("code_hash", row["code_hash"]).execute()
-    except Exception:  # noqa: BLE001
+        ).eq("code_hash", row["code_hash"]).is_("consumed_at", "null").execute()
+    except Exception as exc:  # noqa: BLE001
         logger.exception("Kunde inte markera kod som förbrukad")
+        return _oauth_error("server_error", str(exc), 503)
+    if not consumed.data:
+        _revoke_family(row["client_id"], row["user_id"], "auktoriseringskod återanvänd (kapplöpning)")
+        return _oauth_error("invalid_grant", "Koden är redan använd.")
 
     return _issue_tokens(
         client_id=client_id,
@@ -596,12 +609,20 @@ def _grant_refresh_token(request: Request, form: dict) -> Response:
     if row.get("refresh_expires_at") and _parse_ts(row["refresh_expires_at"]) < _now():
         return _oauth_error("invalid_grant", "Refresh-token har gått ut.")
 
+    # Samma atomicitet som för koden: rotationen får bara lyckas för den
+    # som faktiskt återkallar raden. Förlorar vi kapplöpningen är token
+    # redan roterad av någon annan — stulen eller en klient som tappat
+    # rotationen — och familjen bränns, precis som vid en sen återanvändning.
     try:
-        db.table("oauth_tokens").update({"revoked_at": _iso(_now())}).eq(
+        rotated = db.table("oauth_tokens").update({"revoked_at": _iso(_now())}).eq(
             "id", row["id"]
-        ).execute()
-    except Exception:  # noqa: BLE001
+        ).is_("revoked_at", "null").execute()
+    except Exception as exc:  # noqa: BLE001
         logger.exception("Kunde inte återkalla roterad token")
+        return _oauth_error("server_error", str(exc), 503)
+    if not rotated.data:
+        _revoke_family(row["client_id"], row["user_id"], "refresh-token roterad samtidigt (kapplöpning)")
+        return _oauth_error("invalid_grant", "Token är återkallad.")
 
     return _issue_tokens(
         client_id=client_id,
@@ -655,7 +676,13 @@ def resolve_oauth_token(raw: str, expected_audience: str) -> dict | None:
         return None
     if _parse_ts(row["expires_at"]) < _now():
         return None
-    if row.get("audience") not in {expected_audience, expected_audience.rstrip("/")}:
+    # Nya tokens bär alltid den kanoniska audiencen; äldre kan bära någon av
+    # de stavningar authorize godtog. Alla pekar på samma server.
+    base = expected_audience.rstrip("/")
+    if base.endswith("/mcp"):
+        base = base[: -len("/mcp")]
+    accepted_audiences = {f"{base}/mcp", f"{base}/mcp/", base, f"{base}/"}
+    if row.get("audience") not in accepted_audiences:
         logger.warning(
             "Avvisade token utfärdad för %s, förväntade %s",
             row.get("audience"), expected_audience,
