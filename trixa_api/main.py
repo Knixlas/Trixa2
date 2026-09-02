@@ -24,6 +24,7 @@ from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.concurrency import run_in_threadpool
 
+from coach.trixa import clock
 from coach.engine.loader import load_workouts, load_drills
 from coach.trixa import sports
 from coach.trixa.db import get_postgrest
@@ -359,7 +360,7 @@ def get_current_week(
     )
     athlete_id = athlete_res.data[0]["id"] if athlete_res.data else None
 
-    today = date_type.today()
+    today = clock.today()
     iso_year, iso_week, _ = today.isocalendar()
     week_start = date_type.fromisocalendar(iso_year, iso_week, 1)
     week_end = date_type.fromisocalendar(iso_year, iso_week, 7)

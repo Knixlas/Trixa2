@@ -17,11 +17,14 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
-from coach.trixa.db import get_postgrest
 from functools import lru_cache
 
-from coach.trixa import sports
+from coach.trixa import clock, sports
+from coach.trixa.db import get_postgrest
 from coach.trixa.exercise_plan import normalize_exercises, planned_exercises
+from coach.trixa.strength_progression import apply_suggestions
+from coach.trixa.training_log import dedup_cross_source
+from trixa_api.agent_auth import AgentScope, resolve_agent_scope
 
 
 @lru_cache(maxsize=1)
@@ -30,8 +33,6 @@ def _exercise_catalogue() -> dict[str, dict]:
     from coach.engine.loader import load_strength_exercises
 
     return {e["code"]: e for e in load_strength_exercises()}
-from coach.trixa.strength_progression import apply_suggestions
-from trixa_api.agent_auth import AgentScope, resolve_agent_scope
 
 router = APIRouter(prefix="/agent", tags=["agent"])
 
@@ -256,6 +257,9 @@ def _week_plan(client, user_id: str, monday: date_type) -> dict:
             "origin": w.get("origin") or "",
         }
         for w in (res.data or [])
+        # Ersatta rader är inte plan. Coachen resonerade förut om ett
+        # cykelpass som planeraren dragit tillbaka (docs/12 F4).
+        if w.get("status") != "cancelled"
     ]
     return {"week_start": monday.isoformat(), "sessions": sessions}
 
@@ -289,7 +293,7 @@ def _strength_history(
 @router.get("/week/current")
 def get_current_week(scope: AgentScope = Depends(resolve_agent_scope)) -> dict:
     """Veckan som innehåller dagens datum (ur MASTER planned_sessions)."""
-    return _week_plan(get_postgrest(), scope.user_id, _monday_of(date_type.today()))
+    return _week_plan(get_postgrest(), scope.user_id, _monday_of(clock.today()))
 
 
 @router.get("/week")
@@ -312,7 +316,7 @@ def get_log(
 ) -> dict:
     """Genomförda pass ur MASTER training_log (alla källor)."""
     client = get_postgrest()
-    start = (since or (date_type.today() - timedelta(days=28))).isoformat()
+    start = (since or (clock.today() - timedelta(days=28))).isoformat()
     res = (
         client.table("training_log")
         .select("date, sport, title, duration_min, distance_km, avg_hr, max_hr,"
@@ -323,7 +327,9 @@ def get_log(
         .limit(limit)
         .execute()
     )
-    return {"since": start, "sessions": res.data or []}
+    # Samma källdedup som dashboarden. Utan den såg coachen tp+strava-
+    # dubbletter av samma pass och resonerade om dubbel volym (docs/12 G4).
+    return {"since": start, "sessions": dedup_cross_source(res.data or [])}
 
 
 # ---------- läsa: recovery ----------

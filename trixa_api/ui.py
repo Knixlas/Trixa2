@@ -21,10 +21,12 @@ from fastapi import APIRouter, Form, HTTPException, Request, status
 from fastapi.responses import HTMLResponse, RedirectResponse
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
+from coach.trixa import clock
 from coach.trixa import sports
 from coach.trixa.db import get_postgrest
 from coach.trixa.exercise_plan import planned_exercises
 from coach.trixa.strength_progression import apply_suggestions, suggestions_by_name
+from coach.trixa.training_log import dedup_cross_source
 
 
 @lru_cache(maxsize=1)
@@ -798,23 +800,10 @@ def _dedup_log_rows(rows: list[dict]) -> list[dict]:
     Source-rank styr ordningen: TP-rader processas först → behålls; senare
     strava/manuella rader som matchar samma pass hoppas. Okänd källa sist.
     """
-    kept: list[dict] = []
-    for r in sorted(
-        rows, key=lambda x: _LOG_SOURCE_RANK.get((x.get("source") or "").lower(), 3)
-    ):
-        day = str(r.get("date"))[:10]
-        sport = _canon_log_sport(r.get("sport"))
-        dur = float(_fnum(r.get("duration_min")) or 0)
-        tol = max(2.0, dur * 0.10)
-        if any(
-            str(k.get("date"))[:10] == day
-            and _canon_log_sport(k.get("sport")) == sport
-            and abs(float(_fnum(k.get("duration_min")) or 0) - dur) <= tol
-            for k in kept
-        ):
-            continue
-        kept.append(r)
-    return kept
+    # En regel för alla lager (coach/trixa/training_log.py): bara KÄLL-
+    # dubbletter slås ihop. Två rader från samma källa är två pass —
+    # pendlingen till jobbet och hem är 2×25 min, inte 1 (docs/12 F1, G4).
+    return dedup_cross_source(rows)
 
 
 # Trixa räknar styrke-, konditions- och yogapass. Allt annat (alpint, vandring,
@@ -846,7 +835,7 @@ def _compliance_by_week(client, athlete_id, today, user_id) -> dict:
     try:
         ps_res = (
             client.table("planned_sessions")
-            .select("date, sport, title, workout_code, duration_min")
+            .select("date, sport, title, workout_code, duration_min, status")
             .eq("user_id", user_id)
             .gte("date", window_start.isoformat())
             .lte("date", today.isoformat())
@@ -855,7 +844,9 @@ def _compliance_by_week(client, athlete_id, today, user_id) -> dict:
         )
     except Exception:  # noqa: BLE001
         return {}
-    sessions = ps_res.data or []
+    # Planeraren cancel:ar ersatta rader i stället för att radera dem. Utan
+    # filtret räknades spökraderna som "Missad" (docs/12 F3).
+    sessions = [r for r in (ps_res.data or []) if r.get("status") != "cancelled"]
     if not sessions:
         return {}
 
@@ -949,7 +940,7 @@ def _planned_hours_by_week(client, user_id, start, end) -> dict:
     try:
         res = (
             client.table("planned_sessions")
-            .select("date, duration_min")
+            .select("date, duration_min, status")
             .eq("user_id", user_id)
             .gte("date", start.isoformat())
             .lte("date", end.isoformat())
@@ -958,6 +949,8 @@ def _planned_hours_by_week(client, user_id, start, end) -> dict:
     except Exception:  # noqa: BLE001
         return out
     for r in res.data or []:
+        if r.get("status") == "cancelled":
+            continue   # ersatta rader dubblade planerade timmar (docs/12 F3)
         _add_week_hours(out, r.get("date") or "", (_fnum(r.get("duration_min")) or 0) / 60.0)
     return out
 
@@ -1170,7 +1163,7 @@ def dashboard(request: Request) -> HTMLResponse:
         return RedirectResponse(url="/ui/onboarding", status_code=303)
 
     # Hämta båda veckorna från DB
-    today = date_type.today()
+    today = clock.today()
     this_monday = _monday_of(today)
     next_monday = this_monday + timedelta(days=7)
     this_iso = this_monday.isocalendar()
@@ -1696,7 +1689,7 @@ def _fetch_current_week_data(
     Planerad källa: MASTER planned_sessions. Utfört: MASTER training_log.
     """
     if today is None:
-        today = date_type.today()
+        today = clock.today()
     week_monday = date_type.fromisocalendar(year, week_num, 1)
 
     # Utfört (plan-vs-actual) läses ur MASTER training_log — alla källor
@@ -1800,7 +1793,7 @@ def report_form(request: Request) -> HTMLResponse:
         raise HTTPException(404, "Athlete saknas")
     athlete_id = a_res.data[0]["id"]
 
-    week_start = _monday_of(date_type.today())
+    week_start = _monday_of(clock.today())
     existing_res = (
         client.table("weekly_reports")
         .select("*")
@@ -1881,7 +1874,7 @@ def report_submit(
 @router.get("/admin", response_class=HTMLResponse)
 def admin_view(request: Request) -> HTMLResponse:
     user_id = _current_user_id(request)
-    next_monday = _monday_of(date_type.today())
+    next_monday = _monday_of(clock.today())
     return _render("admin.html", {
             "request": request,
             "default_user_id": user_id,
@@ -2140,7 +2133,7 @@ def onboarding_submit(
             return None
 
     source = threshold_source if threshold_source in ("estimate", "test") else "estimate"
-    today_iso = date_type.today().isoformat()
+    today_iso = clock.today().isoformat()
     threshold_meta = {
         key: {"source": source, "tested_at": today_iso}
         for key, filled in (
@@ -2279,7 +2272,7 @@ def onboarding_done(request: Request) -> HTMLResponse:
             .eq("athlete_id", athlete["id"])
             # Kvittensen ska visa vad adepten tränar MOT, inte gamla lopp som
             # råkar ligga kvar i kalendern.
-            .gte("date", date_type.today().isoformat())
+            .gte("date", clock.today().isoformat())
             .order("date")
             .execute()
         )
@@ -2740,7 +2733,7 @@ def data_view(request: Request) -> HTMLResponse:
     )
     if not a_res.data:
         raise HTTPException(404, "Athlete saknas")
-    ctx = _build_data_context(client, a_res.data[0], date_type.today())
+    ctx = _build_data_context(client, a_res.data[0], clock.today())
     ctx["request"] = request
     return _render("data.html", ctx)
 
@@ -2752,7 +2745,7 @@ def data_view(request: Request) -> HTMLResponse:
 def debug_view(request: Request) -> HTMLResponse:
     """Transparens-vy: alla datakällor + engine-beslut för aktuell vecka."""
     user_id = _current_user_id(request)
-    week_start = _monday_of(date_type.today())
+    week_start = _monday_of(clock.today())
 
     try:
         plan = generate_week(
@@ -3094,18 +3087,33 @@ def workout_add_custom(
     sv_sport = _EN_TO_PLANNED_SV.get(sport, sport)
     title = (description or "").strip() or "Eget pass"
     client = get_postgrest()
-    res = client.table("planned_sessions").insert({
-        "user_id": user_id,
-        "date": date,
-        "sport": sv_sport,
-        "title": title,
-        "duration_min": duration_minutes,
-        "details": (description or "").strip() or None,
-        "status": "planned",
-        "origin": "manual",
-    }).execute()
-    if already_done:
+    # UNIQUE (user_id, date, sport): finns redan ett pass i grenen den dagen
+    # (Nils, motorn, ett tidigare eget) gav en rå insert 409 → 500, och
+    # "redan gjort"-loggen efteråt nåddes aldrig (docs/12 F5). Nu: befintlig
+    # rad lämnas orörd — adepten skriver inte över coachens pass av misstag
+    # — men loggen skrivs ändå, länkad till den rad som finns.
+    existing = (
+        client.table("planned_sessions").select("id")
+        .eq("user_id", user_id).eq("date", date).eq("sport", sv_sport)
+        .limit(1).execute()
+    )
+    planned_id = (existing.data or [{}])[0].get("id") if existing.data else None
+    notice = ""
+    if planned_id:
+        notice = "?notice=finns"
+    else:
+        res = client.table("planned_sessions").insert({
+            "user_id": user_id,
+            "date": date,
+            "sport": sv_sport,
+            "title": title,
+            "duration_min": duration_minutes,
+            "details": (description or "").strip() or None,
+            "status": "planned",
+            "origin": "manual",
+        }).execute()
         planned_id = (res.data or [{}])[0].get("id") if res.data else None
+    if already_done:
         log_row: dict = {
             "user_id": user_id, "date": date, "sport": sport,
             "title": title, "source": "manual",
@@ -3115,7 +3123,7 @@ def workout_add_custom(
         if planned_id:
             log_row["planned_session_id"] = planned_id
         client.table("training_log").insert(log_row).execute()
-    return RedirectResponse(url="/ui/", status_code=303)
+    return RedirectResponse(url=f"/ui/{notice}", status_code=303)
 
 
 @router.post("/workouts/{workout_id}/delete-custom", response_class=HTMLResponse)

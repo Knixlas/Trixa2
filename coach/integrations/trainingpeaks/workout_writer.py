@@ -208,17 +208,23 @@ def _payload_hash(payload: dict) -> str:
     return hashlib.sha256(key.encode("utf-8")).hexdigest()[:32]
 
 
-def _find_existing_tp_id(existing_tp: list[dict], day_iso: str, type_id: int) -> int | None:
+def _find_existing_tp_id(
+    existing_tp: list[dict], day_iso: str, type_id: int,
+    owned_ids: set | None = None,
+) -> int | None:
     """Matcha ett planerat (ej genomfört) TP-pass på (dag, sporttyp).
 
     Fallback för rader som pushats utan lagrat tp_workout_id (t.ex. innan
-    spårningskolumnerna fanns). Rör aldrig genomförda pass (totalTime satt).
+    spårningskolumnerna fanns). Rör aldrig genomförda pass (totalTime satt),
+    och aldrig pass som en annan planned_sessions-rad redan äger.
     """
     for w in existing_tp:
         wd = (w.get("workoutDay") or w.get("startTime") or "")[:10]
         if wd != day_iso or w.get("workoutTypeValueId") != type_id:
             continue
         if w.get("totalTime"):
+            continue
+        if owned_ids and w.get("workoutId") in owned_ids:
             continue
         return w.get("workoutId")
     return None
@@ -263,6 +269,11 @@ def sync_planned_week_to_tp(
             existing_tp = []
 
     now_iso = datetime_type.now(timezone.utc).isoformat()
+    # TP-pass som redan ägs av en annan rad får inte "hittas" av dag+sport-
+    # fallbacken. Förut kunde ett nytt cykelpass ta syskonets id, radera det
+    # och skapa sitt eget; syskonet matchade sedan sin lagrade hash mot ett
+    # id som inte fanns → "unchanged" för evigt → borta från klockan (docs/12 G1).
+    owned_ids = {r["tp_workout_id"] for r in rows if r.get("tp_workout_id")}
     results: list[SyncResult] = []
     for r in rows:
         discipline = _PS_SPORT_TO_DISCIPLINE.get(r.get("sport"), (r.get("sport") or "").lower())
@@ -271,9 +282,10 @@ def sync_planned_week_to_tp(
         # discipline är gemener ("bike"), SPORT_TYPE_MAP har TP-namn ("Bike").
         # Jämförelsen var alltid falsk, så cancelled-rader utan lagrat id
         # städades aldrig från TP — spökpass på klockan (docs/12 G2).
-        if not existing_id and sports.tp_name(discipline) in SPORT_TYPE_MAP:
+        tp_sport = sports.tp_name(discipline)
+        if not existing_id and tp_sport in SPORT_TYPE_MAP:
             existing_id = _find_existing_tp_id(
-                existing_tp, day.isoformat(), SPORT_TYPE_MAP[discipline][1]
+                existing_tp, day.isoformat(), SPORT_TYPE_MAP[tp_sport][1], owned_ids
             )
 
         if r.get("status") == "cancelled":
@@ -327,7 +339,7 @@ def sync_planned_week_to_tp(
 
         if not existing_id and res.sport in SPORT_TYPE_MAP:
             existing_id = _find_existing_tp_id(
-                existing_tp, day.isoformat(), SPORT_TYPE_MAP[res.sport][1])
+                existing_tp, day.isoformat(), SPORT_TYPE_MAP[res.sport][1], owned_ids)
 
         warnings = list(res.warnings)
         if not reaches_watch:

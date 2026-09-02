@@ -249,7 +249,14 @@ def _build_fixed_segment(
         per_rep_seconds = int(float(seg["duration_sec"]))
     elif seg.get("distance_m") is not None:
         if discipline == "swim" and css_sec_per_100m:
-            per_rep_seconds = int(seg["distance_m"] / 100.0 * css_sec_per_100m)
+            # Zonens fart-% av CSS (Z1 ≈ 82 %, Z5 ≈ 115 %) → tid. Förut fick
+            # varje simrep CSS-tid oavsett zon: Z1-reps ~2 min för korta per
+            # 1000, klockan pep "nästa steg" mitt i, IF/TSS fel (docs/12 G3).
+            lo_s, hi_s = _SWIM_SPEED_PCT[max(1, min(5, zone))]
+            speed_factor = (lo_s + hi_s) / 2.0 / 100.0
+            per_rep_seconds = int(
+                seg["distance_m"] / 100.0 * css_sec_per_100m / speed_factor
+            )
         elif discipline == "run" and threshold_pace_sec_per_km:
             lo_t, hi_t = _RUN_PACE_FRACTIONS[max(1, min(5, zone))]
             pace_factor = (lo_t + hi_t) / 2.0

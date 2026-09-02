@@ -16,6 +16,7 @@ Utan ``--apply``: dry-run (inga DB-skrivningar, inga TP-skrivningar). Default-ve
 
 from __future__ import annotations
 
+from coach.trixa import clock
 import argparse
 from datetime import date, timedelta
 
@@ -45,7 +46,7 @@ def main(argv: list[str] | None = None) -> int:
 
     week_start = (
         date.fromisoformat(args.week_start) if args.week_start
-        else _monday_of(date.today())
+        else _monday_of(clock.today())
     )
     pool = {w["code"]: w for w in load_workouts()}
     pg = get_postgrest()

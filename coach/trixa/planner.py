@@ -27,6 +27,7 @@ from dataclasses import dataclass, field, asdict
 from datetime import date, datetime, timedelta, timezone
 from typing import Any
 
+from coach.trixa import clock
 from coach.engine._loader import load_yaml
 from coach.engine.loader import (
     AthleteProfile,
@@ -60,6 +61,7 @@ from coach.engine.workouts import (
 from coach.trixa import sports
 from coach.trixa.db import get_supabase
 from coach.trixa.exercise_plan import exercises_from_steps
+from coach.trixa.training_log import dedup_cross_source
 
 logger = logging.getLogger("trixa.planner")
 
@@ -164,7 +166,7 @@ def _fetch_recent_workouts(
     pass-val. Nyckel: user_id. (Tidigare från workouts; docs/08.)"""
     if not user_id:
         return []
-    since = (date.today() - timedelta(weeks=weeks_back)).isoformat()
+    since = (clock.today() - timedelta(weeks=weeks_back)).isoformat()
     query = (
         client.table("planned_sessions")
         .select("date, sport, workout_code, intensity, status")
@@ -313,18 +315,14 @@ def _fetch_actual_weekly_hours(
     rows = res.data or []
     if not rows:
         return None
-    # OBS: legacy-strava-synken skapar dubbletter (samma pass 10-37 ggr) i
-    # training_log. Tills tabellen städats: summera UNIKA pass
-    # (date, sport, duration_min) så volymen inte blir 10-30× för hög.
-    seen: set[tuple] = set()
-    total_min = 0.0
-    for row in rows:
-        dur = float(row.get("duration_min") or 0)
-        key = (str(row.get("date"))[:10], row.get("sport"), round(dur, 1))
-        if key in seen:
-            continue
-        seen.add(key)
-        total_min += dur
+    # Samma dedup som dashboarden (coach/trixa/training_log.py). Den lokala
+    # exakt-till-en-decimal-nyckeln räknade tp 60,0 + strava 60,2 som två pass
+    # och blåste upp veckovolymen som styr fasberedskapen (docs/12 G4).
+    total_min = sum(
+        float(row.get("duration_min") or 0)
+        for row in dedup_cross_source(rows)
+        if sports.is_training(sports.canon(row.get("sport")))
+    )
     if total_min == 0:
         return None
     return total_min / 60.0 / weeks
@@ -1599,7 +1597,7 @@ def _persist_to_planned_sessions(client, plan: WeekPlan, user_id: str) -> dict:
     inserted = 0
     updated = 0
     kept = 0
-    today = date.today()
+    today = clock.today()
     exercise_map = {e["code"]: e for e in load_strength_exercises()}
     for sw in plan.workouts:
         payload = _planned_session_row(sw, user_id, exercise_map)
@@ -1883,7 +1881,7 @@ def generate_week(
     Returns:
         WeekPlan med alla beslut spårbara.
     """
-    today = today or date.today()
+    today = today or clock.today()
     client = get_supabase()
 
     # 1. Hämta adept-data
@@ -2371,7 +2369,7 @@ def swap_workout_to_next_alternative(
     )
 
     athlete = _fetch_athlete(client, user_id)
-    phase_rec = effective_phase_rec(athlete, client, date.today())
+    phase_rec = effective_phase_rec(athlete, client, clock.today())
     phase = phase_rec.phase
     period = phase_rec.period
     candidates = list_workout_alternatives(
@@ -2445,7 +2443,7 @@ def swap_workout_discipline_and_replan(
 
     # Hämta engine-state för phase
     athlete_full = _fetch_athlete(client, athlete_user_id)
-    phase_rec = effective_phase_rec(athlete_full, client, date.today())
+    phase_rec = effective_phase_rec(athlete_full, client, clock.today())
     phase_filter = _phase_filter_value(phase_rec.phase, phase_rec.period)
 
     # Välj nytt pass — slumpvis från matching
@@ -2476,7 +2474,7 @@ def swap_workout_discipline_and_replan(
 
     # Markera audit-not på låst pass
     locked.notes = (
-        f"{locked.notes}\n\n[Adept bytte disciplin från {old.get('sport')} → {new_discipline} {date.today().isoformat()}]"
+        f"{locked.notes}\n\n[Adept bytte disciplin från {old.get('sport')} → {new_discipline} {clock.today().isoformat()}]"
     ).strip()
 
     # Re-generera veckan med detta som låst — apply=True skriver över allt

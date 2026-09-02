@@ -18,6 +18,7 @@ from dataclasses import dataclass, field
 from datetime import date, timedelta
 from typing import TYPE_CHECKING, Any
 
+from coach.trixa import clock
 from coach.engine._loader import load_yaml
 
 if TYPE_CHECKING:
@@ -91,7 +92,7 @@ def build_alerts(plan: "WeekPlan", athlete: dict, today: date | None = None) -> 
     Returns:
         Lista av Alert-objekt. Kan vara tom om allt är OK.
     """
-    today = today or date.today()
+    today = today or clock.today()
     catalog = _load_alerts_catalog()
     alerts: list[Alert] = []
 
