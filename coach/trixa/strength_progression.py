@@ -23,6 +23,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Iterable
 
+from coach.engine.numbers import positive_float, to_int
+
 # exercise_logs.effort — skalan adepten bockar av på.
 EFFORT_LIGHT = 1
 EFFORT_MODERATE = 2
@@ -100,18 +102,12 @@ def _fmt_kg(kg: float | None) -> str:
 
 
 def _as_int(value: Any) -> int | None:
-    try:
-        return int(value)
-    except (TypeError, ValueError):
-        return None
+    return to_int(value)
 
 
 def _as_float(value: Any) -> float | None:
-    try:
-        out = float(value)
-    except (TypeError, ValueError):
-        return None
-    return out if out > 0 else None
+    """Lastvärde: 0 och tomt är "saknas" (coach/engine/numbers.py)."""
+    return positive_float(value)
 
 
 def _is_bodyweight(planned: dict) -> bool:

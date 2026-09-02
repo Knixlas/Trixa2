@@ -444,9 +444,12 @@ Det som ändrar hur man ska tänka om koden:
   föll på CI efter grönt lokalt.
 - `/health/integrations` kräver `TRIXA_OPS_TOKEN` för detaljer.
   ACWR-gränser i `overtraining.yaml` (`acwr_high/low`).
-- Kvar (docs/12): H4 (säsongsvyns dubbelläsningar), I9–I13 (hjälpar-
-  dubbletter, statusdubbel, `generate_week`-uppdelning, origin-register),
-  B4-syskon (cron `last_run` bara i minne), G5 (HRV-baseline från 7 sampel).
+- Alla 50 fynd åtgärdade (#39–#49). Sist in: `_prefetch_dashboard` (en
+  läsning per tabell), `coach/trixa/origins.py` (origin-policy: is_human/
+  reps_prescribed/athlete_deletable/swappable), `coach/engine/numbers.py`
+  (to_float/to_int/positive_float), statusens utseende i `ui._STATUS`,
+  `generate_week` uppdelad (_select_week_workouts, _persist_week,
+  _trace_data_sources), cron läser `phase_state` i stället för RAM.
 
 **Yoga som gren + pass som går att markera gjorda (2026-09-02):**
 Skarp användning av en andra adept (Sarah, `acb82415-…`): hon lade in
