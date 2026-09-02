@@ -441,7 +441,12 @@ Det som ändrar hur man ska tänka om koden:
   utvärderar UPDATE-villkor före uppdateringen. Fixturer måste ligga
   inom sina fönster (`_RECENT` i test_agent_api).
 - **Kör `pytest -q` från roten** (som CI), inte bara `coach/tests` — #43
-  föll på CI efter grönt lokalt.
+  föll på CI efter grönt lokalt. **Och torrkör planeraren mot skarp data**
+  efter ändringar i `generate_week`:
+  `python -m coach.trixa.planner --athlete-user-id <id> --week-start <måndag>`
+  (utan `--apply`). 337 gröna tester missade en saknad import som
+  torrkörningen fann på en sekund (#50). `test_generate_week_dry_run.py`
+  kör nu hela vägen mot fejken, inklusive skrivningarna.
 - `/health/integrations` kräver `TRIXA_OPS_TOKEN` för detaljer.
   ACWR-gränser i `overtraining.yaml` (`acwr_high/low`).
 - Alla 50 fynd åtgärdade (#39–#49). Sist in: `_prefetch_dashboard` (en
