@@ -31,6 +31,22 @@ def fetch_upcoming_races(client: Any, athlete_id: str, today: date) -> list[dict
     )
 
 
+def next_a_race_from(rows: list[dict], today: date) -> dict | None:
+    """Samma val som fetch_next_a_race, men ur redan hämtade rader."""
+    upcoming = [r for r in rows if str(r.get("date") or "")[:10] >= today.isoformat()]
+    if not upcoming:
+        return None
+    upcoming.sort(key=lambda r: (_PRIORITY_ORDER.get(r.get("priority"), 9), r.get("date", "")))
+    a_races = [r for r in upcoming if r.get("priority") == "A"]
+    return (a_races or upcoming)[0]
+
+
+def last_race_from(rows: list[dict], today: date) -> dict | None:
+    """Senast genomförda race ur redan hämtade rader."""
+    done = [r for r in rows if str(r.get("date") or "")[:10] < today.isoformat()]
+    return max(done, key=lambda r: r.get("date", "")) if done else None
+
+
 def fetch_last_race(client: Any, athlete_id: str, today: date) -> dict | None:
     """Senast genomförda race (date < today), oavsett prioritet.
 

@@ -12,6 +12,7 @@ import logging
 import os
 from datetime import date as date_type, datetime, timedelta, timezone
 from functools import lru_cache
+from types import SimpleNamespace
 from pathlib import Path
 from uuid import uuid4
 
@@ -28,7 +29,15 @@ from coach.trixa.config import default_user_id
 from coach.trixa.db import get_postgrest
 from coach.trixa.exercise_plan import planned_exercises
 from coach.trixa.strength_progression import apply_suggestions, suggestions_by_name
-from coach.trixa.training_log import dedup_cross_source
+from coach.trixa.training_log import (
+    clean_log_rows,
+    dedup_cross_source,
+    fetch_clean_log,
+    slice_by_date,
+)
+
+# Säsongsvyns fönster bakåt; styr också prefetchens undre gräns.
+_SEASON_WEEKS_BACK = 28
 
 
 @lru_cache(maxsize=1)
@@ -809,13 +818,66 @@ _RELEVANT_SPORTS = sports.TRAINING_KEYS   # inkl. brick — TP loggar ett bricks
 
 
 def _clean_log_rows(rows: list[dict]) -> list[dict]:
-    """Förbered training_log-rader för aggregering: filtrera bort irrelevanta
-    grenar (ej styrka/kondition) och deduppa källdubbletter (tp>strava>manual)."""
-    relevant = [r for r in rows if _canon_log_sport(r.get("sport")) in _RELEVANT_SPORTS]
-    return _dedup_log_rows(relevant)
+    """Förbered training_log-rader för aggregering. Delegerar till
+    coach/trixa/training_log.py — samma regel som planerare och agent-API."""
+    return clean_log_rows(rows)
 
 
-def _compliance_by_week(client, athlete_id, today, user_id) -> dict:
+def _prefetch_dashboard(client, user_id: str | None, athlete_id: str | None,
+                        this_monday: date_type, today: date_type) -> dict:
+    """En läsning per tabell för hela dashboarden.
+
+    Förut lästes training_log tre gånger (28 v ⊃ 12 v ⊃ veckan),
+    planned_sessions fyra, exercise_logs sex, races två — 13–19 sekventiella
+    anrop per sidladdning (docs/12 H4). Nu ett fönster per tabell som varje
+    vy skivar i minnet. Varje del är valfri: saknas den faller hjälparna
+    tillbaka på sina egna frågor, så en trasig prefetch fäller inget.
+    """
+    pre: dict = {}
+    if not user_id:
+        return pre
+    far_back = (this_monday - timedelta(weeks=_SEASON_WEEKS_BACK)).isoformat()
+    next_sunday = (this_monday + timedelta(days=13)).isoformat()
+    far_ahead = (this_monday + timedelta(weeks=52)).isoformat()
+    try:
+        pre["log"] = fetch_clean_log(client, user_id, far_back, next_sunday)
+    except Exception:  # noqa: BLE001
+        pass
+    try:
+        pre["planned"] = (
+            client.table("planned_sessions")
+            .select("id, date, sport, title, details, purpose, duration_min,"
+                    " steps, exercises, origin, workout_code, intensity, status")
+            .eq("user_id", user_id)
+            .gte("date", far_back).lte("date", far_ahead)
+            .order("date").execute()
+        ).data or []
+    except Exception:  # noqa: BLE001
+        pass
+    try:
+        ex_from = (this_monday - timedelta(days=_PROGRESSION_DAYS)).isoformat()
+        pre["exercise_logs"] = (
+            client.table("exercise_logs")
+            .select("id, session_date, exercise_name, exercise_code, sets, reps,"
+                    " weight_from, effort")
+            .eq("user_id", user_id)
+            .gte("session_date", ex_from).lte("session_date", next_sunday)
+            .order("session_date", desc=True).execute()
+        ).data or []
+    except Exception:  # noqa: BLE001
+        pass
+    if athlete_id:
+        try:
+            pre["races"] = (
+                client.table("races").select("*").eq("athlete_id", athlete_id)
+                .order("date").execute()
+            ).data or []
+        except Exception:  # noqa: BLE001
+            pass
+    return pre
+
+
+def _compliance_by_week(client, athlete_id, today, user_id, pre: dict | None = None) -> dict:
     """Följsamhets-bucket per planerad, passerad vecka. Nyckel: (iso_year, iso_week).
 
     Bulk-läsning: EN query för planerade pass + EN-TVÅ för aktiviteter över hela
@@ -828,57 +890,58 @@ def _compliance_by_week(client, athlete_id, today, user_id) -> dict:
     this_monday = today - timedelta(days=today.weekday())
     window_start = this_monday - timedelta(weeks=_COMPLIANCE_MAX_WEEKS)
 
-    try:
-        ps_res = (
-            client.table("planned_sessions")
-            .select("date, sport, title, workout_code, duration_min, status")
-            .eq("user_id", user_id)
-            .gte("date", window_start.isoformat())
-            .lte("date", today.isoformat())
-            .order("date")
-            .execute()
-        )
-    except Exception:  # noqa: BLE001
-        return {}
+    start_iso, end_iso = window_start.isoformat(), today.isoformat()
+    if pre and pre.get("planned") is not None:
+        planned_rows = slice_by_date(pre["planned"], start_iso, end_iso)
+    else:
+        try:
+            planned_rows = (
+                client.table("planned_sessions")
+                .select("date, sport, title, workout_code, duration_min, status")
+                .eq("user_id", user_id)
+                .gte("date", start_iso).lte("date", end_iso)
+                .order("date")
+                .execute()
+            ).data or []
+        except Exception:  # noqa: BLE001
+            return {}
     # Planeraren cancel:ar ersatta rader i stället för att radera dem. Utan
     # filtret räknades spökraderna som "Missad" (docs/12 F3).
-    sessions = [r for r in (ps_res.data or []) if r.get("status") != "cancelled"]
+    sessions = [r for r in planned_rows if r.get("status") != "cancelled"]
     if not sessions:
         return {}
 
     # Följsamhet mot MASTER training_log (alla källor: tp/strava/manuellt).
     activities_by_date: dict[str, list[dict]] = {}
-    try:
-        log_res = (
-            client.table("training_log")
-            .select("date, sport, title, duration_min, distance_km, avg_hr,"
-                    " max_hr, avg_power, normalized_power, tss, source")
-            .eq("user_id", user_id)
-            .gte("date", window_start.isoformat()).lte("date", today.isoformat())
-            .execute()
-        )
-        for r in _clean_log_rows(log_res.data or []):
-            day = str(r.get("date"))[:10] if r.get("date") else None
-            if day:
-                activities_by_date.setdefault(day, []).append(_normalize_log_activity(r))
-    except Exception:  # noqa: BLE001
-        pass
+    if pre and pre.get("log") is not None:
+        log_rows = slice_by_date(pre["log"], start_iso, end_iso)
+    else:
+        try:
+            log_rows = fetch_clean_log(client, user_id, start_iso, end_iso)
+        except Exception:  # noqa: BLE001
+            log_rows = []
+    for r in log_rows:
+        day = str(r.get("date"))[:10] if r.get("date") else None
+        if day:
+            activities_by_date.setdefault(day, []).append(_normalize_log_activity(r))
 
     # Styrkepassets eget kvitto: avbockade övningar. Utan dem räknades ett
     # pass som veckokortet visade "Genomförd" som missat i säsongsvyn.
     exercise_logs_by_date: dict[str, list[dict]] = {}
-    try:
-        ex_res = (
-            client.table("exercise_logs").select("session_date, effort")
-            .eq("user_id", user_id)
-            .gte("session_date", window_start.isoformat())
-            .lte("session_date", today.isoformat())
-            .execute()
-        )
-        for r in ex_res.data or []:
-            exercise_logs_by_date.setdefault(str(r.get("session_date"))[:10], []).append(r)
-    except Exception:  # noqa: BLE001
-        pass
+    if pre and pre.get("exercise_logs") is not None:
+        ex_rows = slice_by_date(pre["exercise_logs"], start_iso, end_iso, key="session_date")
+    else:
+        try:
+            ex_rows = (
+                client.table("exercise_logs").select("session_date, effort")
+                .eq("user_id", user_id)
+                .gte("session_date", start_iso).lte("session_date", end_iso)
+                .execute()
+            ).data or []
+        except Exception:  # noqa: BLE001
+            ex_rows = []
+    for r in ex_rows:
+        exercise_logs_by_date.setdefault(str(r.get("session_date"))[:10], []).append(r)
 
     weeks: dict[tuple[int, int], list[dict]] = {}
     for ps in sessions:
@@ -923,7 +986,7 @@ def _add_week_hours(by_week: dict, day_iso: str, hours: float) -> None:
     by_week[(iso[0], iso[1])] = by_week.get((iso[0], iso[1]), 0.0) + hours
 
 
-def _planned_hours_by_week(client, user_id, start, end) -> dict:
+def _planned_hours_by_week(client, user_id, start, end, pre: dict | None = None) -> dict:
     """Planerad veckovolym (h) ur MASTER planned_sessions. {(iso_year, iso_week): h}.
 
     Alla origins (nils/trixa2/manual) — det som faktiskt lagts i planen.
@@ -933,25 +996,28 @@ def _planned_hours_by_week(client, user_id, start, end) -> dict:
     out: dict[tuple[int, int], float] = {}
     if not user_id:
         return out
-    try:
-        res = (
-            client.table("planned_sessions")
-            .select("date, duration_min, status")
-            .eq("user_id", user_id)
-            .gte("date", start.isoformat())
-            .lte("date", end.isoformat())
-            .execute()
-        )
-    except Exception:  # noqa: BLE001
-        return out
-    for r in res.data or []:
+    if pre and pre.get("planned") is not None:
+        rows = slice_by_date(pre["planned"], start.isoformat(), end.isoformat())
+    else:
+        try:
+            rows = (
+                client.table("planned_sessions")
+                .select("date, duration_min, status")
+                .eq("user_id", user_id)
+                .gte("date", start.isoformat())
+                .lte("date", end.isoformat())
+                .execute()
+            ).data or []
+        except Exception:  # noqa: BLE001
+            return out
+    for r in rows:
         if r.get("status") == "cancelled":
             continue   # ersatta rader dubblade planerade timmar (docs/12 F3)
         _add_week_hours(out, r.get("date") or "", (_fnum(r.get("duration_min")) or 0) / 60.0)
     return out
 
 
-def _season_actuals(client, user_id, start, today):
+def _season_actuals(client, user_id, start, today, pre: dict | None = None):
     """Deduppade training_log-pass per ISO-vecka för säsongsvyn.
 
     Returnerar (hours_by_week, sessions_by_week) ur EN läsning. sessions_by_week
@@ -961,19 +1027,14 @@ def _season_actuals(client, user_id, start, today):
     sessions: dict[tuple[int, int], list[dict]] = {}
     if not user_id:
         return hours, sessions
-    try:
-        res = (
-            client.table("training_log")
-            .select("date, sport, title, duration_min, distance_km, avg_hr, tss, source")
-            .eq("user_id", user_id)
-            .gte("date", start.isoformat())
-            .lte("date", today.isoformat())
-            .order("date")
-            .execute()
-        )
-    except Exception:  # noqa: BLE001
-        return hours, sessions
-    for r in _clean_log_rows(res.data or []):
+    if pre and pre.get("log") is not None:
+        rows = slice_by_date(pre["log"], start.isoformat(), today.isoformat())
+    else:
+        try:
+            rows = fetch_clean_log(client, user_id, start.isoformat(), today.isoformat())
+        except Exception:  # noqa: BLE001
+            return hours, sessions
+    for r in rows:
         day = str(r.get("date"))[:10]
         try:
             d = date_type.fromisoformat(day)
@@ -1036,7 +1097,7 @@ def _week_analysis(w: dict) -> str:
     return txt + rec
 
 
-def _build_season_context(client, athlete, today, this_monday) -> dict | None:
+def _build_season_context(client, athlete, today, this_monday, pre: dict | None = None) -> dict | None:
     """Säsongsplan: optimal fas+volym per vecka vs faktiskt utfall, eller None.
 
     Race läses från public.races (nästa A-race) — samma helper som planner —
@@ -1047,13 +1108,19 @@ def _build_season_context(client, athlete, today, this_monday) -> dict | None:
     last_race_d = None
     last_race_dist = None
     try:
-        from coach.trixa.races import fetch_last_race, fetch_next_a_race
+        from coach.trixa.races import (
+            fetch_last_race, fetch_next_a_race, last_race_from, next_a_race_from,
+        )
 
-        race = fetch_next_a_race(client, athlete.get("id"), today)
+        if pre and pre.get("races") is not None:
+            race = next_a_race_from(pre["races"], today)
+            last = last_race_from(pre["races"], today)
+        else:
+            race = fetch_next_a_race(client, athlete.get("id"), today)
+            last = fetch_last_race(client, athlete.get("id"), today)
         if race:
             race_raw = race.get("date")
             race_name = race.get("name")
-        last = fetch_last_race(client, athlete.get("id"), today)
         if last:
             last_race_dist = last.get("distance")
             try:
@@ -1076,12 +1143,12 @@ def _build_season_context(client, athlete, today, this_monday) -> dict | None:
 
     # Faktiskt utfört per vecka ur MASTER training_log (deduppat). Brett fönster
     # (28 v) så HELA den optimala periodiseringen täcks, inte bara lookbacken.
-    window_start = this_monday - timedelta(weeks=28)
-    actual_by_week, sessions_by_week = _season_actuals(client, user_id, window_start, today)
+    window_start = this_monday - timedelta(weeks=_SEASON_WEEKS_BACK)
+    actual_by_week, sessions_by_week = _season_actuals(client, user_id, window_start, today, pre)
 
     try:
         comp_map = _compliance_by_week(
-            client, athlete["id"], today, user_id,
+            client, athlete["id"], today, user_id, pre,
         )
     except Exception:  # noqa: BLE001
         comp_map = {}
@@ -1089,7 +1156,7 @@ def _build_season_context(client, athlete, today, this_monday) -> dict | None:
     # Veckor med en faktisk plan visar plannerns/Nils beslut som "optimal"
     # istället för projektionskurvan — framåt till race så nästa genererade
     # vecka också syns.
-    planned_by_week = _planned_hours_by_week(client, user_id, window_start, race_d)
+    planned_by_week = _planned_hours_by_week(client, user_id, window_start, race_d, pre)
 
     plan = season.build_season_plan(
         today, race_d, peak_hours, actual_by_week, comp_map,
@@ -1169,15 +1236,17 @@ def dashboard(request: Request) -> HTMLResponse:
     # ingen garmin/strava-källgating behövs. Hårdat: en trasig vecka fäller
     # inte hela dashboarden.
     uid = athlete.get("user_id")
+    # En läsning per tabell för hela sidan; vyerna skivar i minnet (docs/12 H4).
+    pre = _prefetch_dashboard(client, uid, athlete.get("id"), this_monday, today)
     try:
         this_week = _fetch_current_week_data(
-            client, athlete["id"], this_iso[0], this_iso[1], today, uid
+            client, athlete["id"], this_iso[0], this_iso[1], today, uid, pre
         )
     except Exception:  # noqa: BLE001
         this_week = None
     try:
         next_week = _fetch_current_week_data(
-            client, athlete["id"], next_iso[0], next_iso[1], today, uid
+            client, athlete["id"], next_iso[0], next_iso[1], today, uid, pre
         )
     except Exception:  # noqa: BLE001
         next_week = None
@@ -1232,7 +1301,7 @@ def dashboard(request: Request) -> HTMLResponse:
 
     # Säsongs-tidslinje: fas-staplar bakåt från race + följsamhet per vecka
     try:
-        timeline = _build_season_context(client, athlete, today, this_monday)
+        timeline = _build_season_context(client, athlete, today, this_monday, pre)
     except Exception:  # noqa: BLE001
         timeline = None
 
@@ -1468,7 +1537,7 @@ def _normalize_log_activity(row: dict) -> dict:
     }
 
 
-def _fetch_completed_week(client, user_id, week_monday) -> dict[str, list[dict]]:
+def _fetch_completed_week(client, user_id, week_monday, pre: dict | None = None) -> dict[str, list[dict]]:
     """Utfört för veckan ur MASTER training_log — ALLA källor (tp/strava/manuellt).
 
     training_log är deduppat och källtaggat med rika fält (distans/puls/watt/TSS).
@@ -1478,33 +1547,32 @@ def _fetch_completed_week(client, user_id, week_monday) -> dict[str, list[dict]]
     if not user_id:
         return {}
     start = week_monday.isoformat()
-    end = (week_monday + timedelta(days=7)).isoformat()
-    try:
-        res = (
-            client.table("training_log")
-            .select("date, sport, title, duration_min, distance_km, avg_hr,"
-                    " max_hr, avg_power, normalized_power, tss, source")
-            .eq("user_id", user_id)
-            .gte("date", start)
-            .lt("date", end)
-            .execute()
-        )
-    except Exception:  # noqa: BLE001
-        return {}
+    end = (week_monday + timedelta(days=6)).isoformat()
+    if pre and pre.get("log") is not None:
+        rows = slice_by_date(pre["log"], start, end)
+    else:
+        try:
+            rows = fetch_clean_log(client, user_id, start, end)
+        except Exception:  # noqa: BLE001
+            return {}
     by_date: dict[str, list[dict]] = {}
-    for r in _clean_log_rows(res.data or []):
+    for r in rows:
         day = str(r.get("date"))[:10] if r.get("date") else None
         if day:
             by_date.setdefault(day, []).append(_normalize_log_activity(r))
     return by_date
 
 
-def _fetch_planned_sessions_week(client, user_id, week_monday):
+def _fetch_planned_sessions_week(client, user_id, week_monday, pre: dict | None = None):
     """Coachens/Nils plan (public.planned_sessions) för veckan, eller None."""
     if not user_id:
         return None
     start = week_monday.isoformat()
     end = (week_monday + timedelta(days=6)).isoformat()
+    if pre and pre.get("planned") is not None:
+        active = [r for r in slice_by_date(pre["planned"], start, end)
+                  if r.get("status") != "cancelled"]
+        return active or None
     try:
         res = (
             client.table("planned_sessions")
@@ -1524,7 +1592,7 @@ def _fetch_planned_sessions_week(client, user_id, week_monday):
     return active or None
 
 
-def _attach_strength_logs(client, week: dict, user_id: str) -> None:
+def _attach_strength_logs(client, week: dict, user_id: str, pre: dict | None = None) -> None:
     """Lägg loggade styrkeövningar (exercise_logs) på styrkepassen i veckan,
     plus en datalist med adeptens tidigare övningsnamn (för snabb inmatning).
 
@@ -1546,25 +1614,34 @@ def _attach_strength_logs(client, week: dict, user_id: str) -> None:
     history_from = (
         date_type.fromisoformat(week["week_start"]) - timedelta(days=_PROGRESSION_DAYS)
     ).isoformat()
-    try:
-        logs = (
-            client.table("exercise_logs").select(cols)
-            .eq("user_id", user_id)
-            .gte("session_date", week["week_start"])
-            .lte("session_date", week["week_end"])
-            .execute()
-        )
-        history = (
-            client.table("exercise_logs").select(cols)
-            .eq("user_id", user_id)
-            .gte("session_date", history_from)
-            .lt("session_date", week["week_start"])
-            .order("session_date", desc=True)
-            .limit(1000)
-            .execute()
-        )
-    except Exception:  # noqa: BLE001
-        return
+    if pre and pre.get("exercise_logs") is not None:
+        all_rows = pre["exercise_logs"]
+        logs = SimpleNamespace(data=slice_by_date(
+            all_rows, week["week_start"], week["week_end"], key="session_date"))
+        before = (date_type.fromisoformat(week["week_start"]) - timedelta(days=1)).isoformat()
+        history = SimpleNamespace(data=sorted(
+            slice_by_date(all_rows, history_from, before, key="session_date"),
+            key=lambda r: str(r.get("session_date") or ""), reverse=True))
+    else:
+        try:
+            logs = (
+                client.table("exercise_logs").select(cols)
+                .eq("user_id", user_id)
+                .gte("session_date", week["week_start"])
+                .lte("session_date", week["week_end"])
+                .execute()
+            )
+            history = (
+                client.table("exercise_logs").select(cols)
+                .eq("user_id", user_id)
+                .gte("session_date", history_from)
+                .lt("session_date", week["week_start"])
+                .order("session_date", desc=True)
+                .limit(1000)
+                .execute()
+            )
+        except Exception:  # noqa: BLE001
+            return
     by_date: dict[str, list[dict]] = {}
     for lg in logs.data or []:
         by_date.setdefault(str(lg.get("session_date"))[:10], []).append(lg)
@@ -1679,10 +1756,12 @@ def _fetch_current_week_data(
     week_num: int,
     today: date_type | None = None,
     user_id: str | None = None,
+    pre: dict | None = None,
 ) -> dict | None:
     """Veckans plan + plan-vs-actual.
 
     Planerad källa: MASTER planned_sessions. Utfört: MASTER training_log.
+    ``pre``: dashboardens förhämtade rader (se _prefetch_dashboard).
     """
     if today is None:
         today = clock.today()
@@ -1692,11 +1771,11 @@ def _fetch_current_week_data(
     # (tp/strava/manuellt), rika fält. Hoppas över för rena framtidsveckor.
     activities_by_date: dict[str, list[dict]] = {}
     if user_id and week_monday <= today:
-        activities_by_date = _fetch_completed_week(client, user_id, week_monday)
+        activities_by_date = _fetch_completed_week(client, user_id, week_monday, pre)
 
     # MASTER: planen läses från planned_sessions (docs/08). Raderna kan komma
     # från Nils (origin='nils'), motorn (origin='trixa2') eller legacy (NULL).
-    sessions = _fetch_planned_sessions_week(client, user_id, week_monday)
+    sessions = _fetch_planned_sessions_week(client, user_id, week_monday, pre)
     if not sessions:
         return None
 
@@ -1761,7 +1840,7 @@ def _fetch_current_week_data(
     week["rest_day_count"] = sum(1 for w in week["workouts"] if w["is_rest"])
     week["session_count"] = len(week["workouts"]) - week["rest_day_count"]
 
-    _attach_strength_logs(client, week, user_id)
+    _attach_strength_logs(client, week, user_id, pre)
     return week
 
 
