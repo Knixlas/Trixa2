@@ -25,6 +25,7 @@ import random
 import sys
 from dataclasses import dataclass, field, asdict
 from datetime import date, datetime, timedelta, timezone
+from types import SimpleNamespace
 from typing import Any
 
 from coach.trixa import clock
