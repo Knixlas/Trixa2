@@ -77,11 +77,12 @@
           {% if w.status %}
           <span class="{{ w.status.css or 'badge' }}" style="{{ w.status.style or '' }}" title="{{ w.status.label }}">{{ w.status.emoji }} {{ w.status.label }}</span>{% endif %}
           {% if w.is_manual %}<span class="badge" style="background: var(--orchid-soft); color: var(--orchid);" title="Adept-skapat pass">✋ Eget pass</span>{% endif %}
+          {% if w.is_unplanned %}<span class="badge" style="background: var(--orchid-soft); color: var(--orchid);" title="Loggat pass utan planerad session">📝 Oplanerat</span>{% endif %}
         </div>
         <div class="workout-meta">
           {% set catlabels = {"AE": "Distans", "TE": "Tempo", "MF": "Kraft", "SS": "Snabbhet",
                               "ME": "Tröskel", "AC": "Intervaller", "T": "Test", "BW": "Brick",
-                              "STR": "Styrka", "REST": "Vila"} %}
+                              "STR": "Styrka", "REST": "Vila", "LOG": "Loggat"} %}
           <span class="badge info" title="{{ w.code }}">{{ catlabels.get(w.category, w.category or w.sport) }}</span>
           {% if w.setting == "outdoor" %}<span class="badge" style="background: var(--palm-soft); color: var(--palm-deep);"><i data-lucide="sun"></i>utomhus</span>
           {% elif w.setting == "indoor" %}<span class="badge" style="background: var(--pineapple-soft); color: var(--pineapple-deep);"><i data-lucide="home"></i>inomhus</span>
@@ -308,7 +309,7 @@
            det passet föreskriver; sparas i training_log. Gäller även styrka
            och yoga: utan den fanns ingen väg att markera dem gjorda, och ett
            yogapass adepten lagt in själv stod som "Missad" morgonen efter. #}
-        {% if w.sport in ("swim", "bike", "run", "strength", "yoga") and w.status.key not in ("planned",) %}
+        {% if w.sport in ("swim", "bike", "run", "strength", "yoga") and w.status.key not in ("planned",) and not w.is_unplanned %}
         <details>
           <summary>{% if w.status.actual %}Korrigera logg{% elif w.sport in ("strength", "yoga") %}Markera som gjort{% else %}Logga pass{% endif %}</summary>
           <article style="margin-top: 6px;">

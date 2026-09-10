@@ -494,6 +494,14 @@ stod som "Missad" morgonen efter utan väg att säga emot.
 - Kvar: passbankens hålltider (planka `reps: 1` + tid i `load_pct`) och
   logg av sekunder (dödhäng) saknar fält — `exercise_logs` har bara reps.
 
+**Loggade pass utan plan syns (2026-09-10, fynd från Nils via Sarah):**
+En logg på en dag utan planerad session försvann tyst — veckovyn byggdes
+bara ur planned_sessions och en vecka utan plan returnerade None. Nu får
+varje loggrad som inget planerat pass tagit som sitt utfört ett eget kort
+("Oplanerat", kategori LOG, samma utfört-panel). `_build_actual` bär
+`_idx` så förbrukade loggar kan skiljas från oförbrukade. Ett andra pass
+samma dag får också kort. `plan_source == "log"` för veckor utan plan.
+
 **Prosa-pass utan lista — reserver i läsvägen (2026-09-10):**
 Nils skrev veckans styrkepass som "alla 2x10: benpress 83, höftabduktion 40 …"
 och "samma som torsdag" trots plan_session-varningen; adepten stod utan
