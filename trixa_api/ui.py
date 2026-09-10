@@ -28,7 +28,7 @@ from coach.trixa import origins, sports
 from coach.engine.numbers import to_float, to_int
 from coach.trixa.config import default_user_id
 from coach.trixa.db import get_postgrest
-from coach.trixa.exercise_plan import planned_exercises
+from coach.trixa.exercise_plan import planned_exercises, previous_strength_session
 from coach.trixa.strength_progression import apply_suggestions, suggestions_by_name
 from coach.trixa.training_log import (
     clean_log_rows,
@@ -1817,7 +1817,12 @@ def _fetch_current_week_data(
             # Äldre rader (och rader från skrivare som bara fyllt steps) bär
             # övningarna i main_set — härled listan så loggen kan förifyllas
             # även där, i stället för att kräva en ombyggnad av gamla veckor.
-            "planned_exercises": planned_exercises(ps, _exercise_catalogue()),
+            "planned_exercises": planned_exercises(
+                ps, _exercise_catalogue(),
+                previous_strength_session(
+                    (pre or {}).get("planned") or sessions, str(ps["date"]), _exercise_catalogue()
+                ),
+            ),
             # Vilodagen lagras som en rad i planned_sessions men är frånvaro av
             # träning. Yoga/Promenad mappar också till sport "rest" — de ÄR pass
             # och räknas som sådana, därför tittar vi på det lagrade värdet.

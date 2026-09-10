@@ -120,6 +120,15 @@
               <strong>Kvar att bocka av ({{ w.exercises_to_log | length }}):</strong>
               vikt och reps är räknade ur förra passets ansträngning — justera om
               det inte stämmer, och bocka av.
+              {# Listan kan vara tolkad ur passtexten eller ärvd från förra
+                 styrkepasset. Säg det — adepten ska veta att det är en
+                 tolkning, inte coachens ord. #}
+              {% set derived = w.exercises_to_log[0].derived %}
+              {% if derived == "details" %}
+              <br><em>Listan är tolkad ur passtexten — kontrollera mot den.</em>
+              {% elif derived and derived.startswith("previous:") %}
+              <br><em>Passet saknar egen lista — övningarna är hämtade från {{ derived[9:] }}.</em>
+              {% endif %}
             </p>
             {% set trend_mark = {'up': '↗', 'down': '↘', 'hold': '→', 'deload': '⤵', 'new': '★'} %}
             {% for ex in w.exercises_to_log %}

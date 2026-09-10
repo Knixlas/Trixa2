@@ -21,7 +21,12 @@ from functools import lru_cache
 
 from coach.trixa import clock, origins, sports
 from coach.trixa.db import get_postgrest
-from coach.trixa.exercise_plan import normalize_exercises, planned_exercises
+from coach.trixa.exercise_plan import (
+    exercises_from_prose,
+    normalize_exercises,
+    planned_exercises,
+    previous_strength_session,
+)
 from coach.trixa.strength_progression import apply_suggestions
 from coach.trixa.training_log import dedup_cross_source
 from trixa_api.agent_auth import AgentScope, resolve_agent_scope
@@ -237,6 +242,20 @@ def _week_plan(client, user_id: str, monday: date_type) -> dict:
     rows = [w for w in (res.data or []) if w.get("status") != "cancelled"]
     has_strength = any(sports.canon(w.get("sport")) == "strength" for w in rows)
     history = _strength_history(client, user_id, monday, sunday) if has_strength else []
+    # Tidigare styrkepass (3 v) för rader som bara säger "samma som torsdag".
+    earlier: list[dict] = []
+    if has_strength:
+        try:
+            earlier = (
+                client.table("planned_sessions")
+                .select("id, date, sport, title, details, steps, exercises, status")
+                .eq("user_id", user_id).eq("sport", "Styrka")
+                .gte("date", (monday - timedelta(days=21)).isoformat())
+                .lt("date", monday.isoformat())
+                .order("date", desc=True).limit(6).execute()
+            ).data or []
+        except Exception:  # noqa: BLE001
+            earlier = []
     sessions = [
         {
             "id": w["id"],
@@ -253,7 +272,10 @@ def _week_plan(client, user_id: str, monday: date_type) -> dict:
             # Bara loggar FÖRE passets datum räknas: ett senare pass i veckan
             # får inte styra ett tidigare bakåt i tiden.
             "exercises": apply_suggestions(
-                planned_exercises(w, _exercise_catalogue()),
+                planned_exercises(
+                    w, _exercise_catalogue(),
+                    previous_strength_session(rows + earlier, str(w["date"]), _exercise_catalogue()),
+                ),
                 [h for h in history if str(h.get("session_date"))[:10] < str(w["date"])[:10]],
                 coach_prescribed=origins.reps_prescribed(w.get("origin")),
             ),
@@ -422,7 +444,14 @@ def write_plan_session(
         "intensity": body.intensity.strip(),
         "details": body.details.strip(),
         "workout_code": body.workout_code.strip(),
-        "exercises": normalize_exercises(body.exercises) or None,
+        # Skickas ingen lista för ett styrkepass tolkas prosan i details med
+        # exercises_from_prose (bara igenkända mönster). Varningen sade "skicka
+        # listan" i en vecka utan effekt — adepten stod utan avbockning igen.
+        "exercises": (
+            normalize_exercises(body.exercises)
+            or (exercises_from_prose(body.details) if sport_sv == "Styrka" else [])
+            or None
+        ),
         # Coachens pass ersätter motorns helt. Lämnades steps kvar från en
         # övertagen trixa2-rad föll loggformuläret tillbaka på dem — adepten
         # såg motorns knäböj under coachens "Rörlighet 20 min", medan
@@ -434,6 +463,12 @@ def write_plan_session(
     }
 
     warnings = _plan_warnings(sport_sv, row)
+    if sport_sv == "Styrka" and not body.exercises and row.get("exercises"):
+        warnings.insert(0, (
+            f"Övningslistan ({len(row['exercises'])} st) är TOLKAD ur prosan i details. "
+            "Kontrollera att namn, set, reps och vikt stämmer — skicka 'exercises' "
+            "nästa gång så slipper adepten en tolkning."
+        ))
 
     def _existing() -> dict | None:
         res = (
