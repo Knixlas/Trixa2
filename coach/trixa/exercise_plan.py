@@ -264,6 +264,35 @@ def _parse_bullets(text: str) -> list[dict]:
     return [e for e in out if e is not None]
 
 
+def exercises_from_logs(history: list[dict]) -> list[dict]:
+    """Senast loggade styrkepasset som övningslista — sista reserven.
+
+    När varken raden, förra planerade passet eller prosan ger en lista
+    (alla pass framåt säger "samma som torsdag") är det adepten faktiskt
+    gjorde sist den bästa förlagan. Progressionen räknar sedan vidare ur
+    samma logg. Märks ``derived: "logged:<datum>"``.
+    """
+    performed = [
+        h for h in history or []
+        if h.get("exercise_name") and to_int(h.get("effort")) != -1
+    ]
+    if not performed:
+        return []
+    last_date = max(str(h.get("session_date") or "")[:10] for h in performed)
+    out = []
+    for h in performed:
+        if str(h.get("session_date") or "")[:10] != last_date:
+            continue
+        out.append({
+            "code": h.get("exercise_code") or None,
+            "name": h["exercise_name"],
+            "sets": to_int(h.get("sets")), "reps": to_int(h.get("reps")),
+            "reps_min": None, "reps_max": None, "rir": None, "rest_sec": None,
+            "load": None, "note": None, "derived": f"logged:{last_date}",
+        })
+    return out
+
+
 def previous_strength_session(rows: list[dict], before_date: str, exercise_map=None) -> dict | None:
     """Senaste tidigare styrkepasset med en övningslista (max 21 dagar bakåt).
 

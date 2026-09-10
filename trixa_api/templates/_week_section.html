@@ -128,6 +128,8 @@
               <br><em>Listan är tolkad ur passtexten — kontrollera mot den.</em>
               {% elif derived and derived.startswith("previous:") %}
               <br><em>Passet saknar egen lista — övningarna är hämtade från {{ derived[9:] }}.</em>
+              {% elif derived and derived.startswith("logged:") %}
+              <br><em>Passet saknar egen lista — övningarna är det du loggade {{ derived[7:] }}.</em>
               {% endif %}
             </p>
             {% set trend_mark = {'up': '↗', 'down': '↘', 'hold': '→', 'deload': '⤵', 'new': '★'} %}
