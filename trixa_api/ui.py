@@ -28,7 +28,11 @@ from coach.trixa import origins, sports
 from coach.engine.numbers import to_float, to_int
 from coach.trixa.config import default_user_id
 from coach.trixa.db import get_postgrest
-from coach.trixa.exercise_plan import planned_exercises, previous_strength_session
+from coach.trixa.exercise_plan import (
+    exercises_from_logs,
+    planned_exercises,
+    previous_strength_session,
+)
 from coach.trixa.strength_progression import apply_suggestions, suggestions_by_name
 from coach.trixa.training_log import (
     clean_log_rows,
@@ -1673,6 +1677,10 @@ def _attach_strength_logs(client, week: dict, user_id: str, pre: dict | None = N
             lg for lg in list(history.data or []) + list(logs.data or [])
             if str(lg.get("session_date"))[:10] < cutoff
         ]
+        # Sista reserven: ingen lista alls på raden, i steps, i prosan eller
+        # i förra planerade passet — ta det adepten faktiskt loggade sist.
+        if not w.get("planned_exercises") and not logged:
+            todo = exercises_from_logs(relevant)
         # Coachens (eller adeptens egna) rep-tal är en föreskrift; bara
         # passbankens genererade pass får sina reps flyttade av progressionen.
         w["exercises_to_log"] = apply_suggestions(

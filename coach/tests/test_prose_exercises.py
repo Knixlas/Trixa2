@@ -126,6 +126,30 @@ def test_kortnamn_hittar_loggens_fulla_namn_och_progressionen_raknar():
     assert by["Höftabduktion"]["suggestion"]["trend"] == "new"              # ingen logg
 
 
+# ---------- sista reserven: senast loggade passet ----------
+
+
+def test_senast_loggade_passet_blir_lista_nar_inget_annat_finns():
+    from coach.trixa.exercise_plan import exercises_from_logs
+
+    history = LOG_0903 + [{"session_date": "2026-08-27", "exercise_name": "Gammal",
+                           "sets": 3, "reps": 8, "weight_from": 10.0, "effort": 2}]
+    out = exercises_from_logs(history)
+    assert {e["name"] for e in out} == {"Benpress (maskin)", "Hantellyft till axelhöjd", "Vadpress"}
+    assert all(e["derived"] == "logged:2026-09-03" for e in out)
+    assert out[0]["code"] == "leg_press_machine"
+    # Progressionen räknar vidare ur samma logg.
+    sugg = apply_suggestions(out, LOG_0903, coach_prescribed=True)
+    assert {e["suggestion"]["trend"] for e in sugg} <= {"up", "hold"}
+
+
+def test_overhoppade_ovningar_raknas_inte_som_lista():
+    from coach.trixa.exercise_plan import exercises_from_logs
+
+    assert exercises_from_logs([{"session_date": "2026-09-03", "exercise_name": "X",
+                                 "effort": -1}]) == []
+
+
 # ---------- plan_session ----------
 
 

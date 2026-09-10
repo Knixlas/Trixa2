@@ -22,6 +22,7 @@ from functools import lru_cache
 from coach.trixa import clock, origins, sports
 from coach.trixa.db import get_postgrest
 from coach.trixa.exercise_plan import (
+    exercises_from_logs,
     exercises_from_prose,
     normalize_exercises,
     planned_exercises,
@@ -275,6 +276,11 @@ def _week_plan(client, user_id: str, monday: date_type) -> dict:
                 planned_exercises(
                     w, _exercise_catalogue(),
                     previous_strength_session(rows + earlier, str(w["date"]), _exercise_catalogue()),
+                ) or (
+                    # Sista reserven: senast loggade styrkepasset (samma som appen).
+                    exercises_from_logs(
+                        [h for h in history if str(h.get("session_date"))[:10] < str(w["date"])[:10]]
+                    ) if sports.canon(w.get("sport")) == "strength" else []
                 ),
                 [h for h in history if str(h.get("session_date"))[:10] < str(w["date"])[:10]],
                 coach_prescribed=origins.reps_prescribed(w.get("origin")),
