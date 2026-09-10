@@ -494,6 +494,17 @@ stod som "Missad" morgonen efter utan väg att säga emot.
 - Kvar: passbankens hålltider (planka `reps: 1` + tid i `load_pct`) och
   logg av sekunder (dödhäng) saknar fält — `exercise_logs` har bara reps.
 
+**Prosa-pass utan lista — reserver i läsvägen (2026-09-10):**
+Nils skrev veckans styrkepass som "alla 2x10: benpress 83, höftabduktion 40 …"
+och "samma som torsdag" trots plan_session-varningen; adepten stod utan
+avbockning igen med en komplett logg från 3/9. `planned_exercises()` har nu
+kedjan exercises → steps → **prosa** (`exercises_from_prose`, bara tre
+igenkända mönster, annars tom) → **förra styrkepasset** inom 21 dagar.
+Härledda listor märks `derived` och formuläret säger varifrån de kommer.
+`plan_session` tolkar prosan vid skrivning och varnar "TOLKAD". Coachens
+kortnamn ("benpress") matchar loggens fulla ("Benpress (maskin)") via
+aliaser + entydig delsträng i `lookup_history`. Inga DB-rader ändrade.
+
 **Onboarding generaliserad (2026-08-25):**
 - Formuläret antog erfaren triatlet. Nu: aktiva discipliner + erfarenhetsnivå
   frågas först och styr resten. Tröskelvärden visas för advanced/elite (eller

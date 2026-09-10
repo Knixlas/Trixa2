@@ -166,12 +166,28 @@ def index_history(logs: Iterable[dict]) -> dict[str, list[dict]]:
 
 
 def lookup_history(planned: dict, index: dict[str, list[dict]]) -> list[dict]:
-    """Historiken för en planerad övning — koden först, namnet som reserv."""
+    """Historiken för en planerad övning — koden först, namnet som reserv.
+
+    Namnet matchas exakt, och annars som delsträng: coachens "benpress" ska
+    hitta loggens "Benpress (maskin)", "hantellyft" ska hitta "Hantellyft
+    till axelhöjd". Bara om exakt EN loggad övning matchar — två träffar är
+    en tvetydighet, inte en matchning.
+    """
     if planned.get("code"):
         rows = index.get(history_key(None, planned["code"]))
         if rows:
             return rows
-    return index.get(history_key(planned.get("name"))) or []
+    exact = index.get(history_key(planned.get("name")))
+    if exact:
+        return exact
+    wanted = str(planned.get("name") or "").strip().casefold()
+    if len(wanted) < 4:
+        return []
+    hits = [
+        key for key in index
+        if key.startswith("name:") and (wanted in key[5:] or key[5:] in wanted)
+    ]
+    return index[hits[0]] if len(hits) == 1 else []
 
 
 def _performed(history: list[dict]) -> list[dict]:
