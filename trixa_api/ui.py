@@ -1411,6 +1411,7 @@ def _build_actual(act: dict, sport: str) -> dict:
 
     return {
         "summary": "Genomfört: " + " · ".join(parts),
+        "_idx": act.get("_idx"),   # vilken loggrad som "förbrukades" av passet
         "name": act.get("activity_name"),
         "activity_type": act.get("activity_type"),
         "duration_min": dur_min,
@@ -1556,10 +1557,12 @@ def _fetch_completed_week(client, user_id, week_monday, pre: dict | None = None)
         except Exception:  # noqa: BLE001
             return {}
     by_date: dict[str, list[dict]] = {}
-    for r in rows:
+    for idx, r in enumerate(rows):
         day = str(r.get("date"))[:10] if r.get("date") else None
         if day:
-            by_date.setdefault(day, []).append(_normalize_log_activity(r))
+            act = _normalize_log_activity(r)
+            act["_idx"] = idx   # identitet, så oförbrukade loggar kan visas som egna kort
+            by_date.setdefault(day, []).append(act)
     return by_date
 
 
@@ -1780,10 +1783,14 @@ def _fetch_current_week_data(
     # MASTER: planen läses från planned_sessions (docs/08). Raderna kan komma
     # från Nils (origin='nils'), motorn (origin='trixa2') eller legacy (NULL).
     sessions = _fetch_planned_sessions_week(client, user_id, week_monday, pre)
-    if not sessions:
+    # En vecka utan plan men MED loggade pass är inte tom. Förut returnerades
+    # None, och loggen försvann tyst ur gränssnittet (fynd från Nils/Sarah
+    # 2026-09-10: "loggen borde skapa ett kort själv eller neka posten").
+    if not sessions and not activities_by_date:
         return None
+    sessions = sessions or []
 
-    plan_source = origins.plan_source(sessions)
+    plan_source = origins.plan_source(sessions) if sessions else "log"
 
     week = {
         "id": None,
@@ -1837,6 +1844,35 @@ def _fetch_current_week_data(
             "is_rest": (ps.get("sport") or "").strip().lower() in ("vila", "rest"),
             "status": _status(ps["date"], sport, code or title, dur, ps.get("id")),
         })
+
+    # Loggade pass som inget planerat pass tog som sitt "utfört" får egna
+    # kort. En logg på en dag utan plan, eller ett andra pass samma dag,
+    # försvann förut helt ur vyn — den fanns i training_log, räknades i
+    # volymen, men syntes ingenstans. Nu: "Oplanerat", med samma
+    # utfört-panel som ett planerat pass.
+    consumed = {
+        (w.get("status") or {}).get("actual", {}).get("_idx")
+        for w in week["workouts"]
+        if (w.get("status") or {}).get("actual")
+    }
+    for day, acts in sorted(activities_by_date.items()):
+        for act in acts:
+            if act.get("_idx") in consumed:
+                continue
+            sport_key = act.get("_sport") or "other"
+            label = _SPORT_LABEL.get(sport_key, "Övrigt")
+            week["workouts"].append({
+                "id": None, "date": day, "sport": sport_key,
+                "title": act.get("activity_name") or f"Oplanerat pass — {label}",
+                "code": "", "category": "LOG", "setting": "",
+                "duration_minutes": round(act.get("_dur_min") or 0), "distance": "",
+                "intensity": "", "notes": "", "steps": [], "coach_notes": "",
+                "is_manual": False, "can_swap": False, "origin": "log",
+                "planned_exercises": [], "is_rest": False, "is_unplanned": True,
+                "status": {**_STATUS["done"], "key": "done",
+                           "actual": _build_actual(act, sport_key)},
+            })
+    week["workouts"].sort(key=lambda w: (str(w["date"])[:10], 1 if w.get("is_unplanned") else 0))
 
     # "Pass: 7" för en vecka med tre träningsdagar och fyra vilodagar lästes som
     # sju träningspass. Räknaren visar träningspass; vilan redovisas separat.
