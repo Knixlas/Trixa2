@@ -2878,6 +2878,34 @@ def data_view(request: Request) -> HTMLResponse:
     return _render("data.html", ctx)
 
 
+# ---------- Statistik: timmar/pass/distans per gren och period ----------
+
+_STAT_COLORS = {
+    "swim": "var(--lagoon)", "bike": "var(--pineapple)", "run": "var(--hibiscus)",
+    "strength": "var(--orchid)", "brick": "var(--mango)", "yoga": "var(--palm)",
+}
+
+
+@router.get("/stats", response_class=HTMLResponse)
+def stats_view(request: Request) -> Any:
+    """Statistik gren för gren och totalt: vecka, månad, år, all tid."""
+    from coach.trixa.stats import compute_stats, fetch_all_log
+
+    user_id = _current_user_id(request)
+    if not user_id:
+        return RedirectResponse("/ui/login", status_code=303)
+    today = clock.today()
+    try:
+        rows = fetch_all_log(get_postgrest(), user_id, today)
+    except Exception:  # noqa: BLE001
+        logger.exception("stats: kunde inte läsa training_log")
+        rows = []
+    ctx = compute_stats(rows, today)
+    ctx["colors"] = _STAT_COLORS
+    ctx["request"] = request
+    return _render("stats.html", ctx)
+
+
 # ---------- Debug: vad Trixa ser ----------
 
 
