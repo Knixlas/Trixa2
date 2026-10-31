@@ -184,3 +184,49 @@ def test_genomford_med_riktig_aktivitet_rors_inte():
     week["workouts"][0]["status"]["actual"] = {"summary": "Genomfört: 50 min"}
     ui._attach_strength_logs(fake, week, UID)
     assert week["workouts"][0]["status"]["actual"]["summary"] == "Genomfört: 50 min"
+
+
+# ---------- manuell logg mot redan synkat pass ----------
+
+
+def test_manuell_logg_mot_synkat_pass_kompletterar_i_stallet_for_dubblett():
+    """Simpasset 2026-10-27: TP hade redan synkat och länkat passet, adepten
+    loggade det manuellt i efterhand → ett "Genomförd"-kort plus ett
+    "Oplanerat"-kort. Nu kompletteras TP-raden och ingen manuell rad skapas."""
+    store = {
+        "planned_sessions": [{"id": "ps-1", "user_id": UID, "date": "2026-10-27", "sport": "Sim"}],
+        "training_log": [{
+            "id": "tp-row", "user_id": UID, "date": "2026-10-27", "sport": "Sim",
+            "source": "tp", "duration_min": 37.1, "avg_hr": 126,
+            "distance_km": None, "planned_session_id": "ps-1",
+        }],
+    }
+    c, st = _ui_client(store)
+    r = c.post("/ui/log/session", data={
+        "date": "2026-10-27", "sport": "swim", "duration_min": "54",
+        "distance_km": "1.7", "avg_hr": "130", "rpe": "6",
+        "planned_session_id": "ps-1",
+    })
+    assert r.status_code == 303, r.text
+    assert len(st["training_log"]) == 1
+    row = st["training_log"][0]
+    assert row["source"] == "tp"
+    assert row["rpe"] == 6
+    assert row["distance_km"] == 1.7        # saknades → kompletteras
+    assert row["duration_min"] == 37.1      # klockans värde skrivs inte över
+    assert row["avg_hr"] == 126
+
+
+def test_manuell_logg_utan_synkat_pass_skapar_manuell_rad():
+    store = {
+        "planned_sessions": [{"id": "ps-1", "user_id": UID, "date": "2026-10-27", "sport": "Sim"}],
+        "training_log": [],
+    }
+    c, st = _ui_client(store)
+    c.post("/ui/log/session", data={
+        "date": "2026-10-27", "sport": "swim", "duration_min": "54",
+        "planned_session_id": "ps-1",
+    })
+    assert len(st["training_log"]) == 1
+    assert st["training_log"][0]["source"] == "manual"
+    assert st["training_log"][0]["planned_session_id"] == "ps-1"
