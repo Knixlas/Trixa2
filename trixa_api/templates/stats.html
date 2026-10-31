@@ -1,0 +1,154 @@
+{% extends "base.html" %}
+{% block title %}Statistik — Trixa{% endblock %}
+{% block head %}
+<style>
+  .st-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
+  .st-cards article { margin: 0; }
+  .st-cards h3 { margin: 0; font-size: 13px; color: var(--ink-3); }
+  .st-big { margin: 4px 0 0; font-size: 28px; font-weight: 800; color: var(--ink); }
+  .st-big small { font-size: 13px; font-weight: 400; }
+  .st-sub { margin: 0; font-size: 12px; color: var(--ink-3); }
+  .st-up { color: var(--palm-deep); font-weight: 700; }
+  .st-down { color: var(--mango); font-weight: 700; }
+  .st-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  .st-table th, .st-table td { padding: 8px 6px; text-align: right; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  .st-table th:first-child, .st-table td:first-child { text-align: left; }
+  .st-table th { font-size: 12px; color: var(--ink-3); font-weight: 700; }
+  .st-table tr.st-total td { font-weight: 800; color: var(--ink); border-top: 2px solid var(--line-2); border-bottom: none; }
+  .st-table .st-n { display: block; font-size: 11px; color: var(--ink-3); font-weight: 400; }
+  .st-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; vertical-align: middle; }
+  .st-scroll { overflow-x: auto; }
+  .st-trend { display: flex; align-items: flex-end; gap: 6px; height: 160px; padding-top: 18px; }
+  .st-col { flex: 1; display: flex; flex-direction: column; align-items: center; height: 100%; justify-content: flex-end; min-width: 0; }
+  .st-bar { width: 100%; max-width: 34px; display: flex; flex-direction: column-reverse; border-radius: 6px 6px 0 0; overflow: hidden; background: var(--bg-sand); }
+  .st-bar span { display: block; width: 100%; }
+  .st-val { font-size: 10.5px; color: var(--ink-3); margin-bottom: 2px; }
+  .st-lbl { font-size: 10.5px; color: var(--ink-3); margin-top: 4px; }
+  .st-legend { display: flex; flex-wrap: wrap; gap: 12px; font-size: 12px; color: var(--ink-2); margin-top: 10px; }
+</style>
+{% endblock %}
+{% block content %}
+
+{% macro h(v) -%}{{ ("%.1f"|format(v)).replace(".", ",") }}{%- endmacro %}
+{% macro km(v) -%}{{ ("%.1f"|format(v)).replace(".", ",") if v < 100 else "%d"|format(v|round|int) }}{%- endmacro %}
+{% macro delta(cur, prev) -%}
+  {%- set d = cur - prev -%}
+  {%- if prev > 0 or cur > 0 -%}
+    <span class="{{ 'st-up' if d >= 0 else 'st-down' }}">{{ '+' if d >= 0 else '−' }}{{ h(d|abs) }} h</span>
+  {%- endif -%}
+{%- endmacro %}
+
+<h1>Statistik</h1>
+<p>Dina träningstimmar gren för gren. Samma pass från flera källor (TrainingPeaks, Strava, manuellt) räknas en gång.</p>
+
+{% set P = periods %}
+
+{% if not sports %}
+<p style="color: var(--ink-3);"><em>Inga loggade träningspass än.</em></p>
+{% else %}
+
+{# ---------- Översikt ---------- #}
+<section>
+  <div class="st-cards">
+    <article>
+      <h3>Denna vecka</h3>
+      <p class="st-big">{{ h(P.week.total.hours) }}<small> h</small></p>
+      <p class="st-sub">{{ P.week.total.sessions }} pass · {{ delta(P.week.total.hours, P.prev_week.total.hours) }} mot förra veckan ({{ h(P.prev_week.total.hours) }} h)</p>
+    </article>
+    <article>
+      <h3>Denna månad</h3>
+      <p class="st-big">{{ h(P.month.total.hours) }}<small> h</small></p>
+      <p class="st-sub">{{ P.month.total.sessions }} pass · förra månaden {{ h(P.prev_month.total.hours) }} h</p>
+    </article>
+    <article>
+      <h3>I år</h3>
+      <p class="st-big">{{ h(P.year.total.hours) }}<small> h</small></p>
+      <p class="st-sub">{{ P.year.total.sessions }} pass</p>
+    </article>
+    <article>
+      <h3>Totalt</h3>
+      <p class="st-big">{{ h(P.total.total.hours) }}<small> h</small></p>
+      <p class="st-sub">{{ P.total.total.sessions }} pass sedan {{ first_date }} · snitt {{ h(total_avg_week) }} h/vecka</p>
+    </article>
+  </div>
+</section>
+
+{# ---------- Timmar per gren ---------- #}
+<section>
+  <h2>Timmar per gren</h2>
+  <div class="st-scroll">
+  <table class="st-table">
+    <thead>
+      <tr><th>Gren</th><th>Vecka</th><th>Månad</th><th>År</th><th>Totalt</th></tr>
+    </thead>
+    <tbody>
+      {% for s in sports %}
+      <tr>
+        <td><span class="st-dot" style="background: {{ colors.get(s, 'var(--ink-3)') }}"></span>{{ labels[s] }}</td>
+        {% for p in ("week", "month", "year", "total") %}
+          {% set b = P[p].get(s) %}
+          <td>{% if b %}{{ h(b.hours) }}<span class="st-n">{{ b.sessions }} pass</span>{% else %}<span style="color: var(--ink-3);">–</span>{% endif %}</td>
+        {% endfor %}
+      </tr>
+      {% endfor %}
+      <tr class="st-total">
+        <td>Totalt</td>
+        {% for p in ("week", "month", "year", "total") %}
+          <td>{{ h(P[p].total.hours) }}<span class="st-n">{{ P[p].total.sessions }} pass</span></td>
+        {% endfor %}
+      </tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+{# ---------- Trend ---------- #}
+<section>
+  <h2>Senaste {{ trend|length }} veckorna</h2>
+  <p class="st-sub" style="margin-top: -6px;">Snitt {{ h(trend_avg) }} h/vecka</p>
+  <div class="st-trend">
+    {% for t in trend %}
+    <div class="st-col" title="{{ t.label }}: {{ h(t.total) }} h">
+      <div class="st-val">{{ h(t.total) if t.total else "" }}</div>
+      <div class="st-bar" style="height: {{ ((t.total / trend_max * 100) if trend_max else 0)|round(1) }}%;">
+        {% for s in sports %}{% set v = t.by_sport.get(s, 0) %}{% if v and t.total %}<span style="height: {{ (v / t.total * 100)|round(1) }}%; background: {{ colors.get(s, 'var(--ink-3)') }};"></span>{% endif %}{% endfor %}
+      </div>
+      <div class="st-lbl">{{ t.label }}</div>
+    </div>
+    {% endfor %}
+  </div>
+  <div class="st-legend">
+    {% for s in sports %}<span><span class="st-dot" style="background: {{ colors.get(s, 'var(--ink-3)') }}"></span>{{ labels[s] }}</span>{% endfor %}
+  </div>
+</section>
+
+{# ---------- Distans och längsta pass ---------- #}
+{% set dist_sports = sports|select("in", ["swim", "bike", "run"])|list %}
+{% if dist_sports %}
+<section>
+  <h2>Distans och längsta pass</h2>
+  <div class="st-scroll">
+  <table class="st-table">
+    <thead>
+      <tr><th>Gren</th><th>Månad</th><th>År</th><th>Totalt</th><th title="Längsta enskilda pass">Längst</th></tr>
+    </thead>
+    <tbody>
+      {% for s in dist_sports %}
+      <tr>
+        <td><span class="st-dot" style="background: {{ colors.get(s) }}"></span>{{ labels[s] }}</td>
+        {% for p in ("month", "year", "total") %}
+          {% set b = P[p].get(s) %}
+          <td>{% if b and b.km %}{{ km(b.km) }} km{% else %}<span style="color: var(--ink-3);">–</span>{% endif %}</td>
+        {% endfor %}
+        {% set b = P.total.get(s) %}
+        <td>{% if b and b.longest_min %}{{ (b.longest_min // 60)|int }}:{{ "%02d"|format((b.longest_min % 60)|int) }}{% else %}–{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</section>
+{% endif %}
+
+{% endif %}
+{% endblock %}
