@@ -74,3 +74,33 @@ def test_veckovolymen_raknar_tp_och_strava_som_ett_pass():
     ]
     kept = dedup_cross_source(rows)
     assert sum(r["duration_min"] for r in kept) == 110.0   # 60 + 25 + 25
+
+
+def test_manuell_och_tp_mot_samma_planerade_pass_ar_ett_pass():
+    """Manuell sim loggar total passtid (54) mot TP:s rörelsetid (37) — utanför
+    ±10 %, men båda är länkade till samma planerade pass → ETT pass, TP behålls."""
+    from coach.trixa.training_log import dedup_cross_source
+
+    rows = [
+        {"date": "2026-10-27", "sport": "swim", "duration_min": 54, "source": "manual",
+         "planned_session_id": "ps-1", "rpe": 6},
+        {"date": "2026-10-27", "sport": "Sim", "duration_min": 37.1, "source": "tp",
+         "planned_session_id": "ps-1", "tss": 50.3},
+    ]
+    kept = dedup_cross_source(rows)
+    assert len(kept) == 1
+    assert kept[0]["source"] == "tp"
+    assert kept[0]["rpe"] == 6          # adeptens RPE följer med
+    assert "rpe" not in rows[1]         # anroparens rader muteras inte
+
+
+def test_olika_planerade_pass_samma_gren_samma_dag_ar_tva_pass():
+    from coach.trixa.training_log import dedup_cross_source
+
+    rows = [
+        {"date": "2026-10-27", "sport": "Cykel", "duration_min": 30, "source": "manual",
+         "planned_session_id": "ps-1"},
+        {"date": "2026-10-27", "sport": "Cykel", "duration_min": 75, "source": "tp",
+         "planned_session_id": "ps-2"},
+    ]
+    assert len(dedup_cross_source(rows)) == 2

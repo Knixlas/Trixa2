@@ -9,7 +9,10 @@ räknade tp 60,0 + strava 60,2 som två pass i veckovolymen; agent-API:t
 dedupade inte alls och gav coachen dubbel volym.
 
 En regel, här: två rader är samma pass om de har samma dag och gren,
-kommer från OLIKA källor, och ligger inom ±10 % (minst 2 min) i tid.
+kommer från OLIKA källor, och antingen ligger inom ±10 % (minst 2 min) i
+tid ELLER är länkade till samma planerade pass (planned_session_id). Det
+senare fångar manuell loggning av total passtid (sim 54 min inkl. vila)
+mot TP:s rörelsetid (37 min) — samma pass, för olika för tidsregeln.
 Två rader från samma källa är två pass. Källrang tp > strava > manual
 avgör vilken som behålls.
 """
@@ -65,6 +68,11 @@ def slice_by_date(rows: list[dict], start: str, end: str, key: str = "date") -> 
     return [r for r in rows if start <= str(r.get(key) or "")[:10] <= end]
 
 
+# Fält en bortvald dubblett får bidra med om den behållna raden saknar dem
+# (adeptens RPE/känsla från manuell logg ska inte försvinna bakom TP-raden).
+_CARRY_FIELDS = ("rpe", "feeling", "notes", "athlete_description", "rating")
+
+
 def dedup_cross_source(rows: list[dict]) -> list[dict]:
     """Behåll en rad per fysiskt pass, tvärs källor."""
     kept: list[dict] = []
@@ -74,13 +82,21 @@ def dedup_cross_source(rows: list[dict]) -> list[dict]:
         source = (r.get("source") or "").lower()
         dur = _dur(r)
         tol = max(2.0, dur * 0.10)
-        if any(
-            str(k.get("date"))[:10] == day
+        psid = r.get("planned_session_id")
+        match = next((
+            k for k in kept
+            if str(k.get("date"))[:10] == day
             and sports.canon(k.get("sport"), "other") == sport
             and (k.get("source") or "").lower() != source
-            and abs(_dur(k) - dur) <= tol
-            for k in kept
-        ):
+            and (
+                abs(_dur(k) - dur) <= tol
+                or (psid and str(k.get("planned_session_id")) == str(psid))
+            )
+        ), None)
+        if match is not None:
+            for f in _CARRY_FIELDS:
+                if r.get(f) not in (None, "") and match.get(f) in (None, ""):
+                    match[f] = r[f]
             continue
-        kept.append(r)
+        kept.append(dict(r))   # kopia: carry-over ovan får inte mutera anroparens rader
     return kept

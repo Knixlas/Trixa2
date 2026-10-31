@@ -747,6 +747,35 @@ def log_session(
         )
         if own.data:
             row["planned_session_id"] = planned_session_id
+    # Finns redan en synkad rad (TP/Strava) för samma planerade pass är det
+    # samma fysiska pass. En ny manuell rad gav förut ett dubbelt kort
+    # ("Genomförd" + "Oplanerat") och dubbel volym — manuell sim loggar total
+    # passtid (54 min) mot TP:s rörelsetid (37), så tidsdedupen missade.
+    # Komplettera i stället den synkade raden: RPE alltid, övriga fält bara om
+    # de saknas (klockans mätvärden skrivs inte över, och TP-synken skulle
+    # ändå återställa dem). Ev. äldre manuell dubblett städas bort.
+    if row.get("planned_session_id"):
+        synced = (
+            client.table("training_log")
+            .select("id, duration_min, distance_km, avg_hr, source")
+            .eq("user_id", uid).eq("planned_session_id", row["planned_session_id"])
+            .neq("source", "manual")
+            .execute()
+        ).data or []
+        if synced:
+            target = synced[0]
+            patch: dict = {}
+            if "rpe" in row:
+                patch["rpe"] = row["rpe"]
+            for f in ("duration_min", "distance_km", "avg_hr"):
+                if f in row and target.get(f) in (None, 0):
+                    patch[f] = row[f]
+            if patch:
+                client.table("training_log").update(patch).eq("id", target["id"]).execute()
+            client.table("training_log").delete() \
+                .eq("user_id", uid).eq("source", "manual") \
+                .eq("planned_session_id", row["planned_session_id"]).execute()
+            return RedirectResponse("/ui/", status_code=303)
     existing = (
         client.table("training_log").select("id")
         .eq("user_id", uid).eq("date", date).eq("sport", sport).eq("source", "manual")
