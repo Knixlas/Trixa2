@@ -2359,8 +2359,27 @@ def _level_context(
 
 
 def _apply_level_decisions(decisions: dict, lvl: SimpleNamespace) -> None:
-    """Nivån och rampen i engine_decisions; kategorierna filtreras mot nivån."""
+    """Nivån och rampen i engine_decisions; kategorierna filtreras mot nivån.
+
+    ``level_limits`` är samma gränser som motorn håller sig inom — MCP-ytan
+    (get_engine_week, plan_session) visar dem för coachen.
+    """
     decisions["_level"] = lvl.profile["level"]
+    decisions["level_limits"] = {
+        "level": lvl.profile["level"],
+        "model": lvl.profile.get("model"),
+        "max_session_min": {
+            d: levels.session_cap(lvl.profile, d, lvl.race_distance)
+            for d in ("run", "bike", "swim", "brick", "strength")
+        },
+        "max_sessions_per_week": lvl.profile.get("max_sessions"),
+        "min_sessions_per_week": lvl.profile.get("min_sessions"),
+        "budget_minutes": lvl.ramp["budget_minutes"] if lvl.ramp else None,
+        "next_race": (
+            {k: lvl.race.get(k) for k in ("name", "date", "distance", "priority")}
+            if lvl.race else None
+        ),
+    }
     if lvl.ramp is None:
         return
     decisions["ramp"] = {

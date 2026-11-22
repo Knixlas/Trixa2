@@ -30,6 +30,7 @@ from coach.trixa.exercise_plan import (
 )
 from coach.trixa.strength_progression import apply_suggestions
 from coach.trixa.training_log import dedup_cross_source
+from trixa_api import agent_passbank
 from trixa_api.agent_auth import AgentScope, resolve_agent_scope
 
 
@@ -407,6 +408,30 @@ def get_recovery(
     return {"metrics": metrics, "has_data": True}
 
 
+# ---------- träningsläran: motorns vecka och passbanken ----------
+
+
+@router.get("/engine/week")
+def get_engine_week(
+    monday: date_type | None = Query(None, description="Veckans måndag; utelämnad = innevarande vecka"),
+    scope: AgentScope = Depends(resolve_agent_scope),
+) -> dict:
+    """Motorns förslag för veckan (torrkört, sparas inte) med nivåns gränser."""
+    return agent_passbank.engine_week(scope.user_id, _monday_of(monday or clock.today()))
+
+
+@router.get("/passbank")
+def list_passbank(
+    sport: str | None = Query(None),
+    category: str | None = Query(None),
+    phase: str | None = Query(None),
+    scope: AgentScope = Depends(resolve_agent_scope),
+) -> dict:
+    """Passbanken filtrerad på gren, kategori, fas och adeptens nivå."""
+    athlete = _athlete_row(get_postgrest(), scope.user_id)
+    return agent_passbank.passbank_list(athlete, sport, category, phase)
+
+
 # ---------- skriva: plan (Nils vinner) ----------
 
 
@@ -441,34 +466,55 @@ def write_plan_session(
     """
     client = get_postgrest()
     sport_sv = _norm_sport_sv(body.sport)
+    sport_key = sports.canon(sport_sv)
+    try:
+        athlete = _athlete_row(client, scope.user_id)
+    except HTTPException:
+        athlete = {}   # utan profil: inga nivåvarningar, passet skrivs ändå
+    code = body.workout_code.strip()
+
+    # Med passkod: text, steg, övningar och längd ur passbanken (adeptens
+    # språk, adeptens zoner). Coachens details följer med som en egen rad.
+    from_bank: dict | None = None
+    bank_warnings: list[str] = []
+    if code:
+        from_bank, bank_warnings = agent_passbank.build_from_passbank(
+            athlete, code, sport_key, body.duration_min, body.details,
+        )
+
     row = {
         "user_id": scope.user_id,
         "date": body.date.isoformat(),
         "sport": sport_sv,
-        "title": body.title.strip() or "Pass",
-        "duration_min": body.duration_min,
-        "intensity": body.intensity.strip(),
-        "details": body.details.strip(),
-        "workout_code": body.workout_code.strip(),
+        "title": body.title.strip() or (from_bank or {}).get("title") or "Pass",
+        "duration_min": (from_bank or {}).get("duration_min") or body.duration_min,
+        "intensity": body.intensity.strip() or (from_bank or {}).get("intensity") or "",
+        "details": (from_bank or {}).get("details") or body.details.strip(),
+        "workout_code": code,
         # Skickas ingen lista för ett styrkepass tolkas prosan i details med
         # exercises_from_prose (bara igenkända mönster). Varningen sade "skicka
         # listan" i en vecka utan effekt — adepten stod utan avbockning igen.
         "exercises": (
             normalize_exercises(body.exercises)
+            or (from_bank or {}).get("exercises")
             or (exercises_from_prose(body.details) if sport_sv == "Styrka" else [])
             or None
         ),
         # Coachens pass ersätter motorns helt. Lämnades steps kvar från en
         # övertagen trixa2-rad föll loggformuläret tillbaka på dem — adepten
         # såg motorns knäböj under coachens "Rörlighet 20 min", medan
-        # get_week visade en tom lista.
-        "steps": None,
-        "purpose": None,
+        # get_week visade en tom lista. Ett passbankspass bär sina egna steg.
+        "steps": (from_bank or {}).get("steps") or None,
+        "purpose": (from_bank or {}).get("category"),
         "status": "planned",
         "origin": "nils",
     }
 
-    warnings = _plan_warnings(sport_sv, row)
+    # Befintliga varningar först (styrkepassets lista), sedan nivån.
+    warnings = _plan_warnings(sport_sv, row) + bank_warnings + agent_passbank.level_warnings(
+        client, athlete, scope.user_id, body.date, sport_key,
+        row["duration_min"], (from_bank or {}).get("category"), from_bank is not None,
+    )
     if sport_sv == "Styrka" and not body.exercises and row.get("exercises"):
         warnings.insert(0, (
             f"Övningslistan ({len(row['exercises'])} st) är TOLKAD ur prosan i details. "
