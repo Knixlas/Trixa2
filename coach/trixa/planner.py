@@ -23,7 +23,7 @@ import logging
 import os
 import random
 import sys
-from dataclasses import dataclass, field, asdict
+from dataclasses import dataclass, field, asdict, replace
 from datetime import date, datetime, timedelta, timezone
 from types import SimpleNamespace
 from typing import Any
@@ -61,7 +61,7 @@ from coach.engine.workouts import (
     select_workout_types,
 )
 from coach.engine.workouts import workout_type_decisions
-from coach.trixa import origins, sports
+from coach.trixa import levels, origins, sports
 from coach.trixa.db import get_supabase
 from coach.trixa.exercise_plan import exercises_from_steps
 from coach.trixa.training_log import dedup_cross_source
@@ -86,6 +86,7 @@ class ScheduledWorkout:
     workout_data: dict | None = None  # hela passet från passbanken, resolved
     notes: str = ""
     details_markdown: str = ""  # fullständig pass-rendering (intent + main_set + zoner)
+    is_long: bool = False  # veckans långpass i grenen — tas bort sist vid budgetanpassning
 
 
 @dataclass
@@ -557,8 +558,14 @@ def _build_athlete_state(
     actual_weekly_hours: float | None = None,
     garmin_metrics: list[dict] | None = None,
     client: Any | None = None,
+    apply_floor: bool = True,
 ) -> AthleteState:
-    """Översätt athlete_profiles + weekly_report + TP-cache → AthleteState."""
+    """Översätt athlete_profiles + weekly_report + TP-cache → AthleteState.
+
+    apply_floor=False för ramp-nivåerna (levels.yaml): där är veckotiden en
+    budget som generate_week sätter, och femtimmarsgolvet gav en nybörjare
+    som angett 0,5 h fem pass i veckan (docs/13).
+    """
     phase_state = athlete.get("phase_state") or {}
 
     # Self-rapporterad återhämtning från senaste veckorapport
@@ -583,7 +590,7 @@ def _build_athlete_state(
         last_race_days is not None
         and last_race_days <= transition_days_for(last_race_dist)
     )
-    if not in_transition_window:
+    if not in_transition_window and apply_floor:
         weekly_hours = max(weekly_hours, MIN_PLANNED_WEEKLY_HOURS)
 
     # OT-tecken från TP-matad kompatibilitetscache (snabb-koll innan full assessment)
@@ -725,13 +732,17 @@ def _apply_week_volume_scaling(
     week_in_period: int,
     weeks_in_period: int,
     weeks_in_phase: int,
+    weeks_until_race: int | None = None,
 ) -> dict:
-    """Skala veckans volym för taper (peak) och återhämtningsvecka.
+    """Skala veckans volym för taper (peak), loppveckor och återhämtningsvecka.
 
     Peak: factor_per_week ** veckor-i-fasen (phase_details.volume_reduction_rule).
+    Race (≤ 2 v kvar): levels.yaml::race_taper efter veckor kvar. Förut hade
+    fasen ingen faktor alls, så de tre sista veckorna gick på full volym och
+    nybörjaren fick 75, 80 och 75 min dagarna före milen (docs/13).
     Prep/base/build: sista veckan i cykeln skalas med recovery_week.volume_factor.
-    Skalan appliceras på discipline_hours (som styr passlängderna) och loggas
-    spårbart i decisions.
+    Skalan appliceras på discipline_hours och sparas som ``_volume_factor``,
+    som _fit_week_to_budget använder för att korta passen.
     """
     details = load_yaml("phase_details.yaml")
     factor: float | None = None
@@ -758,6 +769,12 @@ def _apply_week_volume_scaling(
             )
         )
         decisions["transition"] = {"volume_factor": factor}
+    elif phase == "race":
+        factor = levels.taper_factor(weeks_until_race)
+        if factor is not None:
+            decisions["race_taper"] = {
+                "weeks_until_race": weeks_until_race, "factor": factor,
+            }
     else:
         rec_rule = details.get("recovery_week") or {}
         if (
@@ -768,6 +785,7 @@ def _apply_week_volume_scaling(
             recovery.update(active=True, volume_factor=factor)
 
     decisions["recovery_week"] = recovery
+    decisions["_volume_factor"] = factor if factor is not None else 1.0
     if factor is not None:
         dh = decisions.get("discipline_hours") or {}
         decisions["discipline_hours"] = {
@@ -978,11 +996,12 @@ def _select_workout_for(
     rng: random.Random,
     equipment: dict | None = None,
     preferred_settings: dict | None = None,
+    pass_filter=None,
 ) -> dict | None:
     """Välj ett pass för given kategori + disciplin.
 
     Filtreringsordning:
-      1. Match category + discipline + phase_filter
+      1. Match category + discipline + phase_filter (+ nivåns pass_filter)
       2. Utrustnings-filter (hård — saknar utrustning = skippa)
       3. Variation-filter (undvik pass kört de senaste 4 veckorna)
       4. Setting-val (hårt när adepten valt indoor/outdoor)
@@ -993,6 +1012,7 @@ def _select_workout_for(
         if w.get("category") == category
         and w.get("discipline") == discipline
         and phase_filter in (w.get("phase_appropriate") or [])
+        and (pass_filter is None or pass_filter(w))
     ]
     if not candidates:
         return None
@@ -1176,6 +1196,9 @@ def _schedule_workouts(
     strength_sessions: int = 1,
     phase: str | None = None,
     period: str | None = None,
+    min_sessions: int = 5,
+    pass_filter=None,
+    count_strength: bool = True,
 ) -> list[ScheduledWorkout]:
     """Fördela utvalda pass över veckodagar.
 
@@ -1353,17 +1376,19 @@ def _schedule_workouts(
                 schedule[d] = _sfw(strength_workout, day_dates[d])
                 placed_strength += 1
 
-    # 6c. Hård regel: minst 5 pass per vecka (vila räknas inte).
-    # Om engine + partial-impact gett oss <5 pass, fyll tomma dagar med
-    # extra AE-volym i discipliner som inte har full impact. Frekvens är
-    # viktigare än tid — passen kan vara korta.
+    # 6c. Minst `min_sessions` pass per vecka (vila räknas inte). Fem för
+    # advanced/elit; ramp-nivåerna skickar sitt eget antal (levels.yaml) —
+    # fem pass var regeln som gav nybörjaren fem löppass vecka 1 (docs/13).
+    # Fyll tomma dagar med extra AE-volym i discipliner utan full impact.
     _ensure_minimum_workouts(
         schedule=schedule,
         day_dates=day_dates,
         discipline_hours=discipline_hours,
-        min_total_workouts=max(0, 5 - existing_workout_count),
+        min_total_workouts=max(0, min_sessions - existing_workout_count),
         equipment=equipment,
         preferred_settings=preferred_settings,
+        pass_filter=pass_filter,
+        count_strength=count_strength,
     )
 
     # 7. Alla dagar ska synas. Tom dag betyder uttrycklig planerad vila.
@@ -1404,8 +1429,14 @@ def _ensure_minimum_workouts(
     min_total_workouts: int = 5,
     equipment: dict | None = None,
     preferred_settings: dict | None = None,
+    pass_filter=None,
+    count_strength: bool = True,
 ) -> None:
     """Hård regel: minst N pass per vecka, fyll lediga dagar.
+
+    pass_filter = nivåns filter (gå/jogg för nybörjaren, inga pass längre
+    än nivåns tak). count_strength=False låter ramp-nivåerna räkna bara
+    konditionspass, så att ett styrkepass inte tar en löpdag.
 
     Strategi:
       1. Om <N pass: fyll alla lediga dagar med extra AE-volym.
@@ -1422,7 +1453,10 @@ def _ensure_minimum_workouts(
             discipline_hours=discipline_hours.get(w.get("discipline"), 6.0),
         )
 
-    workout_count = sum(1 for w in schedule.values() if w.sport != "rest")
+    def _counted(w: ScheduledWorkout) -> bool:
+        return w.sport != "rest" and (count_strength or w.sport != "strength")
+
+    workout_count = sum(1 for w in schedule.values() if _counted(w))
     free_days = [d for d in _DAYS if d not in schedule]
 
     # Inga lediga dagar → kan inte fylla mer
@@ -1441,13 +1475,15 @@ def _ensure_minimum_workouts(
     rng = random.Random(0)
 
     def _eligible(w: dict, disc: str) -> bool:
+        if pass_filter is not None and not pass_filter(w):
+            return False
         if equipment is not None and not _passes_equipment_filter(w, equipment):
             return False
         pref = (preferred_settings or {}).get(disc, "any")
         return pref == "any" or _pass_setting(w) in (pref, "either")
 
     for d in free_days:
-        workout_count = sum(1 for w in schedule.values() if w.sport != "rest")
+        workout_count = sum(1 for w in schedule.values() if _counted(w))
         if workout_count >= min_total_workouts:
             break
         # Räkna nuvarande balans — välj disciplin med MINST pass hittills.
@@ -1497,6 +1533,8 @@ def _scheduled_from_workout(
     is_long: bool = False,
     discipline_hours: float = 6.0,
     max_minutes: int | None = None,
+    duration_override: int | None = None,
+    extra_params: dict | None = None,
 ) -> ScheduledWorkout:
     """Konvertera passbankens workout-dict → ScheduledWorkout.
 
@@ -1504,19 +1542,25 @@ def _scheduled_from_workout(
     parameterized långpass blir (cap = 50 % av disciplinens veckotid). Var tidigare
     hårdkodat 6.0 → alla fick 6h-veckans längder (t.ex. 3h-cykel) oavsett volym.
     max_minutes = fasens/periodens max passlängd från phase_details (extra tak).
+    duration_override = exakt längd (budgetanpassningen, _fit_week_to_budget).
+    extra_params = övriga mallparametrar, t.ex. jog_min/walk_min för gå/jogg.
     """
-    resolved = (
-        resolve_template(
-            workout,
-            {"duration_min": _pick_long_workout_duration(
-                workout, discipline_hours, is_long, max_minutes
-            )},
+    if workout.get("parameterized"):
+        minutes = duration_override or _pick_long_workout_duration(
+            workout, discipline_hours, is_long, max_minutes
         )
-        if workout.get("parameterized")
-        else workout
-    )
+        resolved = resolve_template(
+            workout, {"duration_min": minutes, **(extra_params or {})}
+        )
+    else:
+        resolved = workout
     td = resolved.get("total_duration_min") or {}
-    duration = int(td.get("estimated") or 60)
+    try:
+        duration = int(td.get("estimated") or 60)
+    except (TypeError, ValueError):
+        duration = 60
+    if duration_override and workout.get("parameterized"):
+        duration = int(duration_override)
 
     zones = resolved.get("zone_refs") or []
     if resolved.get("discipline") == "strength":
@@ -1534,6 +1578,239 @@ def _scheduled_from_workout(
         intensity=intensity,
         workout_data=resolved,
         notes=(resolved.get("intent") or "").strip(),
+        is_long=is_long,
+    )
+
+
+# ---------- Budget, nivå och loppdag (docs/13) ----------
+
+_REST_NOTE = "Planerad vila. Lätt rörlighet eller promenad är valfritt."
+
+
+def _rest_day(dt: date, note: str = _REST_NOTE) -> ScheduledWorkout:
+    return ScheduledWorkout(
+        date=dt, sport="rest", code="rest", title="Vilodag", category="REST",
+        duration_minutes=0, intensity="—", notes=note,
+    )
+
+
+def _is_training_slot(sw: ScheduledWorkout) -> bool:
+    return sw.sport != "rest" and sw.category not in ("RACE", "RESERVED", "REST")
+
+
+def _round5(minutes: float) -> int:
+    return max(5, int(round(minutes / 5.0) * 5))
+
+
+def _fit_week_to_budget(
+    scheduled: list[ScheduledWorkout],
+    budget_min: float,
+    *,
+    max_sessions: int | None,
+    min_session_min: int,
+    caps: dict[str, int | None],
+    shrink_only: bool,
+    extra_params_for=None,
+    max_strength_sessions: int | None = None,
+) -> dict:
+    """Få veckans konditionspass att rymmas i budgeten. Ändrar ``scheduled``.
+
+    Förut kom passlängden ur passbankens standardvärden (75 min för 9/1,
+    80 min för stigrundan) och antalet ur regeln "minst fem pass". Budgeten
+    påverkade bara långpassets tak, så alla fick 5–6 h (docs/13).
+
+    1. Fler pass än ``max_sessions`` → det med lägst värde blir vila. Långpass
+       och grenens enda pass tas sist, lugn uthållighet (AE) före fartpass.
+    2. Fasta pass längre än grenens tak byts mot grenens mall.
+    3. Mallpassen skalas proportionellt mot budgeten (långpasset förblir
+       längst), mellan ``min_session_min`` och grenens tak. ``shrink_only``
+       (advanced/elit i lugna veckor och nedtrappning) gör dem bara kortare.
+
+    Styrka räknas inte i budgeten; ``max_strength_sessions`` begränsar antalet.
+    Loppet, vilodagar och reserverade dagar rörs inte.
+    """
+    from collections import Counter
+
+    pool = {w["code"]: w for w in load_workouts()}
+    report: dict[str, Any] = {
+        "budget_minutes": round(budget_min), "dropped": [], "resized": 0,
+        "shrink_only": shrink_only,
+    }
+
+    def _flexible(code: str) -> bool:
+        # Bara mallar med tid som parameter går att skala. Stegringar och
+        # cykelns fartmallar styrs av antal och sekunder; en "längd" på dem
+        # ändrade rubriken men inte passet.
+        template = pool.get(code) or {}
+        return bool(template.get("parameterized")) and "duration_min" in (
+            template.get("parameters") or {}
+        )
+
+    def _drop(sw: ScheduledWorkout) -> None:
+        scheduled[scheduled.index(sw)] = _rest_day(sw.date)
+        report["dropped"].append(sw.code)
+
+    def _endurance() -> list[ScheduledWorkout]:
+        return [sw for sw in scheduled if _is_training_slot(sw) and sw.sport != "strength"]
+
+    # 1. Antal pass. För ramp-nivåerna (max_strength_sessions satt) räknas
+    # styrkan in i budgeten: den som angett 30 min i veckan fick annars
+    # 30 min löpning plus 40 min styrka. Räcker budgeten inte till både
+    # styrka och ett konditionspass går styrkan först.
+    if max_strength_sessions is not None:
+        strength = [sw for sw in scheduled if _is_training_slot(sw) and sw.sport == "strength"]
+        for sw in strength[max_strength_sessions:]:
+            _drop(sw)
+        strength = [sw for sw in scheduled if _is_training_slot(sw) and sw.sport == "strength"]
+        while strength and _endurance() and (
+            budget_min - sum(sw.duration_minutes for sw in strength)
+            < max(25, min_session_min)
+        ):
+            _drop(strength.pop())
+        budget_min -= sum(sw.duration_minutes for sw in strength)
+    if max_sessions is not None:
+        while len(_endurance()) > max(1, max_sessions):
+            endurance = _endurance()
+            counts = Counter(sw.sport for sw in endurance)
+            victim = min(
+                endurance,
+                key=lambda sw: (sw.is_long, counts[sw.sport] == 1,
+                                sw.category == "AE", sw.duration_minutes),
+            )
+            _drop(victim)
+
+    # 2. Fasta pass över grenens tak → grenens mall
+    for sw in list(_endurance()):
+        cap = caps.get(sw.sport)
+        if _flexible(sw.code) or not cap or sw.duration_minutes <= cap:
+            continue
+        for code in (f"AE2_{sw.sport}_template", f"AE1_{sw.sport}_template"):
+            if code in pool:
+                new = _scheduled_from_workout(
+                    pool[code], sw.date, is_long=sw.is_long, duration_override=cap,
+                )
+                scheduled[scheduled.index(sw)] = new
+                report["resized"] += 1
+                break
+
+    # Fasta pass som ensamma spräcker budgeten tas bort, långpasset sist.
+    # Inte i shrink_only: där kortas passen, antalet står kvar.
+    endurance = _endurance()
+    fixed = [sw for sw in endurance if not _flexible(sw.code)]
+    while (not shrink_only and fixed and len(endurance) > 1
+           and sum(sw.duration_minutes for sw in fixed) > budget_min):
+        victim = min(fixed, key=lambda sw: (sw.is_long, sw.duration_minutes))
+        _drop(victim)
+        endurance = _endurance()
+        fixed = [sw for sw in endurance if not _flexible(sw.code)]
+
+    # 3. Skala mallpassen
+    endurance = _endurance()
+    flexible = [sw for sw in endurance if _flexible(sw.code)]
+    fixed_total = sum(sw.duration_minutes for sw in endurance if sw not in flexible)
+    flex_total = sum(sw.duration_minutes for sw in flexible)
+    if flexible and flex_total > 0:
+        factor = max(0.0, budget_min - fixed_total) / flex_total
+        if shrink_only:
+            factor = min(1.0, factor)
+        for sw in flexible:
+            target = _round5(sw.duration_minutes * factor)
+            target = max(int(min_session_min), target)
+            cap = caps.get(sw.sport)
+            if cap:
+                target = min(target, int(cap))
+            extra = extra_params_for(sw.code) if extra_params_for else None
+            if target == sw.duration_minutes and not extra:
+                continue
+            new = _scheduled_from_workout(
+                pool[sw.code], sw.date, is_long=sw.is_long,
+                duration_override=target, extra_params=extra,
+            )
+            scheduled[scheduled.index(sw)] = new
+            report["resized"] += 1
+
+    # Hela veckans träningstid, styrka inräknad: nästa vecka jämförs den mot
+    # training_log, som också rymmer styrkan.
+    report["scheduled_minutes"] = sum(
+        sw.duration_minutes for sw in scheduled if _is_training_slot(sw)
+    )
+    return report
+
+
+_RACE_DAY_TEXT = """## Loppet
+
+Det här är dagen du har tränat för.
+
+- Börja lugnare än det känns som du borde. De flesta går ut för fort.
+- Ät och drick som du har gjort före dina längre pass — inget nytt i dag.
+- Ta det i din egen takt. Att gå en stund är helt okej.
+
+Logga loppet efteråt, så räknar Trixa in det i återhämtningen."""
+
+
+def _place_race_day(
+    scheduled: list[ScheduledWorkout], race: dict | None, week_start: date,
+) -> dict | None:
+    """Lägg in loppet på sin dag, vila dagen före och dagen efter.
+
+    Förut fanns loppet inte i planen: veckan före Midnattsloppet gav 75, 80
+    och 75 min onsdag–fredag, en tom lördag och en jogg på söndagen (docs/13).
+    Dagar som coachen reserverat finns inte i ``scheduled`` och rörs inte.
+    """
+    if not race or not race.get("date"):
+        return None
+    try:
+        race_date = date.fromisoformat(str(race["date"])[:10])
+    except ValueError:
+        return None
+    if not week_start <= race_date <= week_start + timedelta(days=6):
+        return None
+    item = ScheduledWorkout(
+        date=race_date,
+        sport=levels.race_sport(race.get("distance")),
+        code="race",
+        title=f"Loppet: {race.get('name') or 'tävling'}",
+        category="RACE",
+        duration_minutes=levels.race_estimate_minutes(race),
+        intensity="Loppet",
+        details_markdown=_RACE_DAY_TEXT,
+        notes=_RACE_DAY_TEXT,
+    )
+    placed = False
+    for i, sw in enumerate(scheduled):
+        if sw.date == race_date:
+            scheduled[i] = item
+            placed = True
+        elif sw.date == race_date - timedelta(days=1):
+            scheduled[i] = _rest_day(
+                sw.date, "Vila före loppet. En kort promenad går bra. "
+                         "Lägg fram kläder och nummerlapp.")
+        elif sw.date == race_date + timedelta(days=1):
+            scheduled[i] = _rest_day(
+                sw.date, "Vila efter loppet. Gå en promenad om benen vill.")
+    return {"date": race_date.isoformat(), "placed": placed}
+
+
+def _fetch_minutes_between(client, user_id: str, start: date, end: date) -> float | None:
+    """Faktisk träningstid (min) i training_log mellan två datum, inklusive.
+
+    None vid läsfel; 0.0 när loggen är tom — då har adepten inte tränat."""
+    try:
+        res = (
+            client.table("training_log")
+            .select("date,sport,duration_min,source")
+            .eq("user_id", user_id)
+            .gte("date", start.isoformat())
+            .lte("date", end.isoformat())
+            .execute()
+        )
+    except Exception:  # noqa: BLE001
+        logger.warning("Kunde inte läsa förra veckans logg för %s", user_id, exc_info=True)
+        return None
+    return sum(
+        float(row.get("duration_min") or 0)
+        for row in dedup_cross_source(res.data or [])
+        if sports.is_training(sports.canon(row.get("sport")))
     )
 
 
@@ -1897,8 +2174,11 @@ def _select_week_workouts(
     recent_workouts: list[dict], active_sports: list[str],
     partial_disciplines: set[str], blocked_by_injury: list[str], raw_sports: list[str],
     impacts: dict,
+    pass_filter=None,
 ) -> SimpleNamespace:
     """Steg 4 i generate_week: välj konditions- och styrkepass ur passbanken.
+
+    pass_filter = nivåns filter (levels.yaml), None för advanced/elit.
 
     Utbruten ur en 380-raders funktion (docs/12 I12). Samma rader som förut,
     minus ett dött if-block som såg ut som skadehanteringen men inte var det.
@@ -1940,6 +2220,7 @@ def _select_week_workouts(
             chosen = _select_workout_for(
                 cat, lookup_disc, phase_filter, workouts_pool, recent_codes, rng,
                 equipment=equipment, preferred_settings=preferred_settings,
+                pass_filter=pass_filter,
             )
             if chosen is None:
                 warnings.append(
@@ -1957,6 +2238,7 @@ def _select_week_workouts(
             ae_pass = _select_workout_for(
                 "AE", disc, phase_filter, workouts_pool, recent_codes, rng,
                 equipment=equipment, preferred_settings=preferred_settings,
+                pass_filter=pass_filter,
             )
             if ae_pass:
                 selected.append(ae_pass)
@@ -1991,6 +2273,196 @@ def _select_week_workouts(
         drills=drills, strength_exercises=strength_exercises,
         equipment=equipment, preferred_settings=preferred_settings,
     )
+
+
+def _level_budget(
+    client, athlete: dict, athlete_user_id: str, week_start: date,
+    level_profile: dict, actual_weekly_hours: float | None,
+) -> dict | None:
+    """Ramp-nivåernas veckobudget (levels.weekly_budget), None för advanced/elit."""
+    if not levels.is_ramp(level_profile):
+        return None
+    last_week_actual = _fetch_minutes_between(
+        client, athlete_user_id,
+        week_start - timedelta(days=7), week_start - timedelta(days=1),
+    )
+    declared = athlete.get("weekly_hours")
+    return levels.weekly_budget(
+        level_profile,
+        (athlete.get("phase_state") or {}).get("ramp"),
+        week_start,
+        float(declared) if declared not in (None, "") else None,
+        last_week_actual,
+        actual_weekly_hours,
+    )
+
+
+def _next_race(client, athlete_id: str, today: date) -> dict | None:
+    """Nästa lopp (A före B/C). Utan races-tabell planeras veckan ändå."""
+    try:
+        from coach.trixa.races import fetch_next_a_race
+
+        return fetch_next_a_race(client, athlete_id, today)
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def _level_pass_filter(level_profile: dict, ramp: dict | None, race_distance: str | None):
+    """(pass_filter, run_walk) för nivån.
+
+    Ramp-nivåerna: nivåbundna pass bara för sin nivå, gå/jogg som
+    nybörjarens enda löppass tills stegen är slut, inga fasta pass längre
+    än nivåns tak. Advanced/elit: dagens urval, minus nivåbundna pass.
+    """
+    level_key = level_profile["level"]
+    if ramp is None:
+        return (lambda w: not w.get("levels")), None
+    run_walk = levels.run_walk(level_profile, ramp["progress_weeks"])
+
+    def pass_filter(w: dict) -> bool:
+        only_for = w.get("levels")
+        if only_for and level_key not in only_for:
+            return False
+        if run_walk and w.get("discipline") == "run" and w.get("category") == "AE":
+            return w.get("code") == "AE1_run_gajogg"
+        if not w.get("parameterized"):
+            cap = levels.session_cap(level_profile, w.get("discipline"), race_distance)
+            est = (w.get("total_duration_min") or {}).get("estimated")
+            if cap and isinstance(est, (int, float)) and est > cap:
+                return False
+        return True
+
+    return pass_filter, run_walk
+
+
+def _fmt_minutes(x: float) -> str:
+    """1.5 → "1,5", 2.0 → "2"."""
+    return (f"{x:.1f}".rstrip("0").rstrip(".")).replace(".", ",")
+
+
+def _level_context(
+    client, athlete: dict, athlete_id: str, athlete_user_id: str,
+    week_start: date, today: date, actual_weekly_hours: float | None,
+) -> SimpleNamespace:
+    """Allt nivån styr i veckan: profil, budget, nästa lopp och passfilter."""
+    profile = levels.profile(athlete)
+    ramp = _level_budget(
+        client, athlete, athlete_user_id, week_start, profile, actual_weekly_hours,
+    )
+    race = _next_race(client, athlete_id, today)
+    distance = (race or {}).get("distance")
+    pass_filter, run_walk = _level_pass_filter(profile, ramp, distance)
+    return SimpleNamespace(
+        profile=profile, ramp=ramp, race=race, race_distance=distance,
+        pass_filter=pass_filter, run_walk=run_walk,
+    )
+
+
+def _apply_level_decisions(decisions: dict, lvl: SimpleNamespace) -> None:
+    """Nivån och rampen i engine_decisions; kategorierna filtreras mot nivån."""
+    decisions["_level"] = lvl.profile["level"]
+    if lvl.ramp is None:
+        return
+    decisions["ramp"] = {
+        k: lvl.ramp[k] for k in
+        ("budget_minutes", "progress_weeks", "completion", "capped_by_declared", "reason")
+    }
+    decisions["categories"] = levels.allowed_categories(
+        lvl.profile, decisions["categories"], lvl.ramp["progress_weeks"]
+    )
+
+
+def _level_min_sessions(lvl: SimpleNamespace, decisions: dict) -> int:
+    """Hur många pass schemaläggaren fyller till: nivåns antal eller fem."""
+    if lvl.ramp is None:
+        return int(lvl.profile.get("min_sessions") or 5)
+    budget = lvl.ramp["budget_minutes"] * float(decisions.get("_volume_factor") or 1.0)
+    return levels.sessions_for_budget(lvl.profile, budget)
+
+
+def _fit_week_for_level(
+    scheduled: list[ScheduledWorkout], decisions: dict, warnings: list[str],
+    athlete: dict, lvl: SimpleNamespace, week_start: date,
+) -> None:
+    """Steg 5a' i generate_week: loppdagen och veckan i budgeten (docs/13).
+
+    Loppet läggs på sin dag med vila dagen före och efter, för alla nivåer.
+
+    Ramp-nivåerna: budgeten (× veckans volymfaktor) styr antal och längd.
+    Advanced/elit: bara i veckor med volymfaktor (vilovecka, topp,
+    nedtrappning, transition) — då kortas passen, antalet står kvar.
+    Förut påverkade faktorn bara långpassets tak.
+    """
+    race_day = _place_race_day(scheduled, lvl.race, week_start)
+    if race_day:
+        decisions["race_day"] = race_day
+    level_profile, ramp, run_walk = lvl.profile, lvl.ramp, lvl.run_walk
+    race_distance = lvl.race_distance
+    volume_factor = float(decisions.get("_volume_factor") or 1.0)
+    if ramp is None:
+        if volume_factor < 1.0:
+            current = sum(
+                sw.duration_minutes for sw in scheduled
+                if _is_training_slot(sw) and sw.sport != "strength"
+            )
+            decisions["budget_fit"] = _fit_week_to_budget(
+                scheduled, current * volume_factor,
+                max_sessions=None, min_session_min=20, caps={}, shrink_only=True,
+            )
+        return
+
+    caps = {
+        d: levels.session_cap(level_profile, d, race_distance)
+        for d in ("run", "bike", "swim", "brick", "strength")
+    }
+    extra = None
+    if run_walk:
+        jog_walk = {"jog_min": _fmt_minutes(run_walk[0]), "walk_min": _fmt_minutes(run_walk[1])}
+        extra = lambda code: jog_walk if code == "AE1_run_gajogg" else None  # noqa: E731
+    budget = ramp["budget_minutes"] * volume_factor
+    fit = _fit_week_to_budget(
+        scheduled, budget,
+        max_sessions=levels.sessions_for_budget(level_profile, budget),
+        min_session_min=int(level_profile.get("min_session_min") or 15),
+        caps=caps, shrink_only=False, extra_params_for=extra,
+        max_strength_sessions=1 if level_profile["level"] == "beginner" else 2,
+    )
+    decisions["budget_fit"] = fit
+    decisions["_ramp_state"] = {
+        **ramp["state"],
+        "scheduled_minutes": fit["scheduled_minutes"],
+        "recovery": volume_factor < 1.0,
+    }
+    # Säg till bara när taket ligger under nivåns startdos — annars är taket
+    # vad adepten bett om och inget att påminna om varje vecka.
+    declared_h = float(athlete.get("weekly_hours") or 0)
+    if ramp["capped_by_declared"] and declared_h * 60 < float(
+        level_profile.get("start_minutes_per_week") or 0
+    ):
+        warnings.append(
+            f"Du har angett {_fmt_minutes(declared_h)} timmar i veckan, så Trixa "
+            "planerar inom det. Vill du träna mer ändrar du tiden under Inställningar."
+        )
+
+
+def _render_week(
+    scheduled: list[ScheduledWorkout], athlete: dict,
+    drills: list[dict], strength_exercises: list[dict],
+):
+    """Steg 5b i generate_week: adeptens passtext per pass. Returnerar zonprofilen."""
+    zones_profile = _build_athlete_profile_for_zones(athlete)
+    drill_map = {d["code"]: d for d in drills}
+    exercise_map = {e["code"]: e for e in strength_exercises}
+    for sw in scheduled:
+        if sw.workout_data and sw.sport != "rest":
+            try:
+                sw.details_markdown = render_workout(
+                    sw.workout_data, zones_profile, drill_map, exercise_map
+                )
+            except Exception:  # noqa: BLE001
+                # Render-fel ska inte krascha hela planen — fall back till notes
+                sw.details_markdown = sw.notes
+    return zones_profile
 
 
 def _persist_week(
@@ -2040,6 +2512,10 @@ def _persist_week(
         "last_planned_week_start": week_start.isoformat(),
         "updated_at": datetime.now(timezone.utc).isoformat(),
     }
+    # Rampens läge (levels.weekly_budget) — nästa vecka jämför den faktiska
+    # tiden mot det som schemalades här.
+    if plan.engine_decisions.get("_ramp_state"):
+        new_phase_state["ramp"] = plan.engine_decisions["_ramp_state"]
     try:
         client.table("athlete_profiles").update(
             {"phase_state": new_phase_state}
@@ -2132,14 +2608,22 @@ def generate_week(
             client, strava_user_id, today, weeks=4
         )
 
+    lvl = _level_context(
+        client, athlete, athlete_id, athlete_user_id, week_start, today, actual_weekly_hours,
+    )
+
     # Bygg engine-input
     state = _build_athlete_state(
         athlete, weekly_report, today,
         actual_weekly_hours=actual_weekly_hours,
         garmin_metrics=garmin_metrics,
         client=client,
+        apply_floor=lvl.ramp is None,
     )
     ot_signals = _build_ot_signals(athlete, weekly_report, garmin_metrics=garmin_metrics)
+
+    if lvl.ramp is not None:
+        state = replace(state, weekly_training_hours=lvl.ramp["budget_minutes"] / 60.0)
 
     # 3. Kör engine. Fasen behövs FÖRE engine för att resolva veckoposition
     # (vilovecko-cykeln räknas per fas via phase_state).
@@ -2159,8 +2643,10 @@ def generate_week(
     decisions["_week_in_period"] = week_in_period
     decisions["_weeks_in_phase"] = weeks_in_phase
     decisions = _apply_week_volume_scaling(
-        decisions, phase_rec.phase, week_in_period, weeks_in_period, weeks_in_phase
+        decisions, phase_rec.phase, week_in_period, weeks_in_period, weeks_in_phase,
+        weeks_until_race=state.weeks_until_next_race,
     )
+    _apply_level_decisions(decisions, lvl)
     nutrition = _build_nutrition(
         athlete, phase_rec.phase, week_in_period, weeks_in_period
     )
@@ -2212,6 +2698,7 @@ def generate_week(
     picked = _select_week_workouts(
         decisions, athlete, athlete_id, week_start, recent_workouts,
         active_sports, partial_disciplines, blocked_by_injury, raw_sports, impacts,
+        pass_filter=lvl.pass_filter,
     )
     selected, strength_workout, warnings = picked.selected, picked.strength_workout, picked.warnings
     drills, strength_exercises = picked.drills, picked.strength_exercises
@@ -2242,6 +2729,9 @@ def generate_week(
         strength_sessions=strength_sessions,
         phase=phase,
         period=period,
+        min_sessions=_level_min_sessions(lvl, decisions),
+        pass_filter=lvl.pass_filter,
+        count_strength=lvl.ramp is None,
     )
 
     # 5a. GRIND: Nils vinner. Släng motor-genererade pass för dagar coachen
@@ -2255,28 +2745,20 @@ def generate_week(
             )
     decisions["_coached_dates"] = sorted(d.isoformat() for d in coached)
 
+    # 5a'. Loppet på sin dag och veckan i nivåns budget (docs/13).
+    _fit_week_for_level(scheduled, decisions, warnings, athlete, lvl, week_start)
+
     combined_workout_count = human_workout_count + sum(
         1 for sw in scheduled if sw.sport != "rest"
     )
-    if combined_workout_count < 5:
+    if lvl.ramp is None and combined_workout_count < 5:
         warnings.append(
             f"Veckan innehåller bara {combined_workout_count} träningspass efter "
             "skade-, gren- och coachbegränsningar; Trixa lade inte tillbaka blockerade grenar."
         )
 
     # 5b. Rendera fullständig pass-text per pass (intent + main_set + zoner)
-    zones_profile = _build_athlete_profile_for_zones(athlete)
-    drill_map = {d["code"]: d for d in drills}
-    exercise_map = {e["code"]: e for e in strength_exercises}
-    for sw in scheduled:
-        if sw.workout_data and sw.sport != "rest":
-            try:
-                sw.details_markdown = render_workout(
-                    sw.workout_data, zones_profile, drill_map, exercise_map
-                )
-            except Exception:  # noqa: BLE001
-                # Render-fel ska inte krascha hela planen — fall back till notes
-                sw.details_markdown = sw.notes
+    zones_profile = _render_week(scheduled, athlete, drills, strength_exercises)
 
     plan = WeekPlan(
         athlete_id=athlete_id,

@@ -456,6 +456,26 @@ Det som ändrar hur man ska tänka om koden:
   `generate_week` uppdelad (_select_week_workouts, _persist_week,
   _trace_data_sources), cron läser `phase_state` i stället för RAM.
 
+**Nivåprofiler och loppdag (2026-11-22, docs/13):**
+En nybörjare med 0,5 h/vecka och ett 10 km-lopp fick fem pass och 5–6 h,
+samma pass som en van löpare, och full volym veckan före loppet.
+- `experience_level` styr nu planen via `coach/data/levels.yaml` +
+  `coach/trixa/levels.py`. **Nybörjare/medel = ramp:** veckobudget i minuter
+  (start 75/150), +10 % när förra veckan blev gjord, angivna timmar är tak.
+  Läget i `phase_state.ramp`. **Advanced/elit = declared:** dagens logik
+  (5 h-golv, minst fem pass), oförändrad volym.
+- `_fit_week_to_budget` får veckan att rymmas: antal pass, passlängd (bara
+  mallar med `duration_min`), styrkan inräknad för ramp. Advanced/elit
+  kortas bara i veckor med volymfaktor (`decisions["_volume_factor"]`).
+- Loppet ligger i planen (`code="race"`, kategori RACE) med vila dagen
+  före och efter; fasen `race` har nedtrappning (`race_taper`).
+- `AE1_run_gajogg` (`levels: [beginner]`) är nybörjarens löppass tills
+  gå/jogg-stegen är slut. Pass med `levels` väljs bara för sin nivå.
+- `render_workout(for_coach=False)` är adeptens text: ingen passkod, inga
+  tränarnoter, zoner i känsla när testvärden saknas.
+- Kvar: besvär utan `impact_per_discipline`, passbankens prosa, fasnamnet
+  för ramp-nivåerna (står i prep hela säsongen).
+
 **Yoga som gren + pass som går att markera gjorda (2026-09-02):**
 Skarp användning av en andra adept (Sarah, `acb82415-…`): hon lade in
 "Yoga" som eget pass, valde Styrka eftersom Yoga inte fanns, och passet
