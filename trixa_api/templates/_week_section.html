@@ -332,9 +332,21 @@
                        value="{{ w.status.actual.avg_hr if w.status.actual and w.status.actual.avg_hr else '' }}">
               </label>
               {% endif %}
-              <label>Känsla (RPE 1–10)
+              <label>Hur jobbigt var det? (1 = mycket lätt, 10 = allt du hade)
                 <input type="number" name="rpe" min="1" max="10" step="1" placeholder="1–10">
               </label>
+              {# Vill adepten göra passet igen? Ansträngning säger inte om passet
+                 var omtyckt; svaret styr vilka pass coachen föreslår till
+                 passbanken (session_feedback, migration 014). #}
+              {% if w.id %}
+              <fieldset style="grid-column: 1 / -1; border: 0; padding: 0; margin: 0;">
+                <legend style="font-size: 0.875rem;">Vill du göra passet igen?</legend>
+                {% set fb = w.feedback_again or "" %}
+                <label style="display: inline-flex; gap: 4px; margin-right: 12px;"><input type="radio" name="again" value="yes" {% if fb == "yes" %}checked{% endif %}> Ja</label>
+                <label style="display: inline-flex; gap: 4px; margin-right: 12px;"><input type="radio" name="again" value="maybe" {% if fb == "maybe" %}checked{% endif %}> Kanske</label>
+                <label style="display: inline-flex; gap: 4px;"><input type="radio" name="again" value="no" {% if fb == "no" %}checked{% endif %}> Nej</label>
+              </fieldset>
+              {% endif %}
               <button type="submit" style="grid-column: 1 / -1;">Spara loggat pass</button>
             </form>
           </article>

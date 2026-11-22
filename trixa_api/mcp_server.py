@@ -115,6 +115,18 @@ def _tool_list_workouts(scope: AgentScope, args: dict) -> Any:
     )
 
 
+def _tool_get_session_feedback(scope: AgentScope, args: dict) -> Any:
+    return agent_api.get_session_feedback(days=int(args.get("days") or 90), scope=scope)
+
+
+def _tool_propose_workout(scope: AgentScope, args: dict) -> Any:
+    return agent_api.propose_workout(body=agent_api.ProposalIn(**args), scope=scope)
+
+
+def _tool_list_proposals(scope: AgentScope, args: dict) -> Any:
+    return agent_api.list_proposals(scope=scope)
+
+
 def _tool_plan_session(scope: AgentScope, args: dict) -> Any:
     body = agent_api.PlanSessionIn(
         date=_parse_date(args.get("date", ""), "date"),
@@ -381,6 +393,80 @@ _TOOLS: list[tuple[str, str, dict, Callable[[AgentScope, dict], Any]]] = [
         _tool_plan_session,
     ),
     (
+        "get_session_feedback",
+        "Vilka pass adepten gillat: svaren på \"Vill du göra passet igen?\" "
+        "(yes/maybe/no) med ansträngning (1–10), per pass och per passtyp. "
+        "Läs den innan du föreslår ett nytt pass till passbanken, och när du "
+        "väljer pass ur passbanken — pass adepten vill göra igen blir gjorda.",
+        {
+            "type": "object",
+            "properties": {
+                "days": {"type": "integer", "description": "Dygn bakåt (7–365, default 90)."}
+            },
+        },
+        _tool_get_session_feedback,
+    ),
+    (
+        "propose_workout",
+        "Föreslå ett NYTT pass till Trixas passbank, byggt på pass adepten gjort "
+        "och gillat. Förslaget granskas av en människa innan det läggs in och "
+        "når någon adept — det påverkar inte planen nu. Skriv i passbankens "
+        "språk: du-form, känsla före fysiologi, inga förkortningar (HR, pace, "
+        "strides, RIR …), FTP/CSS bara inom parentes; inga namn eller "
+        "hälsouppgifter, passbanken delas med alla. source_session_ids ska vara "
+        "adeptens gjorda pass (get_session_feedback/get_week); servern räknar "
+        "underlaget själv. Svaret ger förhandsvisning, underlag och varningar; "
+        "fel form eller fackord avvisas med en lista över vad som ska rättas.",
+        {
+            "type": "object",
+            "properties": {
+                "sport": {"type": "string", "enum": ["swim", "bike", "run", "strength", "brick"]},
+                "category": {
+                    "type": "string",
+                    "description": "AE lugn uthållighet, SS snabbhet, TE tempo, ME tröskel, MF kraft, AC intervaller, T test, BW kombinationspass, ST styrka.",
+                },
+                "name": {"type": "string", "description": "Passets namn på svenska, t.ex. 'Lugn runda med tre backar'."},
+                "intent": {"type": "string", "description": "Syftet, till adepten: vad passet ger och hur det ska kännas."},
+                "main_set": {
+                    "type": "array",
+                    "description": (
+                        "Passets delar i ordning. Varje del: segment (warmup, continuous, main, "
+                        "recovery, cooldown, drills, strength_block), duration_pct (andel av "
+                        "passet, summa 1.0) eller duration_min/distance_m, sets, rest_sec, "
+                        "zone (1–5), effort_descriptor och description (text till adepten). "
+                        "strength_block: exercise (kod ur övningskatalogen) och prescription "
+                        "{sets, reps, rir, rest_sec}."
+                    ),
+                    "items": {"type": "object"},
+                },
+                "duration_min": {
+                    "type": "object",
+                    "description": "{default: 40, range: [25, 60]} — passets längd i minuter.",
+                },
+                "abort_conditions": {"type": "array", "items": {"type": "string"}},
+                "equipment": {"type": "array", "items": {"type": "string"}},
+                "phases": {
+                    "type": "array", "items": {"type": "string"},
+                    "description": "Faser passet passar i: prep, base_1–3, build_1–2, peak, race, recovery.",
+                },
+                "rationale": {"type": "string", "description": "Varför passet behövs i banken, och vad adepten sagt om det."},
+                "source_session_ids": {
+                    "type": "array", "items": {"type": "string"},
+                    "description": "Id för adeptens gjorda pass som förslaget bygger på.",
+                },
+            },
+            "required": ["sport", "category", "name", "intent", "main_set", "duration_min", "source_session_ids"],
+        },
+        _tool_propose_workout,
+    ),
+    (
+        "list_proposals",
+        "Dina passförslag för den här adepten och hur granskningen gick "
+        "(pending, accepted, rejected, imported) med granskarens kommentar.",
+        {"type": "object", "properties": {}},
+        _tool_list_proposals,
+    ),
+    (
         "delete_planned_session",
         "Ta bort ett planerat pass. Bara adeptens egna rader går att röra.",
         {
@@ -537,7 +623,10 @@ def _dispatch(scope: AgentScope, message: dict) -> dict | None:
                     "erfarenhetsnivå ur get_athlete, håll upprampningen försiktig "
                     "och fråga adepten hur passen kändes i stället för att läsa HRV.\n\n"
                     "Skriv pass med plan_session och dokumentera avsteg från motorn "
-                    "med log_override."
+                    "med log_override.\n\n"
+                    "Har adepten gillat ett pass som saknas i passbanken (se "
+                    "get_session_feedback): föreslå det med propose_workout. Det "
+                    "granskas innan någon får det."
                 ),
             },
         )

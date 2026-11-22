@@ -19,19 +19,10 @@ WORKOUTS = Path(__file__).resolve().parents[1] / "data" / "workouts"
 _WORKOUT_FIELDS = ("name", "intent")
 _SEGMENT_FIELDS = ("description", "effort_descriptor", "note")
 
-_FORBIDDEN = [
-    r"\bHR\b", r"\bbpm\b", r"\bpace\b", r"\bstrides?\b", r"\bpickups?\b",
-    r"\bdrills?\b", r"\baerob\w*", r"\banaerob\w*", r"mitokondri\w*", r"kapillär\w*",
-    r"kardiovaskulär\w*", r"\bdrift\w*", r"\bRIR\b", r"\bRPE\b", r"\bERG\b", r"\bIM\b",
-    r"\brace\w*", r"\bpeak\b", r"\brecovery\b", r"\bcool-?down\b", r"\bwarm-?up\b",
-    r"\bkick\b", r"\breps?\b", r"\bset\b", r"\bkadens\w*", r"\brpm\b", r"\bsighting\b",
-    r"\bVO2\w*", r"sweet ?spot", r"negative split", r"\bsplits?\b", r"\bbase-?fas\w*",
-    r"\bT[12]\b", r"\bOW\b", r"\bbrick\w*", r"\badepten?\b", r"\blaktat\w*",
-    # fältnamn och koder (threshold_pace_sec_per_km, landmine_press …)
-    r"\b[a-z]+_[a-z_]+\b",
-]
-# FTP och CSS får stå inom parentes, efter en förklaring.
-_PAREN_ONLY = [r"\bFTP\b", r"\bCSS\b"]
+from coach.engine.sprak import FORBIDDEN as _FORBIDDEN  # noqa: E402
+from coach.engine.sprak import PAREN_ONLY as _PAREN_ONLY  # noqa: E402
+from coach.engine.sprak import jargon as _jargon  # noqa: E402
+from coach.engine.sprak import outside_parens as _outside_parens  # noqa: E402
 
 
 def _texts():
@@ -58,23 +49,12 @@ def _texts():
                 yield path.name, code, "abort_conditions", str(cond)
 
 
-def _outside_parens(text: str) -> str:
-    return re.sub(r"\([^()]*\)", "", text)
-
-
 def _hits() -> list[str]:
-    out = []
-    for fname, code, field, text in _texts():
-        # {jog_min} m.fl. ersätts av renderaren och syns aldrig som de står.
-        text = re.sub(r"\{[A-Za-z_][A-Za-z0-9_]*\}", "", text)
-        for pat in _FORBIDDEN:
-            for m in re.findall(pat, text, flags=re.IGNORECASE if pat.islower() else 0):
-                out.append(f"{fname} {code} {field}: {m!r}")
-        bare = _outside_parens(text)
-        for pat in _PAREN_ONLY:
-            for m in re.findall(pat, bare):
-                out.append(f"{fname} {code} {field}: {m!r} utanför parentes")
-    return out
+    return [
+        f"{fname} {code} {field}: {m!r}"
+        for fname, code, field, text in _texts()
+        for m in _jargon(text)
+    ]
 
 
 def test_adepttexten_saknar_fackforkortningar():

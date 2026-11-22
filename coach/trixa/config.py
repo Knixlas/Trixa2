@@ -29,3 +29,14 @@ def require(value: str | None, flag: str, env: str) -> str:
     if value:
         return value
     raise SystemExit(f"Ange {flag} eller sätt {env}.")
+
+
+def passbank_reviewers() -> set[str]:
+    """profiles.id för dem som får granska passförslag (/ui/admin/forslag).
+
+    Kommaseparerad lista i TRIXA_PASSBANK_REVIEWERS. Tom = ingen får granska:
+    /ui/admin saknar rollspärr, så förslagen får inte vara öppna för alla
+    inloggade.
+    """
+    raw = os.environ.get("TRIXA_PASSBANK_REVIEWERS") or ""
+    return {part.strip() for part in raw.split(",") if part.strip()}

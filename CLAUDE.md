@@ -476,6 +476,11 @@ samma pass som en van löpare, och full volym veckan före loppet.
 - MCP-coachen planerar inom läran: `get_engine_week`, `list_workouts`,
   `plan_session(workout_code)` ur passbanken, nivåvarningar i
   `trixa_api/agent_passbank.py` (docs/11).
+- Passförslag från MCP-coacher (migration 014): `session_feedback` (gilla-
+  frågan i loggen), `workout_proposals` (pending → accepted/rejected →
+  imported), granskning i `/ui/admin/forslag` (env `TRIXA_PASSBANK_REVIEWERS`),
+  import till YAML med `python -m coach.trixa.import_proposals --apply`.
+  Passbanken förblir granskad kod; inget förslag når adepter direkt.
 - Passbankens adepttext följer `docs/PASSBANK_SPRAK.md`; lint-testet
   `test_passbank_sprak.py` stoppar fackord i nya pass. Tränarnoter får
   vara fackspråk.
