@@ -145,19 +145,40 @@ def history_key(name: Any, code: Any = None) -> str:
     return f"name:{str(name or '').strip().casefold()}"
 
 
+# Katalognamn som byttes 2026-11-22 (docs/PASSBANK_SPRAK.md) → kod. Loggar
+# skrivna innan exercise_code fanns bär bara namnet; utan den här tabellen
+# tappade progressionen historiken för övningar som fått svenska namn.
+_FORMER_CATALOG_NAMES = {
+    "goblet squat": "goblet_squat",
+    "leg curl (maskin)": "leg_curl_machine",
+    "nordic hamstring curl": "nordic_hamstring_curl",
+    "upprätt rodd i ring/stång (inverted row)": "inverted_row",
+    "raka-arm-latsdrag (straight-arm pulldown)": "straight_arm_pulldown",
+    "assisterade chins": "assisted_pullup",
+    "step-up": "step_up",
+    "enbensstående balans": "single_leg_balance",
+    "bird dog": "bird_dog",
+    "bröstryggsrotation (open book)": "thoracic_rotation",
+}
+
+
 def index_history(logs: Iterable[dict]) -> dict[str, list[dict]]:
     """Loggrader → historik per övning, nyast först.
 
     Varje rad indexeras på både kod och namn: en logg skriven innan koden
-    fanns hittas fortfarande via namnet.
+    fanns hittas fortfarande via namnet. Ett tidigare katalognamn ger
+    dessutom koden (_FORMER_CATALOG_NAMES).
     """
     out: dict[str, list[dict]] = {}
     for log in logs or []:
         if not isinstance(log, dict):
             continue
         keys = {history_key(log.get("exercise_name"))}
-        if log.get("exercise_code"):
-            keys.add(history_key(None, log.get("exercise_code")))
+        code = log.get("exercise_code") or _FORMER_CATALOG_NAMES.get(
+            str(log.get("exercise_name") or "").strip().casefold()
+        )
+        if code:
+            keys.add(history_key(None, code))
         for key in keys:
             out.setdefault(key, []).append(log)
     for rows in out.values():

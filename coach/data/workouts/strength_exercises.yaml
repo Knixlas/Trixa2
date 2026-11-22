@@ -70,7 +70,7 @@ exercises:
     related: [goblet_squat, bulgarian_split_squat]
 
   - code: goblet_squat
-    name: "Goblet squat"
+    name: "Knäböj med hantel (goblet squat)"
     pattern: knee_dominant
     modality: free_weight
     difficulty: 1
@@ -115,7 +115,7 @@ exercises:
   # ─────────────────────────────────────────────────────────────
 
   - code: leg_curl_machine
-    name: "Leg curl (maskin)"
+    name: "Bencurl (maskin)"
     pattern: hip_hinge
     modality: machine
     difficulty: 1
@@ -176,7 +176,7 @@ exercises:
     related: [romanian_deadlift]
 
   - code: nordic_hamstring_curl
-    name: "Nordic hamstring curl"
+    name: "Nordisk hamstringscurl"
     pattern: hip_hinge
     modality: bodyweight
     difficulty: 3
@@ -266,7 +266,7 @@ exercises:
     related: [inverted_row, straight_arm_pulldown]
 
   - code: inverted_row
-    name: "Upprätt rodd i ring/stång (inverted row)"
+    name: "Kroppsviktsrodd i ringar eller stång"
     pattern: horizontal_pull
     modality: bodyweight
     difficulty: 2
@@ -311,7 +311,7 @@ exercises:
     related: [assisted_pullup, seated_row_machine]
 
   - code: straight_arm_pulldown
-    name: "Raka-arm-latsdrag (straight-arm pulldown)"
+    name: "Latsdrag med raka armar"
     pattern: vertical_pull
     modality: cable
     difficulty: 1
@@ -333,7 +333,7 @@ exercises:
     related: [lat_pulldown_machine, seated_row_machine]
 
   - code: assisted_pullup
-    name: "Assisterade chins"
+    name: "Chins med stöd"
     pattern: vertical_pull
     modality: machine
     difficulty: 2
@@ -424,7 +424,7 @@ exercises:
     related: [step_up, walking_lunge]
 
   - code: step_up
-    name: "Step-up"
+    name: "Uppsteg på låda"
     pattern: single_leg
     modality: free_weight
     difficulty: 1
@@ -461,7 +461,7 @@ exercises:
     related: [bulgarian_split_squat]
 
   - code: single_leg_balance
-    name: "Enbensstående balans"
+    name: "Balans på ett ben"
     pattern: single_leg
     modality: bodyweight
     difficulty: 1
@@ -557,7 +557,7 @@ exercises:
     related: [plank, bird_dog]
 
   - code: bird_dog
-    name: "Bird dog"
+    name: "Diagonallyft på alla fyra (bird dog)"
     pattern: core
     modality: bodyweight
     difficulty: 1
@@ -623,7 +623,7 @@ exercises:
   # ─────────────────────────────────────────────────────────────
 
   - code: thoracic_rotation
-    name: "Bröstryggsrotation (open book)"
+    name: "Bröstryggsrotation i sidoläge"
     pattern: mobility
     modality: bodyweight
     difficulty: 1

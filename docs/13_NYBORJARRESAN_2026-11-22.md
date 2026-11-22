@@ -234,14 +234,30 @@ svar; varje pass görs till 85–95 % av tiden):
 
 - **Besvär** utan `impact_per_discipline` påverkar fortfarande inte planen
   (knät med grad 2).
-- **Passbankens prosa** (pickups, strides, "HR driftar", "IM-maratonstrategi")
-  i 124 pass. Nybörjaren möter den först efter gå/jogg-perioden.
+- ~~Passbankens prosa~~ — gjort i steg 3 nedan.
 - **Varför blev passet inte gjort?** (ChatGPT:s förslag) Rampen ser bara
   tiden. En adept som gör två av tre pass står still utan att få veta varför.
 - **Fasnamnet:** ramp-nivåerna ligger i "Förberedelse" hela säsongen,
   eftersom fasgränserna räknas i timmar (5 h för bas). Planen fungerar, men
   ordet säger fel sak.
 - **Simpassen** för triathlonnybörjaren har fortfarande drills och "25:or".
+
+## Steg 3: passbankens språk (grenen `passbank-sprak`)
+
+- Alla fält adepten ser i 127 pass, 27 teknikövningar och styrkekatalogens
+  namn omskrivna efter `docs/PASSBANK_SPRAK.md`: du-form, känsla före
+  fysiologi, FTP/CSS bara inom parentes, svenska namn ("Grundstyrka — hela
+  kroppen", "Korta spurter — 16 × 25 m med gott om vila", "Benspark på sidan").
+  Tränarnoter och katalogens tränarfält är orörda.
+- `coach/tests/test_passbank_sprak.py` stoppar 38 ord och koder i
+  adepttexten; `test_adepttext.py` renderar hela banken och kontrollerar
+  slutresultatet, renderarens egna ord inräknade. 555 träffar före, 0 efter.
+- Renderaren: utrustning på svenska, "trampfrekvens … varv/min", "låst
+  effekt på trainern", "3 omgångar à 10, orka 2 till, vila 60 s",
+  hålltider utan "2×1", "4 × 8 min i Z4 …, vila 4 min mellan".
+- Tio styrkeövningar bytte namn; loggar under de gamla namnen hittas via
+  `_FORMER_CATALOG_NAMES` i `strength_progression.py`. Prosatolken läser
+  både "RIR 2"/"3×10" och "orka 2 till"/"3 omgångar à 10".
 
 ## Vad som inte är verifierat
 

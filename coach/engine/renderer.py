@@ -10,6 +10,7 @@ utan konkreta värden.
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 from .loader import AthleteProfile
@@ -46,8 +47,8 @@ def _fmt_zone_target(zone: int, zr: ZoneRange | None, discipline: str) -> str:
     """Formatera en zon med sina målvärden för en given disciplin.
 
     Sim: "Z2 (1:38.0–1:40.0/100m)"
-    Bike: "Z2 (110–145 W, 132–142 bpm)"
-    Run: "Z2 (5:30–6:00/km, 138–148 bpm)"
+    Bike: "Z2 (110–145 W, 132–142 slag/min)"
+    Run: "Z2 (5:30–6:00/km, 138–148 slag/min)"
 
     Om värden saknas (ingen profildata): "Z2 – lugnt, du kan prata i hela
     meningar". Nybörjaren ser aldrig testvärdesfälten och har ofta ingen
@@ -67,14 +68,14 @@ def _fmt_zone_target(zone: int, zr: ZoneRange | None, discipline: str) -> str:
         if zr.watts:
             parts.append(f"{zr.watts[0]}–{zr.watts[1]} W")
         if zr.hr_bpm:
-            parts.append(f"{zr.hr_bpm[0]}–{zr.hr_bpm[1]} bpm")
+            parts.append(f"{zr.hr_bpm[0]}–{zr.hr_bpm[1]} slag/min")
 
     if discipline == "run":
         if zr.pace_sec_per_km:
             lo, hi = zr.pace_sec_per_km
             parts.append(_fmt_pace_range_run(lo, hi))
         if zr.hr_bpm:
-            parts.append(f"{zr.hr_bpm[0]}–{zr.hr_bpm[1]} bpm")
+            parts.append(f"{zr.hr_bpm[0]}–{zr.hr_bpm[1]} slag/min")
 
     if not parts:
         return _zone_feel(zone)
@@ -96,7 +97,39 @@ def _zone_feel(zone: int) -> str:
     return f"Z{zone} – {feel}" if feel else f"Z{zone}"
 
 
+# Utrustningskoderna i passbanken på svenska. Okänd kod → koden utan understreck.
+_EQUIPMENT_SV = {
+    "power_meter": "effektmätare", "hr_strap": "pulsband", "trainer": "cykeltrainer",
+    "paddles": "handpaddlar", "fins": "simfenor", "snorkel": "frontsnorkel",
+    "pull_buoy": "dolme", "kickboard": "sparkbräda", "dumbbell": "hantlar",
+    "band": "gummiband", "trx": "TRX-band", "barbell": "skivstång",
+    "tempo_trainer": "taktpip", "shoulder_press": "axelpressmaskin",
+    "kettlebell": "kettlebell", "bench": "bänk", "box": "låda",
+    "cable": "kabelmaskin", "seated_row": "roddmaskin", "leg_press": "benpress",
+    "leg_curl": "bencurlmaskin", "chest_press": "bröstpressmaskin",
+    "lat_pulldown": "latsdragsmaskin", "assisted_pullup_machine": "chinsmaskin med stöd",
+    "landmine": "skivstång i hörnfäste (landmine)", "cadence_sensor": "trampfrekvensmätare",
+    "open_water": "öppet vatten",
+}
+
+
+def _equipment_sv(codes: list) -> str:
+    return ", ".join(_EQUIPMENT_SV.get(str(c), str(c).replace("_", " ")) for c in codes)
+
+
 # ---------- Segment-rendering per disciplin ----------
+
+
+def _fmt_rest(sec) -> str:
+    """240 → "4 min", 90 → "90 s", 150 → "2,5 min"."""
+    try:
+        sec = float(sec)
+    except (TypeError, ValueError):
+        return f"{sec} s"
+    if sec >= 120 and sec % 30 == 0:
+        minutes = sec / 60
+        return (f"{minutes:.1f}".rstrip("0").rstrip(".")).replace(".", ",") + " min"
+    return f"{int(sec)} s"
 
 
 def _segment_quantity(seg: dict, discipline: str) -> str:
@@ -118,8 +151,8 @@ def _segment_quantity(seg: dict, discipline: str) -> str:
         return ""
 
     if sets > 1:
-        return f"{sets}×{amount}{unit}" if unit == "m" else f"{sets}×{amount} {unit}"
-    return f"{amount}{unit}" if unit == "m" else f"{amount} {unit}"
+        return f"{sets} × {amount} {unit}"
+    return f"{amount} {unit}"
 
 
 def _segment_label(seg_type: str, sets: int) -> str:
@@ -174,17 +207,21 @@ def _render_segment(
         reps = prescription.get("reps")
         rir = prescription.get("rir")
         rest_sec = prescription.get("rest_sec")
+        load = str(seg.get("load_pct") or "")
+        # Hålltider (planka, balans) ligger som reps: 1 + tid i load_pct.
+        # "2×1, orka 5 till" sade ingenting; "2 omgångar, 30–45 s" säger allt.
+        is_hold = reps == 1 and bool(re.search(r"\d\s*s\b|hålltid", load))
         parts = []
-        if sets and reps:
-            parts.append(f"{sets}×{reps}")
+        if sets and reps and not is_hold:
+            parts.append(f"{sets} omgångar à {reps}" if sets > 1 else f"{reps} gånger")
         elif sets:
-            parts.append(f"{sets} set")
-        if rir is not None:
-            parts.append(f"RIR {rir}")
+            parts.append(f"{sets} omgångar" if sets > 1 else "1 omgång")
+        if rir is not None and not is_hold:
+            parts.append(f"orka {rir} till" if rir else "så tungt du klarar med god teknik")
         if rest_sec:
-            parts.append(f"{rest_sec}s vila")
-        if seg.get("load_pct"):
-            parts.append(str(seg["load_pct"]))
+            parts.append(f"vila {rest_sec} s")
+        if load:
+            parts.append(re.sub(r"(\d)s\b", r"\1 s", load))
         line = f"- **{name}:** " + ", ".join(parts)
         if seg.get("alt"):
             alt = (exercise_map or {}).get(seg["alt"], {}).get(
@@ -205,7 +242,7 @@ def _render_segment(
 
     # Specialfall: 'rest' har inget annat innehåll än vilotid
     if seg_type == "rest":
-        line = f"**{label}:** {rest}s"
+        line = f"**{label}:** {rest} s"
         if desc:
             line += f" — {desc}"
         return f"- {line}"
@@ -218,8 +255,6 @@ def _render_segment(
     line = f"**{label}:**"
     if quantity:
         line += f" {quantity}"
-    if rest is not None and rest > 0 and seg_type != "rest":
-        line += f", {rest}s vila"
 
     # Drills: lägg in drill-namn efter quantity
     if seg_type == "drills":
@@ -239,23 +274,28 @@ def _render_segment(
         zone_strs = [f"Z{z}" for z in zones_per_set]
         line += f" i {'/'.join(zone_strs)}"
 
+    # Vilan efter zonen: "4 × 8 min i Z4 – hårt …, vila 4 min mellan". Före
+    # zonen lästes den som att vilan skulle ligga i Z4.
+    if rest is not None and rest > 0 and seg_type != "rest":
+        line += f", vila {_fmt_rest(rest)}" + (" mellan" if (sets or 1) > 1 else "")
+
     # Bike-specifika fält
     cadence = seg.get("cadence_rpm")
     if cadence:
         if isinstance(cadence, list) and len(cadence) == 2:
-            line += f" | kadens {cadence[0]}–{cadence[1]} rpm"
+            line += f" | trampfrekvens {cadence[0]}–{cadence[1]} varv/min"
         else:
-            line += f" | kadens {cadence} rpm"
+            line += f" | trampfrekvens {cadence} varv/min"
 
     if seg.get("erg_mode") is True:
-        line += " | ERG"
+        line += " | låst effekt på trainern"
     elif seg.get("erg_mode") is False and zoneset.discipline == "bike":
         # Bara visa när det är explicit override till False
-        line += " | fri-ride"
+        line += " | styr effekten själv"
 
     # Utrustning
     if equip:
-        line += f" [{', '.join(equip)}]"
+        line += f" [{_equipment_sv(equip)}]"
 
     out = [f"- {line}"]
     if desc:
@@ -334,7 +374,7 @@ def _render_bike_setting(workout: dict) -> str | None:
     if workout.get("outdoor_only"):
         parts.append("endast utomhus")
     if workout.get("erg_mode") is True:
-        parts.append("trainern styr effekten (ERG)")
+        parts.append("trainern låser effekten")
     if not parts:
         return None
     return f"*{', '.join(parts)}*"
@@ -407,7 +447,7 @@ def render_workout(
     out.append("")
 
     if workout.get("equipment"):
-        out.append(f"**Utrustning:** {', '.join(workout['equipment'])}")
+        out.append(f"**Utrustning:** {_equipment_sv(workout['equipment'])}")
         out.append("")
 
     if workout.get("abort_conditions"):

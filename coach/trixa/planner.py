@@ -1564,7 +1564,7 @@ def _scheduled_from_workout(
 
     zones = resolved.get("zone_refs") or []
     if resolved.get("discipline") == "strength":
-        intensity = f"{resolved.get('type_code', 'styrka')} · RIR-styrt"
+        intensity = "Styrka"
     else:
         intensity = ", ".join(str(z) for z in zones) if zones else "Z2"
 
@@ -2852,7 +2852,7 @@ def swap_workout_code(
     duration = int(td.get("estimated") or 60)
     zones = resolved.get("zone_refs") or []
     if resolved.get("discipline") == "strength":
-        intensity = f"{resolved.get('type_code', 'styrka')} · RIR-styrt"
+        intensity = "Styrka"
     else:
         intensity = ", ".join(str(z) for z in zones) if zones else "Z2"
 

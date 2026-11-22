@@ -16,7 +16,7 @@ workouts:
     discipline: strength
     category: ST
     type_code: MT
-    name: "Max Transition — Helkropp"
+    name: "Styrka med måttlig vikt — hela kroppen"
     parametrized: true
     parameters:
       sets:
@@ -33,14 +33,15 @@ workouts:
         description: "Måttligt. Tyngre än AA, lättare än MS"
     phase_appropriate: [base_1]
     intent: |
-      Övergångspass. Yttre last på knädominant, höftfällning, drag och
-      press — men inte till max. Lär kroppen bära vikt på de mönster som
-      MS-fasen sedan kör tungt. Maskinbias, kontrollerat utförande.
+      Steget mellan lätt grundstyrka och tung styrka. Du lägger på vikt
+      för ben, baksida lår, drag och press — men inte till max. Kroppen
+      vänjer sig vid rörelserna du sedan kör tungt. Mest maskiner, lugna
+      och kontrollerade rörelser.
     main_set:
       - segment: warmup
         type: general
         duration_min: 8
-        description: "Lätt cykel/rodd + dynamisk höftböjarstretch + bird dog 2×8"
+        description: "Lätt cykling eller rodd, dynamisk höftböjarstretch och diagonallyft på alla fyra, 2 omgångar à 8"
 
       - segment: strength_block
         order: 1
@@ -48,7 +49,7 @@ workouts:
         prescription: {sets: 3, reps: 11, rir: 3, rest_sec: 120}
         load_pct: "måttlig"
         alt: goblet_squat
-        note: "Bygg upp lasten gradvis vecka för vecka."
+        note: "Öka vikten lite i taget, vecka för vecka."
 
       - segment: strength_block
         order: 2
@@ -56,7 +57,7 @@ workouts:
         prescription: {sets: 3, reps: 11, rir: 3, rest_sec: 90}
         load_pct: "måttlig"
         alt: hip_thrust
-        note: "Hamstringsbalans tidigt — sätt vanan innan RDL i MS."
+        note: "Stärk baksidan av låren redan nu, innan marklyften i de tunga passen."
 
       - segment: strength_block
         order: 3
@@ -64,14 +65,14 @@ workouts:
         prescription: {sets: 3, reps: 11, rir: 3, rest_sec: 90}
         load_pct: "måttlig"
         alt: chest_press_machine
-        note: "Neutralt grepp. Bicepsflagga → swap till press."
+        note: "Handflatorna mot varandra. Känns det i bicepsen: byt till bröstpress."
 
       - segment: strength_block
         order: 4
         exercise: chest_press_machine
         prescription: {sets: 3, reps: 11, rir: 3, rest_sec: 90}
         load_pct: "måttlig"
-        note: "Axelflagga → sänk ROM eller dra blocket."
+        note: "Känns det i axeln: gå inte lika djupt, eller hoppa över övningen."
 
       - segment: strength_block
         order: 5
@@ -79,12 +80,12 @@ workouts:
         prescription: {sets: 2, reps: 12, rir: 3, rest_sec: 45}
         load_pct: "lätt–måttlig"
         alt: dead_bug
-        note: "Anti-rotation, 12/sida."
+        note: "Håll bålen stilla när kabeln drar dig åt sidan. 12 per sida."
 
       - segment: cooldown
         type: mobility
         duration_min: 5
-        description: "Thoracic rotation + höftböjarstretch"
+        description: "Bröstryggsrotation och höftböjarstretch"
 
     total_duration_min:
       estimated: 45
@@ -93,8 +94,8 @@ workouts:
     load_model: rir
     equipment: [leg_press, leg_curl, seated_row, chest_press, cable]
     abort_conditions:
-      - "Axel/biceps-känning → swap eller dra blocket."
-      - "Readiness < 30 → RIR +1 eller 2 set."
+      - "Känns det i axeln eller bicepsen: byt övning eller hoppa över den."
+      - "Låg dagsform (readiness under 30): välj så lätt vikt att du orkar en till utöver det som står, eller gör bara 2 omgångar."
     coach_notes: |
       MT är där du sätter arbetsvikterna du sedan progredierar genom MS.
       Logga lasten noga här — den blir referenspunkten. Inget hjältemod,

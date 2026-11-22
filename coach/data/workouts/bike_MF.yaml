@@ -30,11 +30,12 @@ workouts:
         range: [35, 60]
         description: "8 × 30 sek + 7 × 90 sek vila = 14 min fasta reps."
     intent: |
-      Låg-kadens-intervaller för att bygga pedalkraft. Kadensen är target
-      — håll 50-60 rpm. Watt drivs upp av att du måste trycka hårdare per
-      tramp eftersom du tar färre tramp per minut. Känn det i quads och
-      glutes, INTE i knäna. Om knäna börjar gnälla: höj kadensen 5 rpm,
-      sänk watt.
+      Intervaller med långsam trampfrekvens som bygger kraft i benen. Det
+      är trampfrekvensen du styr på: håll 50-60 varv/min. När du trampar
+      färre varv måste du trycka hårdare i varje tramp, och det är det som
+      gör det tungt. Det ska kännas i lårens framsida och i rumpan, INTE i
+      knäna. Börjar knäna protestera: trampa 5 varv/min snabbare och lätta
+      på trycket.
     setting: either
     terrain: flat
     erg_mode: true
@@ -43,7 +44,7 @@ workouts:
         duration_pct: 0.33
         zone: 1
         erg_mode: false
-        description: "Inkludera 2-3 stigningar mot Z2 för att aktivera benen"
+        description: "Lägg in 2-3 korta ökningar upp mot lugnt (Z2) så att benen vaknar"
       - segment: main
         sets: 8
         duration_min: 0.5
@@ -51,8 +52,9 @@ workouts:
         cadence_rpm: [50, 60]
         rest_sec: 90
         description: |
-          Z4-watt vid 50-60 rpm. Aktiv vila i Z1 med naturlig kadens.
-          Tunga växlar, satt i sadeln, fokus på rund pedaltramp.
+          Hårt, nära tröskeln — den ansträngning du orkar hålla i ungefär en
+          timme (Z4) — på tung växel med 50-60 varv/min. Sitt kvar i sadeln
+          och trampa runt. Vila genom att cykla lätt (Z1) i naturlig takt.
       - segment: cooldown
         duration_pct: 0.22
         zone: 1
@@ -63,8 +65,8 @@ workouts:
     zone_refs: [Z1, Z4]
     equipment: [power_meter, hr_strap]
     abort_conditions:
-      - "Smärta i knäleder → avbryt omedelbart, höj kadens vid nästa pass"
-      - "Watt droppar > 15% mellan reps 1 och 8 → bryt resterande reps"
+      - "Smärta i knäna → avbryt direkt och trampa snabbare nästa gång"
+      - "Du orkar inte hålla trycket (watten mer än 15 % lägre än i första intervallen) → hoppa över resten av intervallerna"
     coach_notes: |
       Klassiskt MF1-pass. Trainer rekommenderas (ERG ger exakt watt-kontroll
       vid låg kadens — utomhus blir det svårt att inte glida upp i kadens
@@ -83,11 +85,13 @@ workouts:
         range: [40, 65]
         description: "6 × 1 min + 5 × 3 min vila = 21 min fasta reps."
     intent: |
-      Längre force-reps med stegrande watt. Början av varje rep är på
-      nedre Z4 — bygger till mitten/övre Z4 över 60 sekunder. Kadens
-      ligger 55-65, något högre än 30-sek-varianten eftersom dosen är
-      längre. Mer tröskelarbete än det första MF1-passet, men
-      fortfarande styrke-fokus via låg kadens.
+      Längre kraftintervaller där trycket ökar under minuten. Varje
+      intervall börjar strax under tröskeln — den ansträngning du orkar
+      hålla i ungefär en timme (nedre Z4) — och växer till mitten/övre Z4
+      under 60 sekunder. Trampfrekvensen ligger på 55-65 varv/min, lite
+      högre än i 30-sekundersvarianten eftersom intervallerna är längre.
+      Mer tröskelträning än det första passet, men fortfarande styrka tack
+      vare den långsamma trampfrekvensen.
     setting: indoor
     requires_trainer: true
     erg_mode: true
@@ -100,7 +104,7 @@ workouts:
         sets: 6
         duration_min: 1
         zone: 4
-        effort_descriptor: "Stegrande Z4 — börja på nedre Z4 (≈95% FTP), avsluta mitten/övre Z4 (≈103% FTP). Kadens fast vid 55-65 rpm hela repet."
+        effort_descriptor: "Öka trycket under minuten: börja strax under tröskeln (nedre Z4, ≈95 % av FTP) och sluta strax över (mitten/övre Z4, ≈103 % av FTP). Håll 55-65 varv/min hela intervallen."
         cadence_rpm: [55, 65]
         rest_sec: 180
       - segment: cooldown
@@ -113,8 +117,8 @@ workouts:
     zone_refs: [Z1, Z4]
     equipment: [power_meter, hr_strap, trainer]
     abort_conditions:
-      - "Smärta i knäleder → avbryt"
-      - "Kadens glider över 70 rpm vid maxwatt → repet räknas inte"
+      - "Smärta i knäna → avbryt"
+      - "Trampfrekvensen glider över 70 varv/min när det är som tyngst → intervallen räknas inte"
     coach_notes: |
       Effort_descriptor används pga stegringen — passet är inte fast
       watt-target. ERG-läge med "ramp" inom varje rep är idealt men kräver
@@ -134,10 +138,10 @@ workouts:
         range: [50, 80]
         description: "5 × 3 min + 4 × 4 min vila = 31 min fasta reps."
     intent: |
-      Outdoor-variant av MF1. Hitta en lång svag uppförsbacke (3-6% lutning,
-      3-5 min lång). Tramp upp i Z3-Z4-watt med medvetet låg kadens.
-      Verklighetstrogen styrkeöverföring; sadelposition och bål-aktivering
-      är realistiska.
+      Kraftintervaller utomhus. Hitta en lång, flack uppförsbacke (3-6 %
+      lutning, 3-5 min lång). Trampa upp hårt (Z3-Z4) med medvetet långsam
+      trampfrekvens. Styrkan märks direkt på vägen, eftersom du sitter och
+      spänner bålen precis som när du cyklar annars.
     setting: outdoor
     terrain: hilly
     outdoor_only: true
@@ -146,7 +150,7 @@ workouts:
       - segment: warmup
         duration_pct: 0.25
         zone: 1
-        description: "Inkludera rullning till backens fot"
+        description: "Räkna in turen till backens fot"
       - segment: main
         sets: 5
         duration_min: 3
@@ -154,8 +158,9 @@ workouts:
         cadence_rpm: [55, 65]
         rest_sec: 240
         description: |
-          Upp i Z4-watt med kadens 55-65. Sitt kvar i sadeln (ingen stå-tramp,
-          det är inte poängen). Nedrullning ger 4 min vila innan nästa rep.
+          Uppför hårt, nära tröskeln (Z4), med 55-65 varv/min. Sitt kvar i
+          sadeln — att stå upp är inte poängen. Rulla ned igen; det ger 4 min
+          vila före nästa.
       - segment: cooldown
         duration_pct: 0.17
         zone: 1
@@ -165,8 +170,8 @@ workouts:
     zone_refs: [Z1, Z4]
     equipment: [power_meter, hr_strap]
     abort_conditions:
-      - "Smärta i knäleder → avbryt"
-      - "Kadens går upp över 75 trots ansträngning att hålla den nere → sänk watt eller välj brantare backe"
+      - "Smärta i knäna → avbryt"
+      - "Trampfrekvensen går över 75 varv/min fast du försöker hålla den nere → trampa lite lättare eller välj en brantare backe"
     coach_notes: |
       Mer realistisk styrkeöverföring än trainer-versionen — men kräver
       rätt backe: 1-3 min lång, jämn lutning på 5-8 %. Backens längd avgör
@@ -189,10 +194,11 @@ workouts:
         range: [60, 240]
         description: "Helt continuous-pass — totalen styr volymen direkt. Lågvolym-adept: 60-75."
     intent: |
-      Lång åktur i kuperad terräng. Backarna sätter styrkebelastningen
-      naturligt — du behöver inte räkna intervaller. Snitt-watt över passet
-      hamnar i Z2-nedre Z3; enskilda backar når Z3-Z4. Du bygger styrka
-      under aerob bas — två fluga i en smäll.
+      Lång tur i kuperad terräng. Backarna ger benen styrketräning av sig
+      själva — du behöver inte räkna intervaller. Över hela passet blir det
+      lugnt till lätt tempo i snitt (Z2-nedre Z3); enskilda backar blir
+      hårdare (Z3-Z4). Du bygger både styrka och uthållighet — två flugor i
+      en smäll.
     setting: outdoor
     terrain: hilly
     outdoor_only: true
@@ -201,15 +207,15 @@ workouts:
       - segment: warmup
         duration_pct: 0.17
         zone: 1
-        description: "Platta partier om möjligt"
+        description: "Välj platta vägar om det går"
       - segment: continuous
         duration_pct: 0.72
         zone: 2
         cadence_rpm: [75, 95]
         description: |
-          Kupperad rutt med 5-10 backar (1-4 min styck). I backarna: tillåt
-          watt att gå upp till Z3-Z4 och kadens ned mot 70-75. Mellan
-          backar: lugn Z2 för återhämtning.
+          Kuperad runda med 5-10 backar (1-4 min styck). I backarna får det
+          bli hårt (Z3-Z4) och trampfrekvensen sjunka mot 70-75 varv/min.
+          Mellan backarna: cykla lugnt (Z2) och hämta dig.
       - segment: cooldown
         duration_pct: 0.11
         zone: 1
@@ -219,7 +225,7 @@ workouts:
     zone_refs: [Z1, Z2, Z3, Z4]
     equipment: [power_meter, hr_strap]
     abort_conditions:
-      - "Backar tvingar Z5 upprepade gånger → välj plattare rutt eller sänk watt-tak"
+      - "Backarna tvingar dig upp i maxansträngning (Z5) gång på gång → välj en plattare runda eller ta backarna lugnare"
     coach_notes: |
       Bättre verkligheten än indoor MF1 — naturlig variation i kadens, hr,
       watt. Kräver tillgång till kuperad terräng (rullande rutt med
@@ -241,10 +247,11 @@ workouts:
           Helt continuous. 30-min-blocket är en pct-andel — om totalen
           krymper proportionellt så krymper det. Bevara strukturen.
     intent: |
-      Lång kuperad åktur med inbäddat 30-min styrkeblock i kuperad terräng.
-      Första timmen är vanlig MF2 — uppvärmning. Andra timmen letar du
-      backarna och kör dem hårdare; sista 30 min lugnar du ned. Mental
-      övning lika mycket som fysisk: hur trycker du på i backe 5 av 8?
+      Lång tur i kuperad terräng med ett 30-minutersblock där du kör
+      backarna hårt. Första timmen är en vanlig kuperad tur och fungerar som
+      uppvärmning. Under andra timmen letar du upp backarna och kör dem
+      hårdare; de sista 30 min tar du det lugnt. Lika mycket träning för
+      huvudet som för benen: hur orkar du trycka på i backe 5 av 8?
     setting: outdoor
     terrain: hilly
     outdoor_only: true
@@ -257,18 +264,18 @@ workouts:
         duration_pct: 0.38
         zone: 2
         cadence_rpm: [80, 95]
-        description: "Aerobt bas i kuperat — backarna får drifta upp till Z3"
+        description: "Lugnt i kuperad terräng — i backarna får det bli tyngre, upp till Z3"
       - segment: continuous
         duration_pct: 0.25
         zone: 3
-        effort_descriptor: "Z3 i snitt med Z4-spikar i backarna. Hitta 4-6 backar på 1-3 min styck — tryck på."
+        effort_descriptor: "Tempo i snitt (Z3), hårdare (Z4) en kort stund i backarna. Hitta 4-6 backar på 1-3 min styck — tryck på."
         cadence_rpm: [70, 90]
-        description: "Block där du jagar backarna istället för att rulla över dem"
+        description: "Här jagar du backarna i stället för att bara rulla över dem"
       - segment: continuous
         duration_pct: 0.16
         zone: 2
         cadence_rpm: [85, 95]
-        description: "Aktiv nedvarvning, plattare partier"
+        description: "Varva ned lugnt, gärna på plattare vägar"
       - segment: cooldown
         duration_pct: 0.08
         zone: 1
@@ -278,7 +285,7 @@ workouts:
     zone_refs: [Z1, Z2, Z3, Z4]
     equipment: [power_meter, hr_strap]
     abort_conditions:
-      - "Snitt-watt i 30-min-blocket faller > 10% mot sista 10 min → bryt blocket tidigt, fortsätt i Z2"
+      - "Du orkar inte hålla trycket de sista 10 min av blocket (snittwatten mer än 10 % lägre) → avsluta blocket tidigt och fortsätt lugnt (Z2)"
     coach_notes: |
       För adepter som redan har MF2_bike_01 inkört. Stoppat block tvingar
       fram styrke-fokus tydligare än bara "kupperad rutt". Bra build_1-pass.
@@ -300,10 +307,11 @@ workouts:
         range: [60, 100]
         description: "5 × 4 min + 4 × 5 min vila = 40 min fasta reps."
     intent: |
-      Upprepade backintervaller. Hitta en backe som tar ca 4 min att klättra
-      (typiskt 1-1.5 km, 4-7% snitt). Tramp upp i tröskel-watt (mitten Z4).
-      Kombinerar muskelstyrka (backens lutning) med tröskelarbete (Z4-tiden).
-      Mycket effektivt — ett av de bästa cykelpassen för IM-build.
+      Backintervaller. Hitta en backe som tar ungefär 4 min att cykla upp
+      (oftast 1-1,5 km, 4-7 % i snitt). Trampa upp på tröskeln — den
+      ansträngning du orkar hålla i ungefär en timme (mitten av Z4).
+      Lutningen ger styrka och tiden på tröskeln ger uthållighet i hög
+      fart. Ett av de bästa cykelpassen när du bygger upp inför en Ironman.
     setting: outdoor
     terrain: hilly
     outdoor_only: true
@@ -312,7 +320,7 @@ workouts:
       - segment: warmup
         duration_pct: 0.20
         zone: 1
-        description: "Inkludera rullning till backens fot; lägg in 2 min Z2 mot slutet"
+        description: "Räkna in turen till backens fot; lägg in 2 min lugnt (Z2) mot slutet"
       - segment: main
         sets: 5
         duration_min: 4
@@ -320,9 +328,9 @@ workouts:
         cadence_rpm: [70, 85]
         rest_sec: 300
         description: |
-          Mitten av Z4 (≈100% FTP). Kadens får drifta ned mot 70 om backen
-          är brant. Sitt kvar i sadeln så mycket som möjligt. Aktiv vila:
-          rulla ned + lugn återhämtning innan nästa rep.
+          På tröskeln, mitt i Z4 (≈100 % av FTP). Trampfrekvensen får sjunka
+          mot 70 varv/min om backen är brant. Sitt kvar i sadeln så mycket du
+          kan. Vila: rulla ned och cykla lugnt innan nästa.
       - segment: cooldown
         duration_pct: 0.13
         zone: 1
@@ -332,8 +340,8 @@ workouts:
     zone_refs: [Z1, Z4]
     equipment: [power_meter, hr_strap]
     abort_conditions:
-      - "Watt i rep 4-5 faller > 15% från rep 1 → bryt resterande reps"
-      - "Bakgrundspuls inte återhämtad till Z2 inom 4 min mellan reps → vila längre eller bryt"
+      - "Du orkar inte hålla nivån i intervall 4-5 (watten mer än 15 % lägre än i första) → hoppa över resten"
+      - "Pulsen har inte sjunkit till Z2 inom 4 min efter en intervall → vila längre eller avbryt"
     coach_notes: |
       MF3 är ME-träning i förklädnad — backens lutning lägger på styrke-
       momentum. Bra för adepter som behöver bygga både kraft och tröskel
@@ -352,10 +360,10 @@ workouts:
         range: [70, 100]
         description: "8 × 3 min + 7 × 4 min vila = 52 min fasta reps."
     intent: |
-      Hill repeats med medveten växling mellan sittande och stående tramp.
-      Bygger både muskeluthållighet och teknisk skicklighet — IM-cykling
-      kräver att man ibland står upp för att avlasta sätet/ryggen.
-      Sittande är primärt; stå-segment 20-30 sek/rep.
+      Backintervaller där du medvetet växlar mellan att sitta och stå. Det
+      bygger både uthållighet i musklerna och teknik — på en Ironman
+      behöver du ibland stå upp för att avlasta sätet och ryggen. Sitt
+      mest; stå 20-30 sek per intervall.
     setting: outdoor
     terrain: hilly
     outdoor_only: true
@@ -371,9 +379,9 @@ workouts:
         cadence_rpm: [70, 90]
         rest_sec: 240
         description: |
-          Z4-watt (nedre-mitten Z4). 2 × 30 sek stående tramp insprängt i
-          varje rep — t.ex. 30 sek sitt, 30 sek stå, 60 sek sitt, 30 sek stå,
-          30 sek sitt. Watt jämn över repet trots växlingen.
+          Hårt, nära tröskeln (nedre-mitten Z4). Stå upp 2 × 30 sek i varje
+          intervall — t.ex. 30 sek sitt, 30 sek stå, 60 sek sitt, 30 sek stå,
+          30 sek sitt. Håll samma ansträngning hela intervallen trots bytena.
       - segment: cooldown
         duration_pct: 0.13
         zone: 1
@@ -383,8 +391,8 @@ workouts:
     zone_refs: [Z1, Z4]
     equipment: [power_meter, hr_strap]
     abort_conditions:
-      - "Ryggsmärta vid sittande tramp → byt till AE2 utan backar"
-      - "Watt-spik > Z5 vid stående → för stor kraftutveckling, lugnare"
+      - "Ont i ryggen när du sitter och trampar → byt till en lugn tur utan backar"
+      - "Det blir maxhårt (Z5) när du står → du trycker för hårt, ta det lugnare"
     coach_notes: |
       Kombinerar MF3 med teknisk variation. Bra för adepter som redan har
       MF3_bike_01 inkört och behöver progression. OBS: vid pågående
@@ -403,11 +411,11 @@ workouts:
         range: [60, 100]
         description: "3 × 8 min + 2 × 6 min vila = 36 min fasta reps."
     intent: |
-      Längre backe-intervaller på övre Z3 / nedre Z4 (sweet spot på backe).
-      Bygger upp förmågan att hålla under-tröskel-watt på 6-8% lutning
-      under lång tid — översätter direkt till brant terräng i tävling.
-      Vid längre backe är mental kontroll av watt avgörande; det är lätt
-      att rusa iväg de första 2 minuterna.
+      Längre backintervaller strax under tröskeln — den ansträngning du
+      orkar hålla i ungefär en timme (övre Z3 / nedre Z4). Du lär dig hålla
+      en jämn, hög ansträngning länge i 6-8 % lutning — precis det du
+      behöver i branta partier på tävlingen. I en lång backe gäller det att
+      hålla huvudet kallt; det är lätt att rusa iväg de första 2 minuterna.
     setting: outdoor
     terrain: hilly
     outdoor_only: true
@@ -420,10 +428,10 @@ workouts:
         sets: 3
         duration_min: 8
         zone: 4
-        effort_descriptor: "Sweet Spot — 88-93% FTP (övre Z3 / nedre Z4) i backe. Lås watt-target och håll. Andning kontrollerad, samtal i korta meningar."
+        effort_descriptor: "Strax under tröskeln (88-93 % av FTP, övre Z3 / nedre Z4) i backen. Hitta nivån och håll den. Du andas kontrollerat och kan prata i korta meningar."
         cadence_rpm: [70, 85]
         rest_sec: 360
-        description: "Aktiv vila: rulla ned + 2-3 min platt Z1-Z2 innan nästa rep"
+        description: "Vila: rulla ned och cykla 2-3 min lätt (Z1-Z2) på platten innan nästa"
       - segment: cooldown
         duration_pct: 0.13
         zone: 1
@@ -433,7 +441,7 @@ workouts:
     zone_refs: [Z1, Z2, Z3, Z4]
     equipment: [power_meter, hr_strap]
     abort_conditions:
-      - "Snitt-watt rep 3 faller > 10% från rep 1 → bryt resterande reps"
+      - "Du orkar inte hålla nivån i intervall 3 (snittwatten mer än 10 % lägre än i första) → avbryt intervallen"
     coach_notes: |
       Mer aerobt än MF3_bike_01 (Sweet Spot vs ren tröskel). Bra "stark
       build_2-pass" som inte är fullt tröskelarbete men tar styrke-dosen.

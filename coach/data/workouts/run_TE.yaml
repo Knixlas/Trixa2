@@ -20,22 +20,22 @@ workouts:
         range: [45, 60]
         description: "Tempoblock + build = 23 min FAST. Resten är wu/cd."
     intent: |
-      Sammanhängande Z3-block. Tempot är "bekvämt obekvämt" — du
-      jobbar, men du behöver inte gå sönder. Andning är djup men
-      kontrollerad, samtal är möjligt i korta meningar.
+      Ett sammanhängande block i Z3. Det ska kännas "bekvämt obekvämt"
+      — du jobbar, men du tar inte slut. Andningen är djup men under
+      kontroll, och du kan prata i korta meningar.
     main_set:
       - segment: warmup
         duration_pct: 0.56
         zone: 1
-        description: "Gradvis upp, sista 2 min i Z2"
+        description: "Börja lugnt och öka lite, sista 2 min i Z2"
       - segment: build
         duration_min: 3
         zone: 2
-        description: "Build från Z2 till nedre Z3 — väck temponivån"
+        description: "Öka från Z2 till nedre Z3 — vänj dig vid tempot"
       - segment: main
         duration_min: 20
         zone: 3
-        description: "Jämn Z3. Lås andningsrytm tidigt, håll den."
+        description: "Jämnt i Z3. Hitta en andningsrytm tidigt och håll den."
       - segment: cooldown
         duration_pct: 0.44
         zone: 1
@@ -47,8 +47,8 @@ workouts:
     surface: road
     equipment: []
     abort_conditions:
-      - "Om HR driver över Z3 utan att fart ökar — sänk farten 10 sek/km, fortsätt"
-      - "Om Z3-fart kostar Z4-puls från start → fel dagsform, avbryt och kör Z2"
+      - "Om pulsen kryper upp över Z3 fast farten är densamma — sakta in 10 s per km och fortsätt"
+      - "Om Z3-farten ger puls i Z4 redan från start → dålig dag; avbryt tempot och spring lugnt (Z2)"
     coach_notes: |
       Klassiker. Ska kunna upprepas vecka efter vecka i base/build
       utan att tröttna ut nervsystemet.
@@ -66,10 +66,9 @@ workouts:
         range: [50, 65]
         description: "Tempoblock + vila + build = 30 min FAST"
     intent: |
-      Två tempoblock med kort vila. Mindre totalt psykiskt motstånd
-      än ett 24-minuters block, samma fysiologiska träningseffekt.
-      Bra för adepter som har svårt att hålla pace mentalt över längre
-      sammanhängande tempopass.
+      Två tempoblock med kort vila. Lättare för huvudet än 24 minuter
+      i ett sträck, men samma träning för kroppen. Bra om du har svårt
+      att hålla farten länge utan avbrott.
     main_set:
       - segment: warmup
         duration_pct: 0.55
@@ -82,7 +81,7 @@ workouts:
         duration_min: 12
         zone: 3
         rest_sec: 180
-        description: "Jämn Z3. Vilan: lugn jogg Z1."
+        description: "Jämnt i Z3. Vila med mycket lugn jogg (Z1)."
       - segment: cooldown
         duration_pct: 0.45
         zone: 1
@@ -107,10 +106,10 @@ workouts:
         range: [55, 70]
         description: "3×8 min tempo + 2×120s vila = 28 min FAST"
     intent: |
-      Tre 8-minutersblock där varje block är något snabbare än det
-      föregående: nedre Z3 → mitten Z3 → övre Z3. Tränar förmågan
-      att lyfta pace när trötthet redan finns — race-specifikt
-      för halvmaraton och senare delar av maraton.
+      Tre block på 8 minuter, vart och ett lite snabbare än det förra:
+      nedre, mitten och övre Z3. Du övar på att öka farten när du redan
+      är trött — precis det du behöver i ett halvmaraton och i slutet
+      av ett maraton.
     main_set:
       - segment: warmup
         duration_pct: 0.56
@@ -124,11 +123,11 @@ workouts:
         duration_min: 8
         zone: 3
         rest_sec: 120
-        description: "Mitten Z3 — lyft 5 sek/km"
+        description: "Mitten av Z3 — 5 s snabbare per km"
       - segment: main
         duration_min: 8
         zone: 3
-        description: "Övre Z3 — strax under tröskel"
+        description: "Övre Z3 — strax under tröskeln, den fart du orkar hålla i ungefär en timme"
       - segment: cooldown
         duration_pct: 0.44
         zone: 1
@@ -140,4 +139,4 @@ workouts:
     surface: road
     equipment: []
     abort_conditions:
-      - "Om block 2 redan kostar Z4-puls → kör block 3 i samma pace, inte snabbare"
+      - "Om pulsen når Z4 redan i block 2 → spring block 3 i samma fart, inte snabbare"

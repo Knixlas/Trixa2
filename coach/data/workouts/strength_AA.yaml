@@ -15,7 +15,7 @@ workouts:
     discipline: strength
     category: ST
     type_code: AA
-    name: "Anatomical Adaptation — Helkropp"
+    name: "Grundstyrka — hela kroppen"
     parametrized: true
     parameters:
       sets:
@@ -32,14 +32,15 @@ workouts:
         description: "Håll högt — passet ska inte tömma dig"
     phase_appropriate: [prep]
     intent: |
-      Grundläggande helkroppsadaptation. Kroppsvikt och lätt last, fullt
-      rörelseomfång, perfekt teknik. Förbered senor, leder och mönster för
-      kommande tunga faser. Inga maxuttag, inget nära failure.
+      Lugn styrka för hela kroppen. Kroppsvikt eller lätta vikter, hela
+      rörelsen och god teknik. Du vänjer senor och leder vid styrketräning
+      innan det blir tyngre. Ta aldrig i max, och sluta långt innan du
+      inte orkar mer.
     main_set:
       - segment: warmup
         type: general
         duration_min: 8
-        description: "Lätt cykel + dynamisk höftböjarstretch + thoracic rotation"
+        description: "Lätt cykling, dynamisk höftböjarstretch och bröstryggsrotation"
 
       - segment: strength_block
         order: 1
@@ -47,14 +48,14 @@ workouts:
         prescription: {sets: 2, reps: 15, rir: 4, rest_sec: 60}
         load_pct: "kroppsvikt"
         alt: goblet_squat
-        note: "Teknikfokus, fullt djup."
+        note: "Tänk på tekniken. Gå hela vägen ned."
 
       - segment: strength_block
         order: 2
         exercise: pushup
         prescription: {sets: 2, reps: 12, rir: 4, rest_sec: 60}
         load_pct: "kroppsvikt"
-        note: "Regression: händer på bänk. Axelflagga → minska ROM eller dra blocket."
+        note: "Lättare: händerna på en bänk. Känns det i axeln: gå inte lika djupt, eller hoppa över övningen."
 
       - segment: strength_block
         order: 3
@@ -62,7 +63,7 @@ workouts:
         prescription: {sets: 2, reps: 12, rir: 4, rest_sec: 60}
         load_pct: "kroppsvikt"
         alt: straight_arm_pulldown
-        note: "Skala via kroppsvinkel. Bicepssena → raka-arm-latsdrag (ingen bicepslast)."
+        note: "Ju mer upprätt du står, desto lättare. Känns det i bicepssenan: byt till latsdrag med raka armar, som inte tar på bicepsen."
 
       - segment: strength_block
         order: 4
@@ -70,14 +71,14 @@ workouts:
         prescription: {sets: 2, reps: 12, rir: 4, rest_sec: 60}
         load_pct: "kroppsvikt"
         alt: step_up
-        note: "12/ben. Kontroll före tempo."
+        note: "12 per ben. Kontroll före fart."
 
       - segment: strength_block
         order: 5
         exercise: single_leg_balance
         prescription: {sets: 2, reps: 1, rir: 5, rest_sec: 30}
         load_pct: "kroppsvikt, 30–45s/ben"
-        note: "Stabilitet. Progression: blunda."
+        note: "Stå stadigt. Blunda när det blir för lätt."
 
       - segment: strength_block
         order: 6
@@ -85,12 +86,12 @@ workouts:
         prescription: {sets: 2, reps: 1, rir: 4, rest_sec: 45}
         load_pct: "isometrisk hålltid 30–45s"
         alt: dead_bug
-        note: "Anti-extension. Bryt vid hållningstapp."
+        note: "Håll kroppen rak utan att svanka. Sluta när du inte kan hålla den rak längre."
 
       - segment: cooldown
         type: mobility
         duration_min: 5
-        description: "Thoracic rotation + höftböjarstretch"
+        description: "Bröstryggsrotation och höftböjarstretch"
 
     total_duration_min:
       estimated: 40
@@ -99,8 +100,8 @@ workouts:
     load_model: rir
     equipment: [dumbbell, bench, trx, cable]
     abort_conditions:
-      - "Axel/biceps-känning → swap till angiven alt eller dra blocket."
-      - "Readiness < 30 → 1 varv av allt, hoppa balansblocket."
+      - "Känns det i axeln eller bicepsen: byt till alternativet eller hoppa över övningen."
+      - "Låg dagsform (readiness under 30): gör en omgång av allt och hoppa över balansen."
     coach_notes: |
       AA är medvetet snålt med intensitet. Frestelsen att lägga på vikt
       finns alltid — låt bli. Senor och leder anpassar sig långsammare än

@@ -125,10 +125,13 @@ _PROSE_CODE_ALIASES = {
     "step-up": "step_up",
 }
 
-_RE_SETS_REPS = re.compile(r"(\d+)\s*(?:set)?\s*[×x]\s*(\d+)(?:\s*reps?)?", re.I)
+# "3×10" (coachens prosa) och "3 omgångar à 10" (renderarens adepttext).
+_RE_SETS_REPS = re.compile(r"(\d+)\s*(?:set|omgångar)?\s*(?:[×x]|à)\s*(\d+)(?:\s*reps?)?", re.I)
 _RE_SETS_ONLY = re.compile(r"^\s*(\d+)\s*set\b", re.I)
-_RE_RIR = re.compile(r"RIR\s*(\d)", re.I)
-_RE_REST = re.compile(r"(\d+)\s*s(?:ek)?\s*vila", re.I)
+# "RIR 2" (coachens prosa) och "orka 2 till" (renderarens adepttext sedan
+# docs/PASSBANK_SPRAK.md) betyder samma sak; likaså "60s vila" och "vila 60 s".
+_RE_RIR = re.compile(r"(?:RIR\s*(\d)|orka\s*(\d)\s*till)", re.I)
+_RE_REST = re.compile(r"(?:(\d+)\s*s(?:ek)?\s*vila|vila\s*(\d+)\s*s(?:ek)?\b)", re.I)
 _RE_TIMED = re.compile(r"\d\s*(?:sek\b|s\b|s/|meter\b|–\d+s)|utmattning|så långt", re.I)
 # "alla 2x10: benpress 83, höftabduktion 40, …" — set×reps för alla, vikt per övning.
 _RE_ALL_PREFIX = re.compile(
@@ -223,8 +226,8 @@ def _parse_numbered(text: str) -> list[dict]:
         note_parts = [p for p in ((spec if keep_spec else ""), note.rstrip(".")) if p]
         out.append({
             "code": _code_for_prose_name(name), "name": name, "sets": sets, "reps": reps,
-            "rir": int(rir.group(1)) if rir else None,
-            "rest_sec": int(rest.group(1)) if rest else None,
+            "rir": int(rir.group(1) or rir.group(2)) if rir else None,
+            "rest_sec": int(rest.group(1) or rest.group(2)) if rest else None,
             "load": load.rstrip(".") or None, "note": " — ".join(note_parts) or None,
         })
     return out
@@ -252,8 +255,8 @@ def _parse_bullets(text: str) -> list[dict]:
             note = first if timed else (f"{reps}{first[len(sr.group(0)):]}" if sr and first != sr.group(0) else None)
             out.append({
                 "code": _code_for_prose_name(name), "name": name, "sets": sets, "reps": reps,
-                "rir": int(rir.group(1)) if rir else None,
-                "rest_sec": int(rest.group(1)) if rest else None,
+                "rir": int(rir.group(1) or rir.group(2)) if rir else None,
+                "rest_sec": int(rest.group(1) or rest.group(2)) if rest else None,
                 "load": "kroppsvikt", "note": note,
             })
             continue

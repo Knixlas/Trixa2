@@ -27,9 +27,9 @@ workouts:
         description: "Skala till veckans budget"
     phase_appropriate: [base_2, base_3, build_1]
     intent: |
-      Kraft per tag. Långsam stroke rate, maximalt grepp om vattnet
-      i tidiga katch-fasen. Inte snabb fart — kraft mot vatten.
-      Räkna tag per längd och försök sänka över passet.
+      Kraft i varje tag. Ta få, långa tag och greppa vattnet tidigt,
+      direkt när handen gått i. Farten är inte målet, kraften är det.
+      Räkna tag per längd och försök få ner antalet under passet.
     main_set:
       - segment: warmup
         duration_pct: 0.15
@@ -39,18 +39,18 @@ workouts:
         distance_m: 50
         rest_sec: 15
         drills: [sculling_front, fist_swim, catch_drill]
-        description: "Vänja känslan av tidig katch"
+        description: "Vänj dig vid känslan av att ta tag i vattnet tidigt"
       - segment: main
         sets: {default: 8, range: [6, 14]}
         distance_m: 50
         zone: 2
         rest_sec: 25
-        description: "Maximal katch, låg stroke rate. Räkna tag — försök matcha eller minska."
+        description: "Greppa vattnet ordentligt och ta få tag. Räkna tagen och försök hålla eller minska antalet."
         notes: "Pace ska INTE pressas. Fokus på kraften per tag."
       - segment: continuous
         duration_pct: 0.10
         zone: 1
-        description: "Aktiv recovery — lugn fri"
+        description: "Lugn frisim, låt pulsen gå ner"
       - segment: cooldown
         duration_pct: 0.10
         zone: 1
@@ -68,7 +68,7 @@ workouts:
     discipline: swim
     category: MF
     type_code: MF1
-    name: "Styrkeset med paddlar och boj"
+    name: "Styrkepass med handpaddlar och dolme"
     parameterized: true
     parameters:
       duration_min:
@@ -77,8 +77,9 @@ workouts:
         description: "Skala till veckans budget"
     phase_appropriate: [base_2, base_3, build_1, build_2]
     intent: |
-      Klassiskt styrkepass: pull-buoy och paddles isolerar överkroppen
-      och multiplicerar motståndet. Långsam pace, fokus på dragkraften.
+      Styrkepass för armarna: bara armtag med dolme och handpaddlar.
+      Dolmen håller benen uppe och paddlarna ger mycket mer motstånd.
+      Lugn fart, fokus på kraften i draget.
     main_set:
       - segment: warmup
         duration_pct: 0.13
@@ -94,7 +95,7 @@ workouts:
         zone: 2
         rest_sec: 25
         equipment: [pull_buoy, paddles]
-        description: "Långa drag, ta tag i vattnet. Pace ska kännas långsam — det är poängen."
+        description: "Bara armtag med dolme och handpaddlar. Långa drag, ta tag i vattnet. Farten ska kännas långsam, det är meningen."
       - segment: main
         sets: {default: 4, range: [3, 6]}
         distance_m: 50
@@ -104,7 +105,7 @@ workouts:
       - segment: continuous
         duration_pct: 0.08
         zone: 1
-        description: "Aktiv recovery"
+        description: "Lugn simning, låt pulsen gå ner"
       - segment: cooldown
         duration_pct: 0.10
         zone: 1
@@ -115,7 +116,7 @@ workouts:
     zone_refs: [Z1, Z2]
     equipment: [pull_buoy, paddles]
     abort_conditions:
-      - "Vid axel- eller armbågssmärta: avbryt paddles, fortsätt utan utrustning eller avsluta"
+      - "Gör det ont i axeln eller armbågen: ta av handpaddlarna och fortsätt utan utrustning, eller avsluta passet"
 
   - code: MF1_swim_03
     discipline: swim
@@ -130,9 +131,9 @@ workouts:
         description: "Skala till veckans budget"
     phase_appropriate: [base_3, build_1, build_2]
     intent: |
-      Ankelband eliminerar all kickkraft. Du är helt beroende av
-      armkraften för att hålla höften högt. Bygger både core och
-      pull-styrka. Hård men kort.
+      Med band runt anklarna kan du inte använda benspark. Armarna
+      måste ta dig framåt och hålla höften uppe. Bygger styrka i både
+      bål och armtag. Hårt men kort.
     main_set:
       - segment: warmup
         duration_pct: 0.15
@@ -147,15 +148,15 @@ workouts:
         zone: 2
         rest_sec: 20
         equipment: [band]
-        description: "Bara band — ingen buoy, ingen paddles. Kompakt kropp, snabba tag."
+        description: "Bara ankelband, ingen dolme och inga handpaddlar. Håll kroppen spänd och ta snabba tag."
       - segment: continuous
         duration_pct: 0.10
         zone: 1
-        description: "Aktiv recovery utan utrustning"
+        description: "Lugn simning utan utrustning"
       - segment: cooldown
         duration_pct: 0.13
         zone: 1
-        description: "Lugn fri utan utrustning, känn vad kicken gör nu"
+        description: "Lugn frisim utan utrustning. Känn vad bensparken gör nu."
     total_distance_m: 1500
     total_duration_min:
       estimated: 28
@@ -184,24 +185,24 @@ workouts:
         description: "Skala till veckans budget"
     phase_appropriate: [base_2, base_3, build_1, build_2]
     intent: |
-      Simning mot strömmande vatten. Strömmen ger naturligt
-      motstånd som tvingar fram kraftigare tag. Mätbart är distans —
-      tid och pace blir meningslösa i ström.
+      Du simmar mot strömmen. Den ger ett naturligt motstånd som
+      tvingar fram kraftigare tag. Det du kan mäta är sträckan; tid
+      och fart säger inget i strömmande vatten.
     main_set:
       - segment: warmup
         duration_pct: 0.10
         zone: 1
-        description: "Lugnt med strömmen för att lösa upp"
+        description: "Lugnt med strömmen, så att kroppen mjuknar"
       - segment: main
         sets: {default: 6, range: [4, 12]}
         distance_m: 100
         zone: 3
         rest_sec: 45
-        description: "Sim 100m mot strömmen. Vila genom att flyta tillbaka."
+        description: "Simma 100 m mot strömmen. Vila genom att flyta tillbaka."
       - segment: continuous
         duration_pct: 0.10
         zone: 1
-        description: "Aktiv recovery — flyt med strömmen"
+        description: "Lugnt, flyt med strömmen"
       - segment: cooldown
         duration_pct: 0.10
         zone: 1
@@ -213,8 +214,8 @@ workouts:
     zone_refs: [Z1, Z3]
     equipment: []
     abort_conditions:
-      - "Strömhastighet >0.5 m/s gör passet ineffektivt — välj plats med måttligt flöde"
-      - "Vid kallt vatten (<14°C) — våtdräkt obligatorisk"
+      - "Är strömmen starkare än 0,5 m/s blir passet ineffektivt. Välj en plats där det flyter lagom."
+      - "Är vattnet kallare än 14 °C: simma bara med våtdräkt"
     coach_notes: |
       Bra säsongsöppning för öppet-vatten-känsla. Säkerhet:
       simma med sällskap, känn till platsen, ha plan för utstigning.
@@ -232,24 +233,24 @@ workouts:
         description: "Skala till veckans budget"
     phase_appropriate: [build_1, build_2, peak]
     intent: |
-      Sim i sjö eller hav med vågor/krabb sjö. Inte ren styrketräning
-      utan teknisk-styrkemässig anpassning till verkliga tävlingsförhållanden.
-      Tag-rytmen måste anpassas — kortare, snabbare tag.
+      Simning i sjö eller hav när det är vågor. Inte bara styrka: du
+      lär dig anpassa tekniken till hur det kan vara på en tävling.
+      Ta kortare och snabbare tag.
     main_set:
       - segment: warmup
         duration_pct: 0.13
         zone: 1
-        description: "Lugnt parallellt med strand om möjligt"
+        description: "Lugnt, längs stranden om det går"
       - segment: main
         sets: {default: 4, range: [3, 8]}
         distance_m: 200
         zone: 3
         rest_sec: 60
-        description: "Variera riktning: 2× mot vågor, 2× med. Anpassa tag och andning."
+        description: "Byt riktning: två gånger mot vågorna, två med. Anpassa tagen och andningen."
       - segment: continuous
         duration_pct: 0.08
         zone: 1
-        description: "Aktiv recovery — lugnt med vågorna"
+        description: "Lugn simning med vågorna"
       - segment: cooldown
         duration_pct: 0.10
         zone: 1
@@ -260,8 +261,8 @@ workouts:
     zone_refs: [Z1, Z3]
     equipment: []
     abort_conditions:
-      - "Vid sjögång du inte själv valt — avbryt"
-      - "Aldrig ensam i öppet vatten"
+      - "Blir sjön grövre än du räknat med: avbryt"
+      - "Simma aldrig ensam i öppet vatten"
 
   - code: MF2_swim_03
     discipline: swim
@@ -276,9 +277,9 @@ workouts:
         description: "Skala till veckans budget"
     phase_appropriate: [base_2, base_3, build_1]
     intent: |
-      När öppet vatten inte är tillgängligt — simulera motstånd
-      genom att simma mot konstgjord ström (motströms-pool) eller
-      genom band-fäste i bassängkant.
+      När du inte kan simma i öppet vatten: skapa motstånd genom att
+      simma i en motströmsbassäng, eller med ett band fäst i
+      bassängkanten.
     main_set:
       - segment: warmup
         duration_pct: 0.15
@@ -289,11 +290,11 @@ workouts:
         zone: 3
         rest_sec: 30
         equipment: [band]
-        description: "Band fäst i kanten, sim 'stationär' så långt du kommer på 50m-tid"
+        description: "Bandet fäst i kanten. Simma på stället så långt bandet låter dig, lika länge som du brukar simma 50 m."
       - segment: continuous
         duration_pct: 0.10
         zone: 1
-        description: "Aktiv recovery utan band"
+        description: "Lugn simning utan band"
       - segment: cooldown
         duration_pct: 0.10
         zone: 1
@@ -315,7 +316,7 @@ workouts:
     discipline: swim
     category: MF
     type_code: MF3
-    name: "8×100 med paddlar — tunga drag"
+    name: "8 × 100 m med handpaddlar — tunga drag"
     parameterized: true
     parameters:
       duration_min:
@@ -324,8 +325,9 @@ workouts:
         description: "Skala till veckans budget"
     phase_appropriate: [base_2, base_3, build_1, build_2]
     intent: |
-      Rent paddel-set. Tunga drag, fokus på katch och full dragväg.
-      Detta är styrketräning — pace ska inte vara hög trots ökat motstånd.
+      Intervaller med handpaddlar. Tunga drag: ta tag i vattnet tidigt
+      och dra hela vägen. Det här är styrketräning, så farten ska inte
+      vara hög trots att motståndet ökar.
     main_set:
       - segment: warmup
         duration_pct: 0.13
@@ -341,11 +343,11 @@ workouts:
         zone: 2
         rest_sec: 25
         equipment: [paddles]
-        description: "Stora paddles, inga buoy. Långa kraftfulla tag, andas på 3."
+        description: "Stora handpaddlar, ingen dolme. Långa, kraftfulla tag. Andas på vart tredje tag."
       - segment: continuous
         duration_pct: 0.07
         zone: 1
-        description: "Aktiv recovery utan paddles"
+        description: "Lugn simning utan handpaddlar"
       - segment: cooldown
         duration_pct: 0.10
         zone: 1
@@ -356,14 +358,14 @@ workouts:
     zone_refs: [Z1, Z2]
     equipment: [paddles]
     abort_conditions:
-      - "Axelvärk — avbryt omedelbart, inte 'kör en till och se'"
-      - "Stroke rate behöver INTE vara hög — om armarna 'snurrar' har du för små paddles eller fel teknik"
+      - "Gör det ont i axeln: sluta direkt, inte 'en till och se'"
+      - "Du behöver inte ta många tag. Snurrar armarna fort har du för små handpaddlar eller fel teknik."
 
   - code: MF3_swim_02
     discipline: swim
     category: MF
     type_code: MF3
-    name: "Paddlar och boj — allt snabbare"
+    name: "Handpaddlar och dolme — allt snabbare"
     parameterized: true
     parameters:
       duration_min:
@@ -372,9 +374,9 @@ workouts:
         description: "Skala till veckans budget"
     phase_appropriate: [base_3, build_1, build_2]
     intent: |
-      Paddles + buoy = max överkroppsisolering. Descending pace
-      tvingar fram både kraft och kontroll. Sista paddel-paret
-      ska kännas tungt, inte snabbt.
+      Bara armtag med dolme och handpaddlar, så att armarna gör allt
+      jobb. Du ökar farten steg för steg, och det kräver både kraft och
+      kontroll. De sista ska kännas tunga, inte snabba.
     main_set:
       - segment: warmup
         duration_pct: 0.13
@@ -390,11 +392,11 @@ workouts:
         equipment: [pull_buoy, paddles]
         pace_pattern: descending
         zones_per_set: [2, 2, 2, 3, 3]
-        description: "Descending: två i Z2, två i Z2-3-gräns, sista i Z3"
+        description: "Öka farten: två lugnt (Z2), två lite fortare (gränsen Z2–Z3), den sista hårdast (Z3)"
       - segment: continuous
         duration_pct: 0.07
         zone: 1
-        description: "Aktiv recovery utan utrustning"
+        description: "Lugn simning utan utrustning"
       - segment: cooldown
         duration_pct: 0.10
         zone: 1
@@ -413,7 +415,7 @@ workouts:
     discipline: swim
     category: MF
     type_code: MF3
-    name: "Paddelstegen — upp till 200 och ner"
+    name: "Paddelstegen — upp till 200 m och ner"
     parameterized: true
     parameters:
       duration_min:
@@ -422,9 +424,9 @@ workouts:
         description: "Skala till veckans budget — smal range, stegen är passet"
     phase_appropriate: [base_3, build_1, build_2]
     intent: |
-      Paddel-set med varierande distans. Längre intervall = mer
-      ackumulerad belastning per intervall, bra för att testa
-      uthållighet med ökat motstånd.
+      Handpaddlar på olika långa sträckor, upp till 200 m och ner igen.
+      De längre sträckorna tar mer på krafterna och testar hur länge du
+      orkar dra med extra motstånd.
     main_set:
       - segment: warmup
         duration_pct: 0.13
@@ -478,7 +480,7 @@ workouts:
       - segment: continuous
         duration_pct: 0.07
         zone: 1
-        description: "Aktiv recovery utan paddles"
+        description: "Lugn simning utan handpaddlar"
       - segment: cooldown
         duration_pct: 0.10
         zone: 1

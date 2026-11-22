@@ -19,7 +19,7 @@ workouts:
     discipline: swim
     category: SS
     type_code: SS1
-    name: "Sprintstegen — 16 snabba 25:or"
+    name: "Korta spurter — 16 × 25 m med gott om vila"
     parameterized: true
     parameters:
       duration_min:
@@ -28,9 +28,9 @@ workouts:
         description: "Skala till veckans budget"
     phase_appropriate: [prep, base_1, base_2, base_3, build_1, build_2, peak]
     intent: |
-      Klassisk snabbhetsdrill. Korta sprintar med full återhämtning.
-      Poängen är ren snabbhet utan trötthet — alla 25 ska se ut som
-      första 25. Aldrig 'snubbla i mål' tekniskt.
+      Klassisk snabbhetsträning: korta spurter på 25 m, och vila tills du
+      är pigg igen. Poängen är fart utan trötthet — varje 25 m ska se ut
+      som den första. Släpp aldrig tekniken för att ta dig i mål.
     main_set:
       - segment: warmup
         duration_pct: 0.15
@@ -44,18 +44,18 @@ workouts:
         sets: {default: 4, range: [3, 5]}
         distance_m: 25
         rest_sec: 30
-        description: "Build från Z2 till Z4 — väck nervsystemet"
+        description: "Öka farten från lugnt (Z2) till ganska hårt (Z4). Kroppen vaknar inför spurterna."
       - segment: sprint
         sets: {default: 16, range: [10, 24]}
         distance_m: 25
         zone: 5
         rest_sec: 30
-        description: "All-out från push. Full återhämtning innan nästa."
+        description: "Så fort du kan från frånskjutet vid väggen. Hämta dig helt innan nästa."
         notes: "Andas så lite som möjligt — helst inte alls på 25m"
       - segment: continuous
         duration_pct: 0.10
         zone: 1
-        description: "Aktiv recovery efter setet — lugn fri"
+        description: "Lugn frisim, så att du hämtar dig efter spurterna"
       - segment: cooldown
         duration_pct: 0.15
         zone: 1
@@ -66,13 +66,13 @@ workouts:
     zone_refs: [Z1, Z2, Z4, Z5]
     equipment: []
     abort_conditions:
-      - "När pace på en 25:a är >2 sek långsammare än den snabbaste hittills → sluta, det är trötthet inte snabbhet"
+      - "När en 25 m går mer än 2 s långsammare än din snabbaste hittills: sluta. Då tränar du trötthet, inte snabbhet"
 
   - code: SS1_swim_02
     discipline: swim
     category: SS
     type_code: SS1
-    name: "Under ytan — delfinkick från väggen"
+    name: "Under ytan — delfinspark från väggen"
     parameterized: true
     parameters:
       duration_min:
@@ -81,9 +81,9 @@ workouts:
         description: "Smal range — undervattenarbete har riskdimension"
     phase_appropriate: [base_2, base_3, build_1, build_2, peak]
     intent: |
-      Sprint-set med fokus på undervatten-fasen ut från väggen.
-      Inte ren simning — varje 25 börjar med 5 dolphin-kicks
-      undervatten innan första taget. Bygger startkraft och kicktolerans.
+      Spurter med fokus på biten under vattnet ut från väggen. Varje
+      25 m börjar med 5 delfinsparkar under ytan innan första armtaget.
+      Du bygger kraft i starten och vänjer benen vid sparkarbetet.
     main_set:
       - segment: warmup
         duration_pct: 0.20
@@ -92,17 +92,17 @@ workouts:
         sets: {default: 4, range: [3, 6]}
         distance_m: 25
         rest_sec: 20
-        description: "Bara undervattens-dolphin från push — kom upp och stå"
+        description: "Bara delfinspark under vattnet från frånskjutet — kom sedan upp och stå"
       - segment: sprint
         sets: {default: 8, range: [6, 12]}
         distance_m: 25
         zone: 5
         rest_sec: 45
-        description: "5 dolphin-kicks under vattnet ut från väggen, sedan sprint upp till mål"
+        description: "5 delfinsparkar under vattnet ut från väggen, sedan full fart till andra änden"
       - segment: continuous
         duration_pct: 0.15
         zone: 1
-        description: "Aktiv recovery efter setet"
+        description: "Lugn frisim, så att du hämtar dig efter spurterna"
       - segment: cooldown
         duration_pct: 0.15
         zone: 1
@@ -121,7 +121,7 @@ workouts:
     discipline: swim
     category: SS
     type_code: SS1
-    name: "Växla upp — 12×25 i tre steg"
+    name: "Växla upp — 12 × 25 m i tre steg"
     parameterized: true
     parameters:
       duration_min:
@@ -130,9 +130,9 @@ workouts:
         description: "Skala till veckans budget"
     phase_appropriate: [base_2, base_3, build_1, build_2, peak]
     intent: |
-      Sprint-set med progressiv intensitet. Första repetitionerna
-      är inte all-out — du bygger till maximalsnabbhet på de sista.
-      Lär nervsystemet att skala upp utan teknikbortfall.
+      Spurter där farten ökar steg för steg. De första går inte för
+      fullt — du bygger upp till högsta fart på de sista. Kroppen lär
+      sig öka farten utan att tekniken faller isär.
     main_set:
       - segment: warmup
         duration_pct: 0.18
@@ -146,7 +146,7 @@ workouts:
         distance_m: 25
         zone: 4
         rest_sec: 30
-        description: "Steg 1: snabbt men under max"
+        description: "Steg 1: snabbt, men inte för fullt"
       - segment: sprint
         sets: {default: 4, range: [3, 6]}
         distance_m: 25
@@ -158,11 +158,11 @@ workouts:
         distance_m: 25
         zone: 5
         rest_sec: 40
-        description: "Steg 3: maximalt"
+        description: "Steg 3: så fort du kan"
       - segment: continuous
         duration_pct: 0.15
         zone: 1
-        description: "Aktiv recovery efter setet"
+        description: "Lugn frisim, så att du hämtar dig efter spurterna"
       - segment: cooldown
         duration_pct: 0.12
         zone: 1
@@ -190,9 +190,9 @@ workouts:
         description: "Skala till veckans budget"
     phase_appropriate: [prep, base_1, base_2, base_3, build_1, build_2, peak]
     intent: |
-      Fenor multiplicerar både kraft och hastighet utan att slita
-      lika hårt på axlar. Bra för att vänja kroppen vid högre hastigheter
-      än CSS — den 'feeling' du sedan vill kunna återskapa utan fenor.
+      Med fenor får du mer kraft och fart utan att slita lika hårt på
+      axlarna. Kroppen vänjer sig vid att simma fortare än din tröskelfart
+      (CSS) — en känsla du sedan vill kunna hitta utan fenor.
     main_set:
       - segment: warmup
         duration_pct: 0.13
@@ -202,7 +202,7 @@ workouts:
         distance_m: 50
         rest_sec: 15
         equipment: [fins, kickboard]
-        description: "Kick på rygg eller med kickboard, snabba fötter"
+        description: "På rygg eller med sparkbräda, snabba fötter"
       - segment: drills
         sets: {default: 4, range: [3, 6]}
         distance_m: 50
@@ -215,16 +215,16 @@ workouts:
         zone: 3
         rest_sec: 20
         equipment: [fins]
-        description: "Snabb fri med fenor — fart du normalt inte når"
+        description: "Snabb frisim med fenor — en fart du annars inte når"
       - segment: continuous
         duration_pct: 0.15
         zone: 1
-        description: "Aktiv recovery efter setet"
+        description: "Lugn frisim, så att du hämtar dig efter intervallerna"
       - segment: cooldown
         duration_pct: 0.07
         zone: 1
         equipment: []
-        description: "Utan fenor — kontrast"
+        description: "Utan fenor, så att du känner skillnaden"
     total_distance_m: 1800
     total_duration_min:
       estimated: 32
@@ -245,9 +245,9 @@ workouts:
         description: "Skala till veckans budget"
     phase_appropriate: [prep, base_1, base_2, base_3]
     intent: |
-      Snorkel eliminerar andning från ekvationen — du kan fokusera
-      på 100% kroppsposition och tag-mekanik utan att andnings-vridningen
-      stör. Långsamt och precist.
+      Med snorkel behöver du inte vrida huvudet för att andas. Då kan du
+      lägga all uppmärksamhet på hur kroppen ligger och hur armtagen går.
+      Långsamt och noggrant.
     main_set:
       - segment: warmup
         duration_pct: 0.10
@@ -266,18 +266,18 @@ workouts:
         zone: 2
         rest_sec: 20
         equipment: [snorkel]
-        description: "Lugn fri med snorkel — försök behålla drill-känslan"
+        description: "Lugn frisim med snorkel — behåll känslan från teknikövningarna"
       - segment: main
         sets: {default: 4, range: [3, 7]}
         distance_m: 50
         zone: 2
         rest_sec: 15
         equipment: []
-        description: "Utan snorkel — bibehåll positionen från snorkel-delen"
+        description: "Utan snorkel — försök ligga i vattnet som du gjorde med snorkeln"
       - segment: continuous
         duration_pct: 0.10
         zone: 1
-        description: "Aktiv recovery — lugn fri utan snorkel"
+        description: "Lugn frisim utan snorkel, så att du hämtar dig"
       - segment: cooldown
         duration_pct: 0.08
         zone: 1
@@ -292,7 +292,7 @@ workouts:
     discipline: swim
     category: SS
     type_code: SS2
-    name: "Leksakslådan — fenor, snorkel, platta"
+    name: "Leksakslådan — fenor, snorkel, sparkbräda"
     parameterized: true
     parameters:
       duration_min:
@@ -301,9 +301,8 @@ workouts:
         description: "Skala till veckans budget"
     phase_appropriate: [base_1, base_2, base_3]
     intent: |
-      Rotation genom flera verktyg — fenor, snorkel, kickboard.
-      Varje del isolerar ett tekniskt fokus. Passet ger bred
-      teknisk täckning på en gång.
+      Du växlar mellan fenor, snorkel och sparkbräda. Varje hjälpmedel
+      lyfter fram en del av tekniken, så passet täcker mycket på en gång.
     main_set:
       - segment: warmup
         duration_pct: 0.13
@@ -314,7 +313,7 @@ workouts:
         rest_sec: 15
         equipment: [kickboard, fins]
         zone: 2
-        description: "Snabb kick, fokus på smal amplitud"
+        description: "Snabb benspark med små, smala sparkar"
       - segment: drills
         sets: {default: 4, range: [3, 6]}
         distance_m: 50
@@ -327,11 +326,11 @@ workouts:
         zone: 2
         rest_sec: 20
         equipment: [fins]
-        description: "Fenor + fri, känn farten"
+        description: "Frisim med fenor, känn farten"
       - segment: continuous
         duration_pct: 0.15
         zone: 1
-        description: "Aktiv recovery — lugn fri utan verktyg"
+        description: "Lugn frisim utan hjälpmedel, så att du hämtar dig"
       - segment: cooldown
         duration_pct: 0.07
         zone: 1
@@ -359,10 +358,10 @@ workouts:
         description: "Skala till veckans budget"
     phase_appropriate: [base_3, build_1, build_2, peak]
     intent: |
-      Over-speed-träning: fenor gör att du kan simma snabbare än
-      din egen CSS tillåter. Nervsystemet lär sig vad farten KÄNNS
-      som. Forskningen kring overspeed är blandad men i praktiken
-      ger det en mental referens för 'snabb fri'.
+      Med fenor kan du simma fortare än din egen tröskelfart (CSS)
+      tillåter. Du får KÄNNA hur den farten är. Forskningen om
+      sådan överfartsträning är blandad, men i praktiken får du en
+      känsla för hur snabb frisim ska kännas.
     main_set:
       - segment: warmup
         duration_pct: 0.15
@@ -372,25 +371,25 @@ workouts:
         distance_m: 50
         rest_sec: 15
         equipment: [fins]
-        description: "Build fart med fenor"
+        description: "Öka farten gradvis, med fenor"
       - segment: sprint
         sets: {default: 12, range: [8, 18]}
         distance_m: 25
         zone: 5
         rest_sec: 30
         equipment: [fins]
-        description: "Sprint med fenor — högre hastighet än någonsin utan"
+        description: "Full fart med fenor — fortare än du någonsin simmar utan"
       - segment: main
         sets: {default: 4, range: [3, 6]}
         distance_m: 50
         zone: 4
         rest_sec: 20
         equipment: []
-        description: "Utan fenor — försök behålla snabbhetskänslan"
+        description: "Utan fenor — försök behålla känslan av fart"
       - segment: continuous
         duration_pct: 0.10
         zone: 1
-        description: "Aktiv recovery efter setet"
+        description: "Lugn frisim, så att du hämtar dig efter spurterna"
       - segment: cooldown
         duration_pct: 0.07
         zone: 1

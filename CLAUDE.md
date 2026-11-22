@@ -473,8 +473,11 @@ samma pass som en van löpare, och full volym veckan före loppet.
   gå/jogg-stegen är slut. Pass med `levels` väljs bara för sin nivå.
 - `render_workout(for_coach=False)` är adeptens text: ingen passkod, inga
   tränarnoter, zoner i känsla när testvärden saknas.
-- Kvar: besvär utan `impact_per_discipline`, passbankens prosa, fasnamnet
-  för ramp-nivåerna (står i prep hela säsongen).
+- Passbankens adepttext följer `docs/PASSBANK_SPRAK.md`; lint-testet
+  `test_passbank_sprak.py` stoppar fackord i nya pass. Tränarnoter får
+  vara fackspråk.
+- Kvar: besvär utan `impact_per_discipline`, fasnamnet för ramp-nivåerna
+  (står i prep hela säsongen).
 
 **Yoga som gren + pass som går att markera gjorda (2026-09-02):**
 Skarp användning av en andra adept (Sarah, `acb82415-…`): hon lade in

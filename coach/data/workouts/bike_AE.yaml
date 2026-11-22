@@ -26,10 +26,9 @@ workouts:
         range: [20, 75]
         description: "Total tid; skala efter veckans volym och dagsform"
     intent: |
-      Återhämtningspass. Lätt tramp i Z1 — kroppen ska kännas bättre
-      EFTER passet än före. Ingen som helst kvalitet, ingen progression,
-      inga backar att jaga. Om du börjar känna efter belastning är farten
-      för hög.
+      Återhämtning. Trampa riktigt lätt (Z1) — du ska må bättre EFTER
+      passet än före. Inga intervaller, ingen stegring, inga backar att
+      jaga. Börjar benen kännas ansträngda är farten för hög.
     setting: either
     terrain: flat
     erg_mode: false
@@ -38,14 +37,14 @@ workouts:
         duration_min: "{duration_min}"
         zone: 1
         cadence_rpm: [85, 95]
-        description: "Lugn tramp i Z1. Naturlig kadens, fri tanke."
+        description: "Riktigt lätt (Z1). Trampa i den takt som känns naturlig och låt tankarna vandra."
     total_duration_min:
       estimated: "{duration_min}"
       flexible_range: ["{duration_min} - 10", "{duration_min} + 10"]
     zone_refs: [Z1]
     equipment: [power_meter, hr_strap]
     abort_conditions:
-      - "Pulsen driver över Z1 utan ansträngning → avbryt eller gå ned i tempo"
+      - "Pulsen stiger över Z1 fast det känns lätt → sakta ned eller avbryt"
       - "Stelhet eller smärta som inte släpper efter 10 min → avbryt"
     coach_notes: |
       Klassiskt återhämtningsverktyg. Funkar utomhus på platt rutt eller
@@ -71,11 +70,10 @@ workouts:
           Total tid. 60-90 i prep, 90-180 i base, 180-300 i build_1/2.
           IM-specifika långpass når 300-360 i sen base/build_1.
     intent: |
-      Aerob baspass. Jämn Z2 — du andas tydligt men kan föra samtal i hela
-      meningar. Detta är passet som bygger förmågan att fortsätta cykla
-      timmar på timmar. Få adepter inser hur LITE intensiv riktigt aerob
-      träning ska vara. Om du undrar om du går för lätt, gör du förmodligen
-      rätt.
+      Lugn uthållighet. Jämnt och lugnt (Z2) — du andas tydligt men kan
+      prata i hela meningar. Det är det här passet som gör att du orkar
+      cykla i timmar. De flesta kör lugna pass för hårt. Undrar du om du
+      cyklar för lätt gör du förmodligen rätt.
     setting: outdoor
     terrain: flat
     erg_mode: false
@@ -83,14 +81,15 @@ workouts:
       - segment: warmup
         duration_min: 10
         zone: 1
-        description: "Stegra långsamt från Z1 upp i Z2"
+        description: "Börja riktigt lätt (Z1) och öka långsamt till lugnt (Z2)"
       - segment: continuous
         duration_min: "{duration_min} - 15"
         zone: 2
         cadence_rpm: [85, 95]
         description: |
-          Jämn Z2. Watt är primärt target — låt pulsen drifta inom Z2-spannet.
-          Vid värme eller dehydrering driftar pulsen uppåt; sänk watt något.
+          Jämnt och lugnt (Z2). Styr på känslan (eller watten), inte på pulsen —
+          det gör inget att pulsen kryper uppåt så länge den håller sig i Z2.
+          I värme eller om du druckit för lite stiger den mer; sänk farten något.
       - segment: cooldown
         duration_min: 5
         zone: 1
@@ -100,8 +99,8 @@ workouts:
     zone_refs: [Z1, Z2]
     equipment: [power_meter, hr_strap]
     abort_conditions:
-      - "HR-drift > 10 bpm vid stabil watt → nutrition/dehydrering, ta paus eller avbryt"
-      - "Vid pass > 180 min: missad nutrition i 60+ min → bryt långpasset"
+      - "Pulsen har krupit upp mer än 10 slag/min fast farten är densamma → du behöver äta eller dricka; ta paus eller avbryt"
+      - "Pass över 180 min: har du inte ätit på 60 min eller mer → avbryt långpasset"
     coach_notes: |
       Mall för platta långpass utomhus. För kuperade rutter, använd
       AE2_bike_01 (Rolling Endurance). För indoor-version, använd
@@ -124,11 +123,11 @@ workouts:
         range: [60, 300]
         description: "Total tid. 60-90 i prep/tidig base, 120-180 i base, 180-300 i sen base/build."
     intent: |
-      Lång aerob åktur i kuperad terräng. Backarna sätter naturlig variation
-      i belastning utan att du behöver styra. Håll Z2 i snitt över passet —
-      tillåt korta watt-spikar i backar, kompensera med lugnare passages
-      på platta partier. Tekniskt: tappa inte kadensen under 75 i backarna,
-      växla ned tidigt.
+      Lång, lugn tur i kuperad terräng. Backarna ger variation av sig
+      själva. Håll dig lugnt (Z2) i snitt över passet — det får bli tyngre
+      en kort stund i backarna, ta det lugnare på de platta partierna.
+      Växla ned tidigt i backarna så att trampfrekvensen inte faller under
+      75 varv/min.
     setting: outdoor
     terrain: rolling
     outdoor_only: true
@@ -137,14 +136,15 @@ workouts:
       - segment: warmup
         duration_pct: 0.10
         zone: 1
-        description: "Platta partier i början om möjligt"
+        description: "Välj platta vägar i början om det går"
       - segment: continuous
         duration_pct: 0.83
         zone: 2
         cadence_rpm: [80, 95]
         description: |
-          Z2 i snitt. Backarna får dra upp till nedre Z3 i korta spikar,
-          men inte stå kvar där. Växla ned tidigt — bevara kadens > 75.
+          Lugnt (Z2) i snitt. I backarna får det bli lite tyngre (nedre Z3) en
+          kort stund, men stanna inte där. Växla ned tidigt så att
+          trampfrekvensen håller sig över 75 varv/min.
       - segment: cooldown
         duration_pct: 0.07
         zone: 1
@@ -154,7 +154,7 @@ workouts:
     zone_refs: [Z1, Z2, Z3]
     equipment: [power_meter, hr_strap]
     abort_conditions:
-      - "Backar tvingar upp till Z4 upprepade gånger → välj plattare rutt"
+      - "Backarna tvingar dig upp i hård ansträngning (Z4) gång på gång → välj en plattare runda"
     coach_notes: |
       Bättre än ren platt Z2 för adepter som kommer att tävla på kuperade
       banor. Även inför platta tävlingsbanor är det värdefullt — vind
@@ -174,10 +174,10 @@ workouts:
         range: [45, 180]
         description: "60 i prep, 90 i base, 120-180 i build. Sällan över 180 inomhus."
     intent: |
-      Trainer-version av aerobt baspass. ERG-mode håller dig på exakt
-      watt-target — perfekt för att lära kroppen vad jämn Z2 känns som.
-      Mer tröttsamt mentalt än utomhus; planera underhållning. Den fysiska
-      adaptionen är likvärdig.
+      Lugnt uthållighetspass på trainern. Med låst effekt håller trainern
+      dig på exakt rätt watt — bra för att lära dig hur jämnt och lugnt (Z2)
+      känns. Det är tråkigare än ute, så ordna något att lyssna eller titta
+      på. Träningseffekten är densamma.
     setting: indoor
     requires_trainer: true
     erg_mode: true
@@ -186,12 +186,12 @@ workouts:
         duration_pct: 0.11
         zone: 1
         erg_mode: false
-        description: "Fri ramp från Z1 till Z2"
+        description: "Öka i egen takt från riktigt lätt (Z1) till lugnt (Z2)"
       - segment: continuous
         duration_pct: 0.83
         zone: 2
         cadence_rpm: [85, 95]
-        description: "ERG fixerar watt mitt i Z2-spannet (≈ 70% FTP)"
+        description: "Trainern låser effekten mitt i den lugna zonen (Z2, ≈ 70 % av FTP). Utan låst effekt: håll en jämn, lugn ansträngning."
       - segment: cooldown
         duration_pct: 0.06
         zone: 1
@@ -202,7 +202,7 @@ workouts:
     zone_refs: [Z1, Z2]
     equipment: [power_meter, hr_strap, trainer]
     abort_conditions:
-      - "HR-drift > 10 bpm vid fast watt → nutrition/hydrering, paus eller avbryt"
+      - "Pulsen har krupit upp mer än 10 slag/min fast effekten är densamma → ät och drick, ta paus eller avbryt"
     coach_notes: |
       Default-pass när väder/trafik gör utomhus opraktiskt. ERG-mode tar
       bort möjligheten att glida nedåt i watt (vanlig fallgrop vid trötthet).
@@ -212,7 +212,7 @@ workouts:
     discipline: bike
     category: AE
     type_code: AE2
-    name: "Lugn tur med sex kadensryck"
+    name: "Lugn tur med sex snabbtrampningar"
     phase_appropriate: [base_1, base_2, base_3, build_1]
     parameterized: true
     parameters:
@@ -221,10 +221,10 @@ workouts:
         range: [60, 120]
         description: "6 spin-ups är fasta (≈21 min struktur). Totalen styr Z2-volymen runt."
     intent: |
-      Stadig Z2-cykling med 6 korta spin-ups under passet. Spin-ups håller
-      neuromuskulär snabbhet och pedal-teknik vid liv under uthållighets-
-      byggande utan att tillföra träningsstress värd att räkna. Som
-      strides för löpare.
+      Jämn, lugn cykling (Z2) med 6 korta snabbtrampningar: i en minut
+      trampar du snabbare utan att trampa hårdare. Det håller benen
+      snabba och tramptekniken ren medan du bygger uthållighet, och det
+      tröttar knappt alls. Ungefär som stegringar för löpare.
     setting: either
     terrain: flat
     erg_mode: false
@@ -240,10 +240,10 @@ workouts:
         sets: 6
         duration_min: 1
         zone: 2
-        effort_descriptor: "Mjuk spin-up till 110-115 rpm, watt får drifta upp till nedre Z3 men inte högre. Behåll smooth pedaltramp — inga hopp i sadeln."
+        effort_descriptor: "Öka mjukt till 110-115 varv/min. Ansträngningen får stiga till nedre Z3 men inte högre. Trampa runt och mjukt — studsa inte i sadeln."
         cadence_rpm: [110, 115]
         rest_sec: 180
-        description: "Aktiv vila i Z2 mellan reps"
+        description: "Cykla lugnt (Z2) mellan varje"
       - segment: continuous
         duration_pct: 0.19
         zone: 2
@@ -257,7 +257,7 @@ workouts:
     zone_refs: [Z1, Z2]
     equipment: [power_meter, hr_strap]
     abort_conditions:
-      - "Watt-spik > Z3 i spin-ups → kadensen tar över, watt tappar"
+      - "Blir det tyngre än Z3 i snabbtrampningarna → trampa lättare och låt bara trampfrekvensen öka"
     coach_notes: |
       Billigt sätt att hålla snabba-ben-egenskaper i base-fasen. Spin-ups
       triggar inte träningsstress värd att räkna i veckoplaneringen. Kan
@@ -272,12 +272,12 @@ workouts:
     phase_appropriate: [build_1, build_2, peak]
     parameterized: false
     intent: |
-      Långpasset som tränar exakt det tävlingen kräver: långa block på
-      dina race-watt (68-73 % av FTP) i tävlingsposition, med fullt
-      race-intag. Det här är intensiteten mellan Z2 och tempo där en
-      Ironman faktiskt cyklas — varken lugn distans eller tröskeljobb.
-      Watten ska kännas hanterbara i timmar; blir de tunga efter en
-      timme är antingen dagsformen eller race-planen fel.
+      Långpasset som tränar exakt det tävlingen kräver: långa block i din
+      tävlingsfart (68-73 % av FTP) i tävlingsposition, och du äter och
+      dricker som på tävlingen. Farten ligger mellan lugnt (Z2) och tempo —
+      så cyklas en Ironman, varken lugn distans eller tröskelpass. Den ska
+      kännas hanterbar i timmar; blir den tung efter en timme är antingen
+      dagsformen eller tävlingsplanen fel.
     setting: outdoor
     terrain: flat
     erg_mode: false
@@ -285,19 +285,20 @@ workouts:
       - segment: warmup
         duration_min: 20
         zone: 1
-        description: "Rulla upp, sista 5 min i nedre Z2"
+        description: "Cykla lätt, de sista 5 min lugnt (nedre Z2)"
       - segment: main
         sets: 3
         duration_min: 50
         rest_sec: 600
-        effort_descriptor: "IM-race-watt: 68-73 % av FTP, aeroposition"
+        effort_descriptor: "Tävlingsfart för Ironman: stadigt men hållbart i timmar (68-73 % av FTP), i aeroposition"
         cadence_rpm: [85, 95]
         description: |
-          3×50 min på race-watt med 10 min avspänd Z2 mellan blocken.
-          Race-intag från minut 20: kolhydrat var 15-20:e minut enligt
-          DIN plan (se nutrition-noteringar i profilen) — passet tränar
-          magen lika mycket som benen. Håll aeropositionen genom blocken;
-          res dig bara för att äta/sträcka enligt samma rytm som på race.
+          3 × 50 min i tävlingsfart med 10 min avslappnat och lugnt (Z2)
+          mellan blocken. Ät som på tävlingen från minut 20: kolhydrater var
+          15-20:e minut enligt DIN plan (se mat och dryck i profilen) — passet
+          tränar magen lika mycket som benen. Ligg kvar i aeropositionen genom
+          blocken; res dig bara för att äta och sträcka på dig, i samma rytm
+          som på tävlingen.
       - segment: cooldown
         duration_min: 10
         zone: 1
@@ -307,10 +308,10 @@ workouts:
     zone_refs: [Z1, Z2, Z3]
     equipment: [power_meter, hr_strap]
     abort_conditions:
-      - "Yrsel, illamående eller energikrasch → sitt upp, sänk till Z1, avbryt om det inte släpper"
-      - "pw:HR-decoupling > 10 % i block 2 → sänk 5 % watt, kontrollera intag"
-      - "Race-watt kräver Z4-puls → dagsform eller fel FTP-värde; avbryt blocket, rapportera"
-      - "Ryggen låser sig i aeroposition → växla position oftare; kvarstår det, avbryt och flagga"
+      - "Yrsel, illamående eller plötsligt helt slut på energi → sitt upp, cykla riktigt lätt (Z1), avbryt om det inte släpper"
+      - "Pulsen kryper uppåt mer än 10 % i block 2 fast farten är densamma → sänk ansträngningen lite (5 % lägre watt) och se över vad du äter och dricker"
+      - "Tävlingsfarten ger hård puls (Z4) → dagsformen sviker eller din tröskel (FTP) är fel satt; avbryt blocket och rapportera"
+      - "Ryggen låser sig i aeropositionen → byt ställning oftare; sitter det i, avbryt och säg till"
     coach_notes: |
       Bankens viktigaste cykelpass i build/peak för långdistans. Skala
       via blocken: 2×45 (tidig build) → 3×50 → 3×60 (sen build). I peak:

@@ -22,9 +22,10 @@ workouts:
         range: [60, 75]
         description: "Stridor + main = ~37 min FAST (5 km @ ~4:45/km + viltimmar)"
     intent: |
-      Klassiska kilometer-intervaller på tröskelfart. Vilan är
-      tillräcklig för att hålla pace över alla fem, kort nog
-      för att tröskelsystemet ska få samlad belastning.
+      Klassiska kilometerintervaller i tröskelfart — den fart du orkar
+      hålla i ungefär en timme. Vilan räcker för att du ska orka samma
+      fart i alla fem, men är kort nog för att det ska bli ordentlig
+      träning.
     main_set:
       - segment: warmup
         duration_pct: 0.55
@@ -33,14 +34,14 @@ workouts:
         sets: 4
         duration_sec: 20
         zone: 4
-        effort_descriptor: "stridor"
+        effort_descriptor: "stegringar"
         rest_sec: 40
       - segment: main
         sets: 5
         distance_m: 1000
         zone: 4
         rest_sec: 90
-        description: "Jämn Z4. Pace över alla fem ska variera max 5 sek/km."
+        description: "Jämnt i Z4. Farten får skilja högst 5 s per km mellan de fem."
       - segment: cooldown
         duration_pct: 0.45
         zone: 1
@@ -52,8 +53,8 @@ workouts:
     surface: track
     equipment: []
     abort_conditions:
-      - "Om rep 1-2 redan landar i Z5 → backa ned till nedre Z4"
-      - "Om pace faller >10 sek/km på rep 4 → kör rep 5 i Z3, avsluta inte"
+      - "Om pulsen når Z5 redan på första eller andra → sakta in till nedre Z4"
+      - "Om du är mer än 10 s per km långsammare på fjärde → spring femte i Z3, men hoppa inte över den"
     coach_notes: |
       Funkar bäst på bana eller helt platt asfalt — splits ska vara
       jämförbara. Indikator-pass: om pace är klart bättre eller sämre
@@ -63,7 +64,7 @@ workouts:
     discipline: run
     category: ME
     type_code: ME1
-    name: "Långa tröskelrep — 4×1500 m"
+    name: "Långa tröskelintervaller — 4×1500 m"
     phase_appropriate: [build_1, build_2, peak]
     parameterized: true
     parameters:
@@ -72,9 +73,9 @@ workouts:
         range: [65, 80]
         description: "Stridor + main = ~42 min FAST"
     intent: |
-      Längre cruise-intervaller — närmare en sammanhängande
-      tröskellöpning än 1km-reps. Mental envishet krävs i sista
-      tredjedelen av varje rep.
+      Längre tröskelintervaller — mer likt att springa i tröskelfart
+      utan avbrott än 1 km-intervaller. Du får bita ihop i sista
+      tredjedelen av varje intervall.
     main_set:
       - segment: warmup
         duration_pct: 0.60
@@ -83,14 +84,14 @@ workouts:
         sets: 4
         duration_sec: 20
         zone: 4
-        effort_descriptor: "stridor"
+        effort_descriptor: "stegringar"
         rest_sec: 40
       - segment: main
         sets: 4
         distance_m: 1500
         zone: 4
         rest_sec: 120
-        description: "Nedre Z4. Bygg pacekänsla första 400m, lås den."
+        description: "Nedre Z4. Hitta farten de första 400 m och håll den."
       - segment: cooldown
         duration_pct: 0.40
         zone: 1
@@ -106,7 +107,7 @@ workouts:
     discipline: run
     category: ME
     type_code: ME1
-    name: "Korta tröskelrep — 8×600 m"
+    name: "Korta tröskelintervaller — 8×600 m"
     phase_appropriate: [base_3, build_1]
     parameterized: true
     parameters:
@@ -115,8 +116,9 @@ workouts:
         range: [55, 70]
         description: "Stridor + main = ~35 min FAST"
     intent: |
-      Kortare cruise-reps med kort vila. Lägre total stress per rep,
-      högre frekvens. Bra ingång till ME-träningen efter base 1-2.
+      Kortare tröskelintervaller med kort vila. Varje intervall är
+      lättare, men de är fler. Ett bra första steg mot tröskelträning
+      efter grundträningens två första block.
     main_set:
       - segment: warmup
         duration_pct: 0.60
@@ -125,14 +127,14 @@ workouts:
         sets: 4
         duration_sec: 20
         zone: 4
-        effort_descriptor: "stridor"
+        effort_descriptor: "stegringar"
         rest_sec: 40
       - segment: main
         sets: 8
         distance_m: 600
         zone: 4
         rest_sec: 60
-        description: "Nedre Z4. Kort vila — hela kakan ska kännas som ett enda block."
+        description: "Nedre Z4. Kort vila — alla åtta ska kännas som ett enda långt block."
       - segment: cooldown
         duration_pct: 0.40
         zone: 1
@@ -161,9 +163,9 @@ workouts:
         range: [55, 70]
         description: "Stridor + main = ~22 min FAST"
     intent: |
-      Cruise-intervaller uppför. Backen gör det enklare att hålla
-      Z4-puls utan att flyga, och uppförslöpning är skonsammare
-      mot leder vid hög intensitet.
+      Tröskelintervaller uppför. I backen når pulsen Z4 utan att du
+      behöver springa så fort, och det är skonsammare för lederna när
+      det går hårt.
     main_set:
       - segment: warmup
         duration_pct: 0.60
@@ -172,7 +174,7 @@ workouts:
         sets: 3
         duration_sec: 20
         zone: 4
-        effort_descriptor: "stridor"
+        effort_descriptor: "stegringar"
         rest_sec: 40
       - segment: main
         sets: 5
@@ -180,7 +182,7 @@ workouts:
         zone: 4
         pace_unreliable: true
         rest_sec: 120
-        description: "Z4 uppför 3-5% lutning. Gå/jogga ner i pausen."
+        description: "Z4 uppför 3–5 % lutning. Gå eller jogga ner i vilan."
       - segment: cooldown
         duration_pct: 0.40
         zone: 1
@@ -205,8 +207,8 @@ workouts:
         range: [60, 75]
         description: "Main = ~21 min FAST (4×3 + 3×3 viltimmar)"
     intent: |
-      Längre uppförsintervaller i trail-miljö. Mjukt underlag,
-      tekniska steg, krävande uthålligt Z4-arbete.
+      Längre intervaller uppför på stig. Mjukt och ojämnt underlag där
+      du får tänka på var du sätter fötterna, och jobbigt länge (Z4).
     main_set:
       - segment: warmup
         duration_pct: 0.60
@@ -218,7 +220,7 @@ workouts:
         zone: 4
         pace_unreliable: true
         rest_sec: 180
-        description: "Nedre Z4. Konstant kraft, läs underlaget."
+        description: "Nedre Z4. Jämn kraft, och titta var du sätter fötterna."
       - segment: cooldown
         duration_pct: 0.40
         zone: 1
@@ -248,10 +250,9 @@ workouts:
         range: [55, 70]
         description: "Stridor + 18 min crisscross = ~21 min FAST"
     intent: |
-      Växlande mellan Z3 och Z4 i 18 sammanhängande minuter. Övre
-      Z3 fungerar som "aktiv vila" — det är aldrig riktig återhämtning.
-      Resultatet är att tröskelsystemet får längre samlad belastning
-      än något rent Z4-pass av jämförbar längd.
+      Du växlar mellan Z3 och Z4 i 18 minuter utan paus. Övre Z3 är
+      din "vila" — men du hinner aldrig återhämta dig riktigt. Därför
+      får du mer tröskelträning än i ett lika långt pass med bara Z4.
     main_set:
       - segment: warmup
         duration_pct: 0.60
@@ -260,14 +261,14 @@ workouts:
         sets: 3
         duration_sec: 20
         zone: 4
-        effort_descriptor: "stridor"
+        effort_descriptor: "stegringar"
         rest_sec: 40
       - segment: main
         sets: 6
         pattern:
           - { duration_min: 2, zone: 4 }
           - { duration_min: 1, zone: 3 }
-        description: "Ingen vila mellan repetitioner — direkta övergångar Z4→Z3→Z4. Övre Z3 räknas inte som paus."
+        description: "Ingen vila mellan — gå direkt från Z4 till Z3 och tillbaka till Z4. Övre Z3 är ingen paus."
       - segment: cooldown
         duration_pct: 0.40
         zone: 1
@@ -279,7 +280,7 @@ workouts:
     surface: road
     equipment: []
     abort_conditions:
-      - "Om Z3-segmenten driver upp i Z4 ofrivilligt → bryt eller släng ett par reps i slutet"
+      - "Om de lugnare minuterna (Z3) glider upp i Z4 fast du inte vill → avbryt, eller hoppa över ett par växlingar på slutet"
     coach_notes: |
       Mentalt krävande. Inte ett "test-och-se-hur-det-går"-pass —
       adepten ska vara välbenägen och utvilad.
@@ -297,8 +298,9 @@ workouts:
         range: [60, 75]
         description: "Stridor + 20 min crisscross = ~23 min FAST"
     intent: |
-      Längre crisscross-format. 20 min sammanhängande på/strax under
-      tröskel. Toppat pass för build_2 och peak.
+      Längre växelpass: 20 min utan paus på eller strax under
+      tröskeln. Ett tufft pass för slutet av uppbyggnaden och
+      toppningen.
     main_set:
       - segment: warmup
         duration_pct: 0.60
@@ -307,7 +309,7 @@ workouts:
         sets: 3
         duration_sec: 20
         zone: 4
-        effort_descriptor: "stridor"
+        effort_descriptor: "stegringar"
         rest_sec: 40
       - segment: main
         sets: 4
@@ -342,9 +344,10 @@ workouts:
         range: [60, 70]
         description: "Build + 30 min tröskel = 35 min FAST"
     intent: |
-      Halv-maraton-relevant block: 30 min strax UNDER tröskel
-      (nedre Z4). Mentalt krävande, men inget egentligt extremt
-      tempo — finns kroppen där så går det.
+      Ett block med halvmaratonet i sikte: 30 min strax UNDER tröskeln
+      (nedre Z4) — den fart du orkar hålla i ungefär en timme. Jobbigt
+      för huvudet, men farten är inte extrem — är kroppen redo så går
+      det.
     main_set:
       - segment: warmup
         duration_pct: 0.60
@@ -352,11 +355,11 @@ workouts:
       - segment: build
         duration_min: 5
         zone: 3
-        description: "Build från Z2 upp mot Z4 — sista minuten i nedre Z4"
+        description: "Öka från Z2 upp mot Z4 — sista minuten i nedre Z4"
       - segment: main
         duration_min: 30
         zone: 4
-        description: "Nedre Z4. Hitta rytm tidigt, samma andning sista minuten som första."
+        description: "Nedre Z4. Hitta rytmen tidigt — samma andning sista minuten som första."
       - segment: cooldown
         duration_pct: 0.40
         zone: 1
@@ -368,7 +371,7 @@ workouts:
     surface: road
     equipment: []
     abort_conditions:
-      - "Om HR redan vid min 10 är i övre Z4/nedre Z5 → sänk pace 10 sek/km eller bryt på min 20"
+      - "Om pulsen redan efter 10 min ligger i övre Z4 eller nedre Z5 → sakta in 10 s per km, eller avbryt efter 20 min"
     coach_notes: |
       Inte ett indikator-pass utan benchmark-pass: 30 sammanhängande
       tröskelminuter syns i HRV-svaret 24-48h efteråt. Räkna in det
@@ -387,8 +390,8 @@ workouts:
         range: [65, 80]
         description: "Build + 2×20 min + 3 min vila = 46 min FAST"
     intent: |
-      Splittad version av 40 min total tröskeltid. Lägre mental kostnad
-      per block, samma fysiologiska träningseffekt.
+      40 min i tröskelfart, uppdelat i två block. Lättare för huvudet,
+      men samma träning för kroppen.
     main_set:
       - segment: warmup
         duration_pct: 0.60
@@ -401,7 +404,7 @@ workouts:
         duration_min: 20
         zone: 4
         rest_sec: 180
-        description: "Nedre Z4. Vila: lugn jogg Z1."
+        description: "Nedre Z4. Vila med mycket lugn jogg (Z1)."
       - segment: cooldown
         duration_pct: 0.40
         zone: 1

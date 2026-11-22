@@ -26,10 +26,10 @@ workouts:
         range: [20, 60]
         description: "Total tid; skala efter veckans volym och dagsform"
     intent: |
-      Återhämtningspass. Lugn, lätt löpning i nedre Z1 — kroppen ska
-      kännas bättre EFTER passet än före. Ingen som helst kvalitet.
-      Andningen ska vara så lugn att du kan föra ett samtal i hela
-      meningar utan att hacka.
+      Ett lätt pass för att återhämta dig. Spring mycket lugnt (nedre
+      Z1) — kroppen ska kännas bättre EFTER passet än före. Ingen
+      ansträngning alls. Andningen ska vara så lugn att du kan prata i
+      hela meningar utan att hacka.
     main_set:
       - segment: warmup
         duration_pct: 0.20
@@ -38,7 +38,7 @@ workouts:
       - segment: continuous
         duration_pct: 0.65
         zone: 1
-        description: "Stadig nedre Z1. Om HR driver upp mot Z2-gränsen — sakta in eller gå."
+        description: "Jämnt och mycket lugnt (nedre Z1). Går pulsen upp mot Z2 — sakta in eller gå."
       - segment: cooldown
         duration_pct: 0.15
         zone: 1
@@ -51,7 +51,7 @@ workouts:
     surface: any
     equipment: []
     abort_conditions:
-      - "Om HR inte sjunker tillbaka till Z1 inom 2 min trots fart-sänkning → avsluta"
+      - "Om pulsen inte går ner till Z1 inom 2 min fast du saktat in → avsluta"
       - "Om benen känns tunga och stela efter 10 min → kort pass, gå hem"
     coach_notes: |
       Funkar dagen efter ett hårdpass, mellan kvalitetspass, eller på
@@ -127,7 +127,7 @@ workouts:
     discipline: run
     category: AE
     type_code: AE2
-    name: "Lugn distans — arbetshästen"
+    name: "Lugn distans — veckans grundpass"
     phase_appropriate: [prep, base_1, base_2, base_3, build_1, build_2]
     parameterized: true
     parameters:
@@ -139,18 +139,18 @@ workouts:
         default: false
         description: "Om true: lägg 4-6×~20 sek strides på slutet (SS1-mikrodos)"
     intent: |
-      Stadig aerob löpning i Z2. Inget tempotryck, inga jakter —
-      bara tid på fötterna i den zon där mitochondrierna växer
-      och kapillärer byggs. Det här är arbetshästen i base-fasen.
+      Jämn, lugn löpning (Z2). Ingen fart att jaga — bara tid på
+      fötterna. Så här bygger du uthållighet, och det är det vanligaste
+      passet under grundträningen.
     main_set:
       - segment: warmup
         duration_pct: 0.10
         zone: 1
-        description: "Gradvis upp, sista minuten i nedre Z2"
+        description: "Börja lugnt och öka lite, sista minuten i nedre Z2"
       - segment: continuous
         duration_pct: 0.80
         zone: 2
-        description: "Stadig Z2. HR ska drifta lugnt — om den klättrar mot Z3 utan att farten ökar (kardiovaskulär drift) är passet långt nog."
+        description: "Jämnt och lugnt (Z2). Kryper pulsen upp mot Z3 fast farten är densamma är passet långt nog."
       - segment: cooldown
         duration_pct: 0.10
         zone: 1
@@ -162,7 +162,7 @@ workouts:
     surface: any
     equipment: []
     abort_conditions:
-      - "Om Z2-pace blir omöjligt utan att HR går till Z3 → avsluta tidigt, dagsform fel"
+      - "Om du inte kan hålla Z2-farten utan att pulsen går upp i Z3 → avsluta tidigt, dagsformen är inte där"
     coach_notes: |
       Den här mallen är 80% av all löpning i base-fasen. Variera
       durationen och underlaget för variation, men låt zonen vara.
@@ -184,9 +184,9 @@ workouts:
         range: [90, 120]
         description: "Långpass-budget — skalar samtliga delar proportionellt"
     intent: |
-      Långpass där sista tredjedelen lyfts från nedre Z2 till övre Z2.
-      Tränar förmågan att hålla teknik och tempo när trötthet samlas —
-      mer race-likt än ett stadigt långpass.
+      Långpass där du ökar lite den sista tredjedelen, från nedre till
+      övre Z2. Du övar på att hålla steget och tempot när du börjar bli
+      trött — mer likt en tävling än ett jämnt långpass.
     main_set:
       - segment: warmup
         duration_pct: 0.10
@@ -226,9 +226,9 @@ workouts:
         range: [60, 110]
         description: "Trail-budget"
     intent: |
-      Z2-pass på mjukt underlag och i kuperad terräng. Lägre slag
-      mot leder, naturlig variation i steg och puls. HR är target —
-      pace är meningslös på stig.
+      Lugnt pass (Z2) på mjukt underlag i backig terräng. Skonsamt för
+      lederna, och steg och puls varierar av sig själv. Gå efter pulsen
+      — farten säger inget på stig.
     main_set:
       - segment: warmup
         duration_pct: 0.125
@@ -238,7 +238,7 @@ workouts:
         duration_pct: 0.75
         zone: 2
         pace_unreliable: true
-        description: "Z2 efter HR. Gå i branta backar om HR sticker till Z3."
+        description: "Håll pulsen i Z2. Gå i branta backar om pulsen stiger till Z3."
       - segment: cooldown
         duration_pct: 0.125
         zone: 1
@@ -267,9 +267,9 @@ workouts:
         range: [55, 75]
         description: "Total budget; strides-set (~8 min) tas av först"
     intent: |
-      Stadig Z2-löpning med 6 strides på slutet. Strides håller
-      neuromuskulär snabbhet vid liv under uthållighetsbyggande utan
-      att tillföra träningsstress värd att räkna.
+      Jämn, lugn löpning (Z2) med 6 stegringar på slutet — korta
+      fartökningar på 20 s. De håller benen vana vid fart medan du
+      bygger uthållighet, utan att passet blir tyngre.
     main_set:
       - segment: warmup
         duration_pct: 0.18
@@ -281,9 +281,9 @@ workouts:
         sets: 6
         duration_sec: 20
         zone: 5
-        effort_descriptor: "smooth fast — ~90% maxfart, kontrollerad teknik, ingen sprint"
+        effort_descriptor: "snabbt men avspänt — cirka 90 % av maxfart, kontrollerade steg, ingen spurt"
         rest_sec: 60
-        description: "Aktiv vila: lugn jogg eller gång. Hela strides-blocket ~8 min."
+        description: "Vila med lugn jogg eller gång. Alla stegringar tar tillsammans cirka 8 min."
       - segment: cooldown
         duration_pct: 0.09
         zone: 1
@@ -308,11 +308,11 @@ workouts:
     phase_appropriate: [build_1, build_2, peak]
     parameterized: false
     intent: |
-      Långpasset som repeterar tävlingens öppning: lugn Z2-bas med
-      block på ditt IM-målpace insprängda. Målpacet ska kännas nästan
-      förolämpande lätt i ett fräscht långpass — det är exakt så det
-      ska kännas de första milen på tävlingsdagen också. Passet lär kroppen
-      pacet OCH huvudet disciplinen att inte springa fortare.
+      Långpasset där du övar tävlingens början: lugnt (Z2) med block i
+      den fart du tänker öppna maratonet på i Ironman. Målfarten ska
+      kännas nästan löjligt lätt när du är pigg — precis så ska de
+      första milen kännas på tävlingsdagen också. Passet lär kroppen
+      farten OCH huvudet att inte springa fortare.
     main_set:
       - segment: warmup
         duration_min: 15
@@ -325,11 +325,12 @@ workouts:
         sets: 3
         duration_min: 20
         rest_sec: 300
-        effort_descriptor: "IM-målpace — maratonpacet du planerar öppna på"
+        effort_descriptor: "målfart i Ironman — farten du tänker öppna maratonet på"
         description: |
-          3×20 min på målpace med 5 min avspänd Z2 mellan. Kolla pacet
-          mot klockan var 3-4:e minut, inte varje steg. Öva intag i
-          Z2-pauserna — gel/dryck enligt din race-plan.
+          3 × 20 min i målfart med 5 min avspänt och lugnt (Z2) mellan.
+          Titta på klockan var 3–4:e minut, inte hela tiden. Öva på att
+          äta och dricka i de lugna pauserna — gel och dryck som du
+          planerat för tävlingen.
       - segment: cooldown
         duration_min: 10
         zone: 1
@@ -341,9 +342,9 @@ workouts:
     surface: road
     equipment: [hr_strap]
     abort_conditions:
-      - "Yrsel, illamående eller energikrasch → gå, avbryt"
-      - "Målpace kräver Z4-puls i block 1 → dagsform eller orealistiskt mål; jogga hem, rapportera"
-      - "Pacet spricker i block 3 → normalt i tidig build; notera var det sprack"
+      - "Yrsel, illamående eller plötsligt helt slut på energi → gå, avbryt"
+      - "Målfarten ger puls i Z4 redan i första blocket → dålig dag eller för högt mål; jogga hem, rapportera"
+      - "Du tappar farten i tredje blocket → normalt tidigt i uppbyggnaden; notera när det hände"
     coach_notes: |
       Skala via blocken: 2×15 (tidig build) → 3×20 → 2×30 (sen build).
       I peak: 2×15 räcker. Pulsen på målpace är passets facit — driftar
@@ -364,12 +365,12 @@ workouts:
         range: [45, 150]
         description: "Total tid inkl. gångminuter. Skala fritt — belastningen per km är låg."
     intent: |
-      Långpass i intervallform: 9 minuter löpning, 1 minut rask gång,
-      om och om igen. Gångminuten nollställer stötbelastningen och
-      håller pulsen ärligt aerob — du får mer tid på fötterna till
-      lägre skaderisk. Ingen nödlösning: run/walk är en beprövad
-      IM-maratonstrategi och ett förstklassigt verktyg för löpare
-      som byggs upp efter skada eller ökar volym försiktigt.
+      Långpass i omgångar: 9 minuter löpning, 1 minut rask gång, om och
+      om igen. Gångminuten ger benen vila från stötarna och håller
+      pulsen lugn — du kan vara ute längre med mindre risk för skador.
+      Det är ingen nödlösning: att varva löpning och gång är ett
+      beprövat sätt att klara maratonet i Ironman, och ett bra sätt att
+      komma tillbaka efter skada eller öka mängden försiktigt.
     main_set:
       - segment: warmup
         duration_pct: 0.10
@@ -378,11 +379,11 @@ workouts:
       - segment: continuous
         duration_pct: 0.85
         zone: 2
-        effort_descriptor: "9 min löpning Z2 / 1 min rask gång — repetera"
+        effort_descriptor: "9 min lugn löpning (Z2), 1 min rask gång — och om igen"
         description: |
-          Gångminuten är obligatorisk, inte valfri — även när du känner
-          dig stark. Det är den som gör att pass nummer 40 i säsongen
-          fortfarande är skadefri. Drick/ät på gångminuterna.
+          Gå varje gångminut, även när du känner dig stark. Det är den
+          som gör att du är hel även på säsongens fyrtionde pass. Ät och
+          drick när du går.
       - segment: cooldown
         duration_pct: 0.05
         zone: 1
@@ -395,8 +396,8 @@ workouts:
     surface: any
     equipment: []
     abort_conditions:
-      - "Smärta som ändrar steget → gå hem, rapportera"
-      - "HR driftar över Z2 i löpminuterna trots gångpauserna → korta till 8/2, eller avsluta"
+      - "Smärta som gör att du springer annorlunda → gå hem, rapportera"
+      - "Pulsen kryper upp över Z2 när du springer, trots gångpauserna → byt till 8 min löpning och 2 min gång, eller avsluta"
     coach_notes: |
       Rehab-vänligaste långpasset i banken — förstahandsval vid
       återuppbyggnad, hög kroppsvikt-historik eller ryggkänslighet.

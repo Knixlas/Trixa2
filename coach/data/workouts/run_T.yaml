@@ -10,7 +10,7 @@ workouts:
     discipline: run
     category: T
     type_code: RunTest
-    name: "Testlopp: 30 minuter ärlighet"
+    name: "Testlopp: 30 minuter jämnt och hårt"
     phase_appropriate: [prep, base_1, base_2, base_3, build_1, build_2]
     parameterized: true
     parameters:
@@ -19,33 +19,34 @@ workouts:
         range: [60, 70]
         description: "Stridor + rest + 30 min test = 38 min FAST"
     intent: |
-      Klassiskt 30-min tidskörnings-test (Joe Friel-protokoll).
-      Resultatet ger två kalibreringsvärden:
-      
-      - threshold_pace_sec_per_km = snittpace över sista 20 min av TT
-      - at_hr (anaerob tröskel-HR) = snitt-HR sista 20 min av TT
-      
-      Formeln "sista 20 min" filtrerar bort initial över-pacing och
-      ger ett rent steady-state-värde. Pace första 10 min räknas inte.
+      Klassiskt test (Joe Friels): spring så fort du orkar hålla i 30
+      minuter. Det ger din tröskel — ungefär den fart du orkar hålla i
+      en timme — som dina zoner räknas fram ur:
+
+      - tröskelfart = snittfarten de sista 20 minuterna
+      - tröskelpuls = snittpulsen de sista 20 minuterna
+
+      Bara de sista 20 minuterna räknas, så att en för snabb start inte
+      ger fel värde. De första 10 minuterna räknas inte.
     main_set:
       - segment: warmup
         duration_pct: 0.50
         zone: 1
-        description: "Lugn upp-jogg, sista minuten i nedre Z2"
+        description: "Lugn jogg, sista minuten i nedre Z2"
       - segment: build
         sets: 4
         duration_sec: 20
         zone: 4
-        effort_descriptor: "stridor, gradvis upp till nedre Z4"
+        effort_descriptor: "stegringar, öka gradvis upp till nedre Z4"
         rest_sec: 40
       - segment: rest
         duration_min: 3
-        description: "Lugn jogg eller stå. Förbered mentalt."
+        description: "Lugn jogg eller stå still. Ställ in dig på testet."
       - segment: test
         duration_min: 30
         zone: 4
-        effort_descriptor: "Maximal hållbar fart över 30 min — inte sprint, inte tempo. Pacingen ska vara så att du kan hålla den exakt 30 minuter, inte mer."
-        description: "VIKTIGT: starta KONSERVATIVT — första 5 min ska kännas 'för lätt'. De flesta över-pacear första milen. Notera totaltid, total distans, snitt-HR sista 20 min, snittpace sista 20 min."
+        effort_descriptor: "Den snabbaste fart du kan hålla i 30 min — ingen spurt, inget lugnt tempo. Farten ska räcka precis 30 minuter, inte mer."
+        description: "VIKTIGT: starta FÖRSIKTIGT — de första 5 min ska kännas 'för lätta'. De flesta börjar för fort. Skriv ner total tid, total sträcka, snittpuls och snittfart de sista 20 min."
       - segment: cooldown
         duration_pct: 0.50
         zone: 1
@@ -57,8 +58,8 @@ workouts:
     surface: track
     equipment: []
     abort_conditions:
-      - "Om dagsformen är klart fel (HR stiger okontrollerat första 5 min vid lätt pace) — avbryt och kör om en annan dag"
-      - "Vid akut smärta — avbryt direkt"
+      - "Om dagsformen är klart dålig (pulsen rusar de första 5 min fast farten är lätt) — avbryt och gör testet en annan dag"
+      - "Plötslig smärta — avbryt direkt"
     coach_notes: |
       Bästa underlag: 400m-bana (exakt distans, ingen vind-skugga,
       ingen kuperning). På väg: helt platt slinga eller punkt-till-punkt
@@ -80,11 +81,10 @@ workouts:
         range: [50, 60]
         description: "Stridor + 2×8 min + 4 min vila = 25 min FAST"
     intent: |
-      Alternativt löptest med två block om 8 min med 4 min vila.
-      Snitt-HR och snittpace över de två blocken approximerar
-      tröskelvärdena. Mer förlåtande än 30-min TT för
-      adepter som inte gjort tester förut — kortare exponering
-      för pacing-fel.
+      Ett annat löptest: två block på 8 min med 4 min vila.
+      Snittpuls och snittfart i de två blocken ger en uppskattning av
+      din tröskel. Lättare än 30-minuterstestet om du inte gjort tester
+      förut — börjar du för fort kostar det mindre.
     main_set:
       - segment: warmup
         duration_pct: 0.50
@@ -93,13 +93,13 @@ workouts:
         sets: 4
         duration_sec: 20
         zone: 4
-        effort_descriptor: "stridor"
+        effort_descriptor: "stegringar"
         rest_sec: 40
       - segment: test
         sets: 1
         duration_min: 8
         zone: 5
-        effort_descriptor: "Maximalt hållbar fart i 8 min. Försiktig start, jämn pace."
+        effort_descriptor: "Den snabbaste fart du kan hålla i 8 min. Börja försiktigt och håll jämn fart."
       - segment: rest
         duration_min: 4
         description: "Lugn jogg eller gång — pulsen ska komma ned"
@@ -107,8 +107,8 @@ workouts:
         sets: 1
         duration_min: 8
         zone: 5
-        effort_descriptor: "Maximalt hållbar fart i 8 min. Ska helst bli marginellt snabbare än första blocket."
-        description: "Notera total tid och snitt-HR per block, snittpace per block."
+        effort_descriptor: "Den snabbaste fart du kan hålla i 8 min. Helst lite snabbare än första blocket."
+        description: "Skriv ner tid, snittpuls och snittfart för varje block."
       - segment: cooldown
         duration_pct: 0.50
         zone: 1
