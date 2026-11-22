@@ -49,11 +49,13 @@ def _fmt_zone_target(zone: int, zr: ZoneRange | None, discipline: str) -> str:
     Bike: "Z2 (110–145 W, 132–142 bpm)"
     Run: "Z2 (5:30–6:00/km, 138–148 bpm)"
 
-    Om värden saknas (ingen profildata): "Z2"
+    Om värden saknas (ingen profildata): "Z2 – lugnt, du kan prata i hela
+    meningar". Nybörjaren ser aldrig testvärdesfälten och har ofta ingen
+    pulsklocka; en ensam "Z2" sade henne ingenting (docs/13).
     """
     label = f"Z{zone}"
     if zr is None:
-        return label
+        return _zone_feel(zone)
 
     parts: list[str] = []
 
@@ -75,8 +77,23 @@ def _fmt_zone_target(zone: int, zr: ZoneRange | None, discipline: str) -> str:
             parts.append(f"{zr.hr_bpm[0]}–{zr.hr_bpm[1]} bpm")
 
     if not parts:
-        return label
+        return _zone_feel(zone)
     return f"{label} ({', '.join(parts)})"
+
+
+# Zonerna i känsla — samtalstestet. Gäller alla grenar och kräver ingen klocka.
+ZONE_FEEL = {
+    1: "mycket lugnt, som en rask promenad",
+    2: "lugnt, du kan prata i hela meningar",
+    3: "medel, du orkar korta meningar",
+    4: "hårt, bara enstaka ord",
+    5: "så hårt du kan, inga ord",
+}
+
+
+def _zone_feel(zone: int) -> str:
+    feel = ZONE_FEEL.get(zone)
+    return f"Z{zone} – {feel}" if feel else f"Z{zone}"
 
 
 # ---------- Segment-rendering per disciplin ----------
@@ -110,18 +127,18 @@ def _segment_label(seg_type: str, sets: int) -> str:
     labels = {
         "warmup": "Uppvärmning",
         "cooldown": "Nedvarvning",
-        "drills": "Drills",
-        "kick": "Kick",
-        "pull": "Pull",
-        "build": "Build",
-        "sprint": "Sprint",
-        "continuous": "Kontinuerligt",
-        "test": "TEST",
+        "drills": "Teknikövningar",
+        "kick": "Bara benspark",
+        "pull": "Bara armtag",
+        "build": "Stegring",
+        "sprint": "Spurt",
+        "continuous": "Huvuddel",
+        "test": "Test",
         "rest": "Vila",
         "recovery": "Återhämtning",
     }
     if seg_type == "main":
-        return "Set" if sets == 1 else "Huvudset"
+        return "Huvuddel"
     return labels.get(seg_type, seg_type.capitalize())
 
 
@@ -217,10 +234,10 @@ def _render_segment(
         line += f" — {effort}"
     elif zone is not None:
         zr = zoneset.get(zone)
-        line += f" @ {_fmt_zone_target(zone, zr, zoneset.discipline)}"
+        line += f" i {_fmt_zone_target(zone, zr, zoneset.discipline)}"
     elif zones_per_set:
         zone_strs = [f"Z{z}" for z in zones_per_set]
-        line += f" @ {'/'.join(zone_strs)}"
+        line += f" i {'/'.join(zone_strs)}"
 
     # Bike-specifika fält
     cadence = seg.get("cadence_rpm")
@@ -249,8 +266,16 @@ def _render_segment(
 # ---------- Pass-rendering ----------
 
 
-def _render_summary(workout: dict) -> str:
-    """En rad med totaldistans/duration och spann."""
+def _render_summary(workout: dict, for_coach: bool = True) -> str:
+    """En rad med totaldistans/duration och spann.
+
+    Adepten ser passets längd i rubrikraden redan; mallens spann och
+    standardvärde ("Parameteriserat pass — duration 30–70 min (default 50)")
+    är byggarens språk och visas bara för coachen.
+    """
+    if not for_coach:
+        td = workout.get("total_distance_m")
+        return f"**Sträcka:** cirka {td} m" if td else ""
     if workout.get("parameterized"):
         params = workout.get("parameters", {})
         dur = params.get("duration_min", {})
@@ -287,7 +312,7 @@ def _render_drill_quick_ref(
     if not referenced:
         return []
 
-    out = ["**Drill-snabbreferens:**"]
+    out = ["**Teknikövningarna:**"]
     for d in referenced:
         drill = drill_map[d]
         intent = drill.get("intent", "").strip().split("\n")[0]
@@ -301,14 +326,15 @@ def _render_bike_setting(workout: dict) -> str | None:
         return None
     parts: list[str] = []
     setting = workout.get("setting")
+    setting_sv = {"indoor": "inomhus", "outdoor": "utomhus", "either": "inne eller ute"}
     if setting:
-        parts.append(f"Setting: {setting}")
+        parts.append(setting_sv.get(setting, setting))
     if workout.get("requires_trainer"):
-        parts.append("kräver trainer")
+        parts.append("kräver cykeltrainer")
     if workout.get("outdoor_only"):
         parts.append("endast utomhus")
     if workout.get("erg_mode") is True:
-        parts.append("ERG default")
+        parts.append("trainern styr effekten (ERG)")
     if not parts:
         return None
     return f"*{', '.join(parts)}*"
@@ -319,6 +345,7 @@ def render_workout(
     profile: AthleteProfile | None = None,
     drill_map: dict[str, dict] | None = None,
     exercise_map: dict[str, dict] | None = None,
+    for_coach: bool = False,
 ) -> str:
     """Rendera ett pass till markdown.
 
@@ -326,6 +353,9 @@ def render_workout(
         workout: pass-dict (parameterized templates bör resolvas innan)
         profile: adept-profil för zonberäkningar; om None används saknade zoner
         drill_map: {code: drill_dict} för drill-namn-uppslagning
+        for_coach: True tar med passkod, kategori, faser, mallens spann och
+            "Tränarens noter". Det är byggarens och coachens text; adepten
+            (standard) får bara det hen ska göra (docs/13, fynd 5).
 
     Returns:
         Markdown-sträng redo för visning.
@@ -349,10 +379,11 @@ def render_workout(
 
     # Rubrik — passnamnet bär; koden ligger i metaraden för spårbarhet
     out.append(f"## {workout['name']}")
-    out.append(
-        f"*{workout['code']} · {workout['category']} · "
-        f"faser: {', '.join(workout['phase_appropriate'])}*"
-    )
+    if for_coach:
+        out.append(
+            f"*{workout['code']} · {workout['category']} · "
+            f"faser: {', '.join(workout['phase_appropriate'])}*"
+        )
 
     # Bike-specifik info-rad
     bike_info = _render_bike_setting(workout)
@@ -363,8 +394,10 @@ def render_workout(
     out.append("**Syfte:**")
     out.append(workout["intent"].strip())
     out.append("")
-    out.append(_render_summary(workout))
-    out.append("")
+    summary = _render_summary(workout, for_coach)
+    if summary:
+        out.append(summary)
+        out.append("")
     out.append("**Upplägg:**")
     for seg in workout["main_set"]:
         seg_zoneset = zoneset
@@ -383,7 +416,7 @@ def render_workout(
             out.append(f"- {cond}")
         out.append("")
 
-    if workout.get("coach_notes"):
+    if for_coach and workout.get("coach_notes"):
         out.append("**Tränarens noter:**")
         out.append(workout["coach_notes"].strip())
         out.append("")

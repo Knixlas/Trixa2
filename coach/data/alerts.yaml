@@ -145,8 +145,7 @@ alerts:
     triggered_by: weekly_plan_persisted
     severity: info
     title: Veckoplan klar
+    # Adepten läser den här texten. Tabell- och fältnamn hör inte hit (docs/13).
     body: |
-      Trixa har genererat veckans plan. Passen ligger i planned_sessions
-      (origin='trixa2') och engine-besluten i planens engine_decisions.
-      Override kan göras av coach via API.
+      Veckans pass är klara. Du hittar dem under Veckans träning.
     follow_up: null

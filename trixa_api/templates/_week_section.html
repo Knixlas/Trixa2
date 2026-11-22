@@ -71,7 +71,7 @@
         <i data-lucide="{{ disc.get(w.sport, disc['rest'])[0] }}"></i>
       </div>
       <div class="wk-main">
-        <div class="workout-date">{{ w.date }} · {{ w.sport }}</div>
+        <div class="workout-date">{{ w.date }} · {{ w.sport | sport_sv }}</div>
         <strong>{{ w.title }}</strong>
         <div style="margin: 2px 0 6px; display: flex; gap: 5px; flex-wrap: wrap;">
           {% if w.status %}
@@ -347,7 +347,7 @@
           <summary>Justera passet</summary>
           <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px;">
             <form method="post" action="/ui/workouts/{{ w.id }}/swap">
-              <button type="submit" class="outline">Byt till annat {{ w.sport }}pass</button>
+              <button type="submit" class="outline">Byt till ett annat pass i samma gren</button>
             </form>
             <form method="post" action="/ui/workouts/{{ w.id }}/change-discipline"
                   style="display: flex; gap: 6px; align-items: end;">
