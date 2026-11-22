@@ -11,7 +11,7 @@ Bonus: persistent process betyder att tokens cachas mellan körningar
 
 ## Förutsättningar
 
-- Trixa-app ligger redan på Railway (`trixa2.up.railway.app`)
+- Trixa-app ligger redan på Railway (`trixa.sviden.se`, tidigare `trixa2.up.railway.app`)
 - Repo: `Knixlas/Trixa2`, branch `trixa-app-skeleton` eller `main`
 - Garmin-sync är cherry-pickad till main (`sync_worker.py` + apscheduler dep)
 - Supabase oauth_tokens-tabellen finns och har fresh tokens

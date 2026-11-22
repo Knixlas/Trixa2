@@ -96,7 +96,7 @@ När plan-vs-actual finns synlig, kan planner i framtiden läsa "vad gjorde jag 
 
 ## Live-URL för verifiering
 
-https://trixa2.up.railway.app/ui/
+https://trixa.sviden.se/ui/
 
 Dashboarden visar denna + nästa vecka. Efter dina ändringar ska passerade dagar ha statusbadge + (steg 2) actual-data under plan-titeln.
 

@@ -330,8 +330,16 @@ Projektet (CLAUDE.md + md-källdokument + kod) bär delad kunskap. Tråden är a
   `code_challenge_methods_supported: ["S256"]`. Saknas något av det faller
   klienten tillbaka på att fråga om ett Client ID som ingen kan svara på.
 - Personliga `trixa_`-tokens fungerar parallellt — Claude Code-vägen är orörd.
-- `TRIXA_PUBLIC_URL` **måste** vara satt i prod: metadatan måste ge exakt den
-  adress klienten når servern på, annars vägrar den ansluta.
+- Metadatan måste ge exakt den adress klienten når servern på, annars vägrar
+  den ansluta. `TRIXA_PUBLIC_URL` är **inte** satt i prod: adressen tas ur
+  anropets värdnamn, så appen svarar rätt på båda sina adresser. Sätts
+  variabeln slutar kopplingar mot den andra adressen att fungera.
+- **Adress (2026-11-22):** `https://trixa.sviden.se`. Gamla
+  `trixa2.up.railway.app` skickar webben (GET mot `/` och `/ui`) vidare dit via
+  `TRIXA_REDIRECT_HOSTS` + `TRIXA_REDIRECT_TARGET` (`moved_address` i
+  `trixa_api/main.py`). Maskinvägarna (`/mcp`, `/oauth`, `/.well-known`,
+  `/agent`, `/api`, `/health`) svarar kvar på gamla adressen så att befintliga
+  MCP-kopplingar lever. Ta bort variablerna så upphör vidarebefordran.
 - ☐ CIMD (`client_id_metadata_document_supported`) ej implementerat — DCR räcker
   för Claude, och CIMD kräver att servern hämtar ett dokument från en klientstyrd
   adress (SSRF-yta). Token i URL är INTE ett alternativ (läcker i loggar).
