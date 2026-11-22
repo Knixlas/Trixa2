@@ -119,6 +119,22 @@ def allowed_categories(prof: dict, categories: list[str], progress_weeks: int) -
     return [c for c in categories if c in allowed]
 
 
+def sustainable_phase(prof: dict, progress_weeks: int) -> str | None:
+    """Fasen adeptens egen upptrappning bär (ramp-nivåerna), annars None.
+
+    Ersätter timgränserna i phases.yaml för nybörjare och medel; loppets
+    tidpunkt och skada/överträning styr fortfarande i determine_phase.
+    """
+    if not is_ramp(prof):
+        return None
+    table = prof.get("phase_by_progress_weeks") or {}
+    if progress_weeks >= int(table.get("build", 10**6)):
+        return "build"
+    if progress_weeks >= int(table.get("base", 10**6)):
+        return "base"
+    return "prep"
+
+
 def run_walk(prof: dict, progress_weeks: int) -> tuple[float, float] | None:
     """(jogg, gång) i minuter för gå/jogg-passet, eller None när steget är passerat."""
     steps = prof.get("run_walk_steps") or []

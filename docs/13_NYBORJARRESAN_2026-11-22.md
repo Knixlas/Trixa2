@@ -236,9 +236,7 @@ svar; varje pass görs till 85–95 % av tiden):
 - ~~Passbankens prosa~~ — gjort i steg 3 nedan.
 - **Varför blev passet inte gjort?** (ChatGPT:s förslag) Rampen ser bara
   tiden. En adept som gör två av tre pass står still utan att få veta varför.
-- **Fasnamnet:** ramp-nivåerna ligger i "Förberedelse" hela säsongen,
-  eftersom fasgränserna räknas i timmar (5 h för bas). Planen fungerar, men
-  ordet säger fel sak.
+- ~~Fasnamnet~~ — gjort i steg 5 nedan.
 - **Simpassen** för triathlonnybörjaren har fortfarande drills och "25:or".
 
 ## Steg 3: passbankens språk (grenen `passbank-sprak`)
@@ -279,6 +277,22 @@ svar; varje pass görs till 85–95 % av tiden):
   ändra planen för befintliga adepter med sådana besvär.
 - 62-åringen med knä grad 2 i simuleringen: ligger kvar på 1,2 h med gå/jogg
   i stället för att växa till 2,3 h.
+
+## Steg 5: fasen följer den egna upptrappningen (grenen `fasnamn`)
+
+- Bas krävde 5 h/vecka och uppbyggnad 7 h (phases.yaml), så nybörjare och
+  medel stod i "Förberedelse" tills toppningen. Nu följer deras fas antalet
+  gjorda veckor (`levels.yaml::phase_by_progress_weeks`): nybörjaren går
+  till grundträning efter 4 och uppbyggnad efter 12 gjorda veckor, medel
+  börjar i grundträning och bygger efter 6. Loppets tidpunkt sätter
+  fortfarande taket, och skada eller överträning backar till förberedelse.
+- Samma bedömning i planeraren, översikten och passbytena
+  (`AthleteState.sustainable_phase_override`, satt i `_build_athlete_state`).
+- Kollegans 10 km i simuleringen: förberedelse till 24 v före loppet,
+  grundträning, uppbyggnad 12 v före, toppning 4 v före, tävling 2 v före.
+- Översikten: fasen på svenska ("Aktuell fas: Grundträning"), målet och
+  distansen i ord, "Mest tid per vecka: 14 h". För nybörjare och medel
+  står "bygger grunden i din takt" i stället för "⚠ ligger efter".
 
 ## Vad som inte är verifierat
 

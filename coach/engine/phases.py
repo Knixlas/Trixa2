@@ -34,6 +34,11 @@ class AthleteState:
     weeks_in_current_phase: int | None = None
     athlete_feels_rested: bool = False
     has_high_specific_fitness: bool = False
+    # Nybörjare och medel (levels.yaml, ramp): fasen följer hur långt adepten
+    # kommit i sin egen upptrappning, inte timmar mot triathlongränserna i
+    # phases.yaml (5 h för bas). Förut stod en nybörjare i "Förberedelse"
+    # hela säsongen fram till toppningen (docs/13). None = timmarna styr.
+    sustainable_phase_override: PhaseCode | None = None
 
 
 @dataclass(frozen=True)
@@ -176,6 +181,8 @@ def _sustainable_phase(state: AthleteState) -> PhaseCode:
     phases = load_yaml("phases.yaml")["phases"]
     if state.has_injury or state.has_overtraining_signs:
         return "prep"  # backa av vid skada/överträning
+    if state.sustainable_phase_override:
+        return state.sustainable_phase_override
     hours = state.weekly_training_hours
     build_min = phases["build"]["entry_criteria"]["min_weekly_hours"]
     base_min = phases["base"]["entry_criteria"]["min_weekly_hours"]
@@ -263,7 +270,9 @@ def determine_phase(state: AthleteState) -> PhaseRecommendation:
         if state.has_overtraining_signs:
             unmet.append("Tecken på överträning")
         opt_min = phases.get(optimal, {}).get("entry_criteria", {}).get("min_weekly_hours")
-        if opt_min is not None and state.weekly_training_hours < opt_min:
+        if state.sustainable_phase_override and not (state.has_injury or state.has_overtraining_signs):
+            unmet.append("Grunden byggs fortfarande upp i adeptens egen takt")
+        elif opt_min is not None and state.weekly_training_hours < opt_min:
             unmet.append(
                 f"För låg volym för {optimal}: "
                 f"{state.weekly_training_hours:.1f} < {opt_min} h/v"

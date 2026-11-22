@@ -36,6 +36,10 @@ levels:
     # Efter sista steget får adepten vanliga lugna löppass.
     run_walk_steps: [[1, 1.5], [2, 1.5], [3, 1], [4, 1], [6, 1], [8, 1], [10, 1]]
     progress_weeks_per_step: 2
+    # Fasen efter gjorda veckor (docs/13): de första veckorna är förberedelse,
+    # sedan grundträning, sedan uppbyggnad. Loppets tidpunkt sätter taket
+    # (en fas längre fram än loppet kräver blir det aldrig).
+    phase_by_progress_weeks: {base: 4, build: 12}
 
   intermediate:
     model: ramp
@@ -49,6 +53,8 @@ levels:
     max_session_min: {run: 120, bike: 240, swim: 75, brick: 180, strength: 45}
     allowed_categories: null   # alla kategorier som fasen tillåter
     speed_after_progress_weeks: 0
+    # Den som tränar regelbundet börjar i grundträning.
+    phase_by_progress_weeks: {base: 0, build: 6}
 
   advanced:
     model: declared

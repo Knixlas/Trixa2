@@ -5,7 +5,7 @@
 {% set phasemap = {
   'prep':       ['Förberedelse', 'var(--phase-prep)',       'sprout'],
   'base':       ['Grundträning', 'var(--phase-base)',       'waves'],
-  'build':      ['Bygg',         'var(--phase-build)',      'trending-up'],
+  'build':      ['Uppbyggnad',   'var(--phase-build)',      'trending-up'],
   'peak':       ['Toppning',     'var(--phase-peak)',       'sun'],
   'race':       ['Tävling',      'var(--phase-race)',       'trophy'],
   'transition': ['Återhämtning', 'var(--phase-transition)', 'palmtree']
@@ -24,17 +24,25 @@
         {% set p = phasemap.get(phase, phasemap['base']) %}
         <span class="phase-pill" style="background: {{ p[1] }};"><i data-lucide="{{ p[2] }}"></i>{{ p[0] }}</span>
         {% endif %}
+        {# Nybörjare och medel bygger upp i egen takt (levels.yaml); för dem
+           är "ligger efter" fel ord — planen följer dem med avsikt. #}
+        {% set own_pace = athlete.experience_level in ('beginner', 'intermediate') %}
         {% if behind and optimal_phase %}{% set op = phasemap.get(optimal_phase, phasemap['build']) %}
+        {% if own_pace %}
+        <span class="badge" title="Trixa ökar i din takt. Nästa fas kommer när grunden är byggd.">bygger grunden i din takt</span>
+        {% else %}
         <span class="badge" style="background: var(--coral-soft); color: var(--coral);"
               title="Din faktiska volym bär inte den optimala fasen än — planen är nedskalad">⚠ ligger efter · optimalt {{ op[0] }}</span>
+        {% endif %}
         {% endif %}
       </div>
     </div>
     <p style="margin: 0;">
-      <strong>Mål:</strong> {{ athlete.goal }} ({{ athlete.time_goal or "ingen måltid satt" }})<br>
-      <strong>Tävling:</strong> {{ athlete.race_date or "—" }} ({{ athlete.race_type or "—" }})<br>
-      <strong>Veckotimmar (mål):</strong> {{ athlete.weekly_hours }}h<br>
-      <strong>Aktuell fas:</strong> {{ phase }}{% if behind and optimal_phase %} — <span style="color: var(--coral);">optimalt vore {{ optimal_phase }}, ligger efter</span>{% endif %}
+      <strong>Mål:</strong> {{ goal_labels.get(athlete.goal, athlete.goal) }}{% if athlete.time_goal %} ({{ athlete.time_goal }}){% endif %}<br>
+      <strong>Tävling:</strong> {{ athlete.race_date or "—" }}{% if athlete.race_type %} ({{ race_type_labels.get(athlete.race_type, athlete.race_type) }}){% endif %}<br>
+      {% set wh = athlete.weekly_hours %}
+      <strong>Mest tid per vecka:</strong> {% if wh %}{{ ("%.1f" | format(wh | float)).replace(".0", "").replace(".", ",") }} h{% else %}—{% endif %}<br>
+      {% if phase %}<strong>Aktuell fas:</strong> {{ phasemap.get(phase, [phase])[0] }}{% if behind and optimal_phase and not own_pace %} — <span style="color: var(--coral);">optimalt vore {{ phasemap.get(optimal_phase, [optimal_phase])[0] | lower }}, ligger efter</span>{% endif %}{% endif %}
     </p>
   </article>
 </section>
