@@ -487,7 +487,9 @@ samma pass som en van löpare, och full volym veckan före loppet.
 - Besvär: `coach/trixa/injuries.py` är enda vägen till påverkan per gren.
   Uttryckligt none/partial/full gäller; saknat eller "auto" bedöms ur
   kroppsdel och grad (`data/injury_impact.yaml`). Besvär håller rampen still.
-- Kvar: fasnamnet för ramp-nivåerna (står i prep hela säsongen).
+- Ramp-nivåernas fas följer gjorda veckor (`phase_by_progress_weeks`),
+  inte timgränserna i phases.yaml; loppet sätter taket
+  (`AthleteState.sustainable_phase_override`).
 
 **Yoga som gren + pass som går att markera gjorda (2026-09-02):**
 Skarp användning av en andra adept (Sarah, `acb82415-…`): hon lade in

@@ -599,7 +599,18 @@ def _build_athlete_state(
         if hrv and baseline_low and hrv < float(baseline_low) * 0.9:
             has_ot = True
 
+    # Nybörjare och medel: fasen följer den egna upptrappningen (levels.yaml).
+    # Samma väg för dashboard, passbyten och generate_week (som sätter om den
+    # med veckans aktuella steg).
+    ramp_state = phase_state.get("ramp") or {}
+    try:
+        progress = int(ramp_state.get("progress_weeks") or 0)
+    except (TypeError, ValueError):
+        progress = 0
+    phase_override = levels.sustainable_phase(levels.profile(athlete), progress)
+
     return AthleteState(
+        sustainable_phase_override=phase_override,
         weekly_training_hours=weekly_hours,
         has_injury=_has_significant_injury(athlete),
         has_overtraining_signs=has_ot,
@@ -2396,6 +2407,17 @@ def _apply_level_decisions(decisions: dict, lvl: SimpleNamespace) -> None:
     )
 
 
+def _state_for_level(state: AthleteState, lvl: SimpleNamespace) -> AthleteState:
+    """Ramp-nivåerna: veckotiden är budgeten och fasen följer veckans steg."""
+    if lvl.ramp is None:
+        return state
+    return replace(
+        state, weekly_training_hours=lvl.ramp["budget_minutes"] / 60.0,
+        sustainable_phase_override=levels.sustainable_phase(
+            lvl.profile, lvl.ramp["progress_weeks"]),
+    )
+
+
 def _level_min_sessions(lvl: SimpleNamespace, decisions: dict) -> int:
     """Hur många pass schemaläggaren fyller till: nivåns antal eller fem."""
     if lvl.ramp is None:
@@ -2659,8 +2681,7 @@ def generate_week(
     )
     ot_signals = _build_ot_signals(athlete, weekly_report, garmin_metrics=garmin_metrics)
 
-    if lvl.ramp is not None:
-        state = replace(state, weekly_training_hours=lvl.ramp["budget_minutes"] / 60.0)
+    state = _state_for_level(state, lvl)
 
     # 3. Kör engine. Fasen behövs FÖRE engine för att resolva veckoposition
     # (vilovecko-cykeln räknas per fas via phase_state).

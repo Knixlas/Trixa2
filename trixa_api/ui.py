@@ -2300,6 +2300,15 @@ _RACE_DISTANCES = [
 
 _RACE_DISTANCE_VALUES = {value for value, _label, _req in _RACE_DISTANCES}
 
+# Översiktens "Mål" och "Tävling" i ord, inte databasvärden ("ironman", "10k").
+_jinja_env.globals["race_type_labels"] = {
+    **{value: label for value, label, _req in _RACE_DISTANCES}, "ironman": "Ironman",
+}
+_jinja_env.globals["goal_labels"] = {
+    "first_race": "Min första tävling", "pr": "Slå mitt personbästa",
+    "ironman": "Ironman", "health": "Hälsa och form", "comeback": "Comeback efter uppehåll",
+}
+
 # Långpassdag är bara meningsfull för uthållighetsgrenarna.
 _LONG_DAY_FIELDS = [
     ("long_bike_day", "bike", "Dag för långt cykelpass"),
