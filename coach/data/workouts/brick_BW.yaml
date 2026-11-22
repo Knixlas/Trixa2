@@ -23,15 +23,15 @@ workouts:
     discipline: brick
     category: BW
     type_code: BAE1
-    name: "Lång brick — lugn cykel, löpning direkt på"
+    name: "Långt kombinationspass — lugn cykel, löpning direkt på"
     phase_appropriate: [base_2, base_3, build_1, build_2]
     parameterized: false
     intent: |
-      Veckans stora kombinationspass. Lång lugn cykel följt av löpning
-      direkt på — benen lär sig växlingen från trampcirkel till löpsteg
-      under trötthet. Löpningen SKA kännas konstig första 10 minuterna;
-      det är exakt den anpassningen vi tränar. Håll igen på löpningen —
-      distans är inte målet, växlingen är.
+      Veckans stora kombinationspass. Lång, lugn cykling och sedan
+      löpning direkt efter — benen lär sig gå från att trampa till att
+      springa när de är trötta. Löpningen SKA kännas konstig de första
+      10 minuterna; det är just det du tränar. Håll igen när du springer
+      — det är växlingen som är målet, inte sträckan.
     setting: outdoor
     terrain: flat
     main_set:
@@ -39,17 +39,17 @@ workouts:
         sport: bike
         duration_min: 15
         zone: 1
-        description: "Rulla igång, hitta positionen"
+        description: "Cykla lugnt igång, hitta sittställningen"
       - segment: main
         sport: bike
         duration_min: 105
         zone: 2
         cadence_rpm: [85, 95]
         description: |
-          Jämn Z2. Öva intag från minut 20: kolhydrat var 20:e minut
-          enligt din personliga plan — bricken är fel dag att chansa.
-          Sista 15 min: lite lättare växel, högre kadens (95+) för att
-          "tömma" benen inför löpningen.
+          Jämnt och lugnt (Z2). Öva på att äta och dricka från minut 20:
+          kolhydrater var 20:e minut enligt din egen plan — i dag ska du
+          inte chansa. Sista 15 min: lite lättare växel och snabbare
+          tramptag (95+ varv/min) för att lätta upp benen inför löpningen.
       - segment: transition
         sport: run
         duration_min: 3
@@ -59,22 +59,23 @@ workouts:
         duration_min: 30
         zone: 2
         description: |
-          Första 10 min MEDVETET långsamt — kortare steg, högre frekvens,
-          låt löpbenen komma. Resten avspänd Z2. Inget tempojagande.
+          Första 10 min MEDVETET långsamt — kortare och snabbare steg,
+          låt benen vänja sig. Resten avspänt och lugnt (Z2). Jaga inte
+          farten.
       - segment: cooldown
         sport: run
         duration_min: 5
         zone: 1
-        description: "Gå/lunka ut, sänk pulsen"
+        description: "Gå eller jogga lugnt tills pulsen sjunkit"
     total_duration_min:
       estimated: 158
       flexible_range: [110, 210]
     zone_refs: [Z1, Z2]
     equipment: [power_meter, hr_strap]
     abort_conditions:
-      - "Yrsel, illamående eller energikrasch → gå, avbryt löpdelen"
+      - "Yrsel, illamående eller plötsligt helt slut på energi → gå, avbryt löpningen"
       - "Ryggsmärta som ökar efter växlingen → avsluta med promenad, rapportera"
-      - "HR i löpdelen > Z3 vid Z2-anstängning → du är slut; korta löpningen till 15 min"
+      - "Pulsen går över Z3 när du springer fast det känns som Z2 → du är slut; korta löpningen till 15 min"
     coach_notes: |
       Skalning: cykeldelen följer långpasslogiken (upp mot 3-4 h i sen
       base/build), löpdelen hålls 20-40 min. Det är cykeln som bygger,
@@ -93,10 +94,11 @@ workouts:
     phase_appropriate: [build_1, build_2, peak]
     parameterized: false
     intent: |
-      Tävlingssimulering i miniatyr: cykla på dina faktiska race-watt,
-      växla, och löp på ditt faktiska målpace. Passet svarar på den enda
-      fråga som betyder något i augusti: håller planen? Race-intag
-      körs fullt ut — mage, watt och pace testas tillsammans.
+      Tävlingen i miniatyr: cykla med den effekt du planerat för
+      tävlingen, växla, och spring i din målfart. Passet svarar på den
+      enda fråga som betyder något i augusti: håller planen? Ät och
+      drick precis som på tävlingen — mage, effekt och fart testas
+      tillsammans.
     setting: outdoor
     terrain: flat
     main_set:
@@ -109,24 +111,26 @@ workouts:
         sets: 2
         duration_min: 30
         rest_sec: 300
-        effort_descriptor: "IM-race-watt: 68-73 % av FTP, aeroposition om du har"
+        effort_descriptor: "din tävlingseffekt i Ironman — det du ska orka i flera timmar (68-73 % av FTP), liggande på styret om du har aerostyre"
         cadence_rpm: [85, 95]
         description: |
-          2×30 min på race-watt med 5 min lugn Z1-rull emellan.
-          Fullt race-intag: kolhydrat enligt DIN plan var 15-20:e min.
-          Håll positionen — det är den du ska sitta i 180 km.
+          2 × 30 min på tävlingseffekt med 5 min mycket lätt trampande
+          (Z1) emellan. Ät och drick som på tävlingen: kolhydrater enligt
+          DIN plan var 15–20:e min. Håll sittställningen — det är den du
+          ska sitta i i 180 km.
       - segment: transition
         sport: run
         duration_min: 2
-        effort_descriptor: "Race-växling: allt förberett, öva flödet T2"
+        effort_descriptor: "Växla som på tävlingen: allt förberett, öva bytet från cykel till löpning"
       - segment: main
         sport: run
         duration_min: 20
-        effort_descriptor: "IM-målpace — pacen du planerar öppna maran i"
+        effort_descriptor: "målfart i Ironman — farten du tänker öppna maratonet i"
         description: |
-          Disciplin: INTE snabbare än målpace även om det känns lätt.
-          Lätt ska det kännas — det är poängen. Kolla pace först efter
-          3 min (GPS + växlingsadrenalin ljuger initialt).
+          Spring INTE fortare än målfarten, även om det känns lätt. Lätt
+          ska det kännas — det är poängen. Titta på farten först efter
+          3 min (klockan och adrenalinet efter växlingen lurar dig i
+          början).
       - segment: cooldown
         sport: run
         duration_min: 5
@@ -137,9 +141,9 @@ workouts:
     zone_refs: [Z1, Z2, Z3]
     equipment: [power_meter, hr_strap]
     abort_conditions:
-      - "Magen protesterar mot race-intaget → sänk intensiteten, logga vad som hände — det är passets viktigaste data"
-      - "Race-watt kräver > Z3-puls efter 20 min → dagsform eller fel FTP; sänk 5 % och rapportera"
-      - "Målpace känns som tempolopp → bryt tempot, jogga hem, flagga till coach: målet kan behöva justeras"
+      - "Magen klarar inte maten och drycken → ta det lugnare och skriv ner vad som hände — det är det viktigaste passet kan lära dig"
+      - "Tävlingseffekten ger puls över Z3 efter 20 min → dålig dag eller fel utgångsvärde (FTP); sänk effekten 5 % och rapportera"
+      - "Målfarten känns som ett tempopass → släpp farten, jogga hem och säg till tränaren: målet kan behöva ändras"
     coach_notes: |
       Bankens viktigaste pass sista 8 veckorna före IM. Utfallet ska
       jämföras mot race-planen: klarades watten på rätt puls? Höll magen?
@@ -158,10 +162,11 @@ workouts:
     phase_appropriate: [build_2, peak, race]
     parameterized: false
     intent: |
-      Ren växlingsfärdighet: fyra korta cykel-till-löp-växlingar där
-      själva bytet är träningsinnehållet. Kroppen lär sig hitta löpsteget
-      snabbare för varje rep — och du nöter racets T2-rutin tills den
-      är automatisk. Lätt totalbelastning; passar taper-veckor.
+      Här tränar du bara växlingen: fyra korta byten från cykel till
+      löpning, där själva bytet är det viktiga. Kroppen hittar löpsteget
+      snabbare för varje gång — och du nöter in tävlingens växling från
+      cykel till löpning tills den sitter. Passet är lätt och passar
+      veckorna före tävlingen, när du drar ner på träningen.
     setting: outdoor
     terrain: flat
     main_set:
@@ -173,17 +178,17 @@ workouts:
         sets: 4
         sport: bike
         duration_min: 8
-        effort_descriptor: "Z2, sista 2 min på race-watt — kom in mot 'T2' med tävlingskänsla"
+        effort_descriptor: "Lugnt (Z2), sista 2 min på tävlingseffekt — kom in till växlingen med tävlingskänsla"
       - segment: main
         sets: 4
         sport: run
         duration_min: 5
         rest_sec: 120
-        effort_descriptor: "Direkt ut på IM-målpace — hitta steget inom 90 sekunder"
+        effort_descriptor: "Direkt ut i din målfart för Ironman — hitta steget inom 90 sekunder"
         description: |
-          Körs som 4 cykler: cykel 8 min → växling → löp 5 min → tillbaka.
-          Vilan är själva återgången till cykeln. Fokus: exakt samma
-          rutin varje växling (hjälm, skor, nummerlapp — racets ordning).
+          Gör det 4 gånger: cykla 8 min → växla → spring 5 min → tillbaka.
+          Vilan är när du går tillbaka till cykeln. Gör exakt samma sak
+          vid varje växling (hjälm, skor, nummerlapp — i tävlingens ordning).
       - segment: cooldown
         sport: run
         duration_min: 5
@@ -194,7 +199,7 @@ workouts:
     zone_refs: [Z1, Z2]
     equipment: [power_meter, hr_strap]
     abort_conditions:
-      - "Snurrighet vid växling som inte släpper → sitt ner, avbryt, rapportera"
+      - "Yrsel vid växlingen som inte går över → sätt dig ner, avbryt, rapportera"
     coach_notes: |
       Perfekt taper-pass: race-specifikt, låg dos, hög färdighetsavkastning.
       Kräver plats där cykel + löpning kan växlas säkert (parkering,

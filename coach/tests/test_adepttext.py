@@ -40,7 +40,44 @@ def test_zoner_utan_testvarden_forklaras_i_kansla():
     assert "Z1 – mycket lugnt" in md
 
 
+def test_hela_passbanken_renderas_utan_fackord():
+    """Allt adepten ser, renderarens egna ord inräknade (utrustning, trampfrekvens …)."""
+    import re
+
+    from coach.engine.loader import load_drills, load_strength_exercises
+    from coach.tests.test_passbank_sprak import _FORBIDDEN, _PAREN_ONLY, _outside_parens
+
+    drills = {d["code"]: d for d in load_drills()}
+    exercises = {e["code"]: e for e in load_strength_exercises()}
+    hits = []
+    for w in load_workouts():
+        md = render_workout(resolve_template(w), AthleteProfile(), drills, exercises)
+        for pat in _FORBIDDEN:
+            for m in re.findall(pat, md, flags=re.IGNORECASE if pat.islower() else 0):
+                hits.append(f"{w['code']}: {m!r}")
+        for pat in _PAREN_ONLY:
+            for m in re.findall(pat, _outside_parens(md)):
+                hits.append(f"{w['code']}: {m!r} utanför parentes")
+        if re.search(r"\b[a-z]+_[a-z_]+\b", md):
+            hits.append(f"{w['code']}: kod med understreck {re.search(r'[a-z]+_[a-z_]+', md).group()!r}")
+    assert not hits, f"{len(hits)} träffar:\n" + "\n".join(hits[:40])
+
+
 def test_zoner_med_testvarden_visar_puls():
     profile = AthleteProfile(at_hr_run_bpm=170, max_hr_bpm=190)
     md = render_workout(_pass("AE2_run_template"), profile)
     assert "bpm" in md
+
+
+def test_loggar_under_gamla_ovningsnamn_hittas_efter_namnbytet():
+    """Tio övningar fick svenska namn; loggar utan kod bär bara det gamla."""
+    from coach.engine.loader import load_strength_exercises
+    from coach.trixa.strength_progression import (
+        _FORMER_CATALOG_NAMES, index_history, lookup_history,
+    )
+
+    catalog = {e["code"]: e["name"] for e in load_strength_exercises()}
+    for old_name, code in _FORMER_CATALOG_NAMES.items():
+        assert code in catalog, code
+        idx = index_history([{"exercise_name": old_name.title(), "session_date": "2026-04-01"}])
+        assert lookup_history({"code": code, "name": catalog[code]}, idx), old_name

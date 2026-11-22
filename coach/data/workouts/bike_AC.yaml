@@ -28,11 +28,11 @@ workouts:
         range: [55, 80]
         description: "5 × 3 min + 4 × 3 min vila = 27 min fasta reps."
     intent: |
-      Klassisk VO2Max-träning. Fem 3-minutersblock i Z5 — total 15 min
-      där du jobbar nära max syreupptag. Det här är passet där du undrar
-      vad du gjorde fel i livet. Watt-target är 110-120% FTP. Lik-vila
-      (1:1) gör att det inte blir helt återhämtning mellan reps — det är
-      poängen. Andningen är häftig och konstant.
+      Klassiska maxintervaller: fem block på 3 minuter mycket hårt (Z5,
+      110–120 % av FTP), totalt 15 minuter nära det hårdaste du klarar. Det
+      här är passet där du undrar vad du gjorde fel i livet. Vilan är lika
+      lång som jobbet, så du hinner aldrig hämta dig helt — det är meningen.
+      Du andas tungt hela tiden.
     setting: indoor
     requires_trainer: true
     erg_mode: true
@@ -41,7 +41,7 @@ workouts:
         duration_pct: 0.31
         zone: 1
         erg_mode: false
-        description: "Inkludera 2 × 1 min progressive build mot Z4 och 1 × 30 sek Z5 öppnare"
+        description: "Lägg in 2 × 1 min där du ökar gradvis mot Z4, och 30 sek hårt (Z5) för att väcka benen"
       - segment: main
         sets: 5
         duration_min: 3
@@ -49,8 +49,9 @@ workouts:
         cadence_rpm: [90, 105]
         rest_sec: 180
         description: |
-          Mitten Z5 (≈115% FTP). Aktiv vila i Z1-Z2.
-          Första repet sätt watt-disciplinen; rep 4-5 är där adaption sker.
+          Mycket hårt (mitt i Z5, ≈115 % av FTP). Trampa lugnt i vilan (Z1–Z2).
+          Hitta i första intervallen en nivå du kan hålla; det är i nummer 4–5
+          som passet gör nytta.
       - segment: cooldown
         duration_pct: 0.15
         zone: 1
@@ -61,9 +62,9 @@ workouts:
     zone_refs: [Z1, Z5]
     equipment: [power_meter, hr_strap, trainer]
     abort_conditions:
-      - "Watt rep 5 < 90% av rep 1 → bryt sista repet"
-      - "HR-snabbleds-trötthet: pulsen stannar under Z5 trots ansträngning → AC-systemet är slut, avbryt"
-      - "Kraftiga huvudvärks- eller yrselsymtom → avbryt omedelbart"
+      - "Femte intervallen blir klart svagare än den första (watt under 90 %) → avbryt den"
+      - "Pulsen kommer inte upp i Z5 fast du tar i allt du kan → du är slut för i dag, avbryt"
+      - "Kraftig huvudvärk eller yrsel → avbryt direkt"
     coach_notes: |
       Default AC1. Mycket effektivt men hård dos — använd max 1-2 gånger
       per vecka i build, inte alls i prep eller base. ERG hjälper hålla
@@ -82,10 +83,10 @@ workouts:
         range: [40, 60]
         description: "20 × 30 sek + 19 × 30 sek vila + sista vila = 20 min fasta reps."
     intent: |
-      Tabata-liknande 30/30 — 30 sek hårt / 30 sek lugnt × 20 reps. Total
-      10 min hård tid, men intensitetet är högre än 3-min-reps eftersom
-      vilan är så kort. HR aldrig stabil; effort_descriptor används istället
-      för zone. Maximal VO2-stimulering med begränsad muskulär trötthet.
+      30 sek hårt, 30 sek lugnt, 20 gånger. Totalt 10 minuter hårt, och
+      trycket är högre än i 3-minutersintervaller eftersom bitarna är så
+      korta. Pulsen hinner aldrig lägga sig, så styr efter känslan. Andningen
+      och hjärtat får jobba maximalt, medan benen inte blir lika slitna.
     setting: indoor
     requires_trainer: true
     erg_mode: true
@@ -99,10 +100,10 @@ workouts:
         sets: 20
         duration_sec: 30
         zone: 5
-        effort_descriptor: "30 sek vid 120-130% FTP. Watt-target ≈ 1.25 × FTP. Smooth tramp, hög kadens."
+        effort_descriptor: "30 sek mycket hårt (120–130 % av FTP, ≈1,25 × FTP). Runt, jämnt tramptag och hög trampfrekvens."
         cadence_rpm: [95, 110]
         rest_sec: 30
-        description: "30 sek aktiv vila — låg watt, vrid kvar benen"
+        description: "30 sek lugn trampning — lätt motstånd, håll benen i rörelse"
       - segment: cooldown
         duration_pct: 0.20
         zone: 1
@@ -113,8 +114,8 @@ workouts:
     zone_refs: [Z1, Z5]
     equipment: [power_meter, hr_strap, trainer]
     abort_conditions:
-      - "Watt i reps 15-20 faller > 15% från rep 1-5 → bryt resterande"
-      - "Kadens faller under 85 vid maxwatt → tröttheten är fysiologisk, bryt"
+      - "Intervall 15–20 blir klart svagare än de första fem (watt mer än 15 % lägre) → hoppa över resten"
+      - "Trampfrekvensen sjunker under 85 varv/min i de hårda bitarna → benen är slut, avbryt"
     coach_notes: |
       Klassisk Tabata-inspirerad protokoll, modifierad för cykel. ERG
       krävs absolut — på 30 sek tappar man watt-target utan automation.
@@ -134,10 +135,11 @@ workouts:
         range: [55, 80]
         description: "4 × 4 min + 3 × 3 min vila = 25 min fasta reps."
     intent: |
-      "Norrländska 4×4" — fyra 4-minutersintervaller i Z5 med 3 min vila.
-      Något längre per rep än 3-min-varianten (mer aerob), något kortare
-      total tid (mindre muskulär trötthet). Bra mellanting och har vetenskaplig
-      stöd (Helgerud-protokollet) som bästa VO2-byggande dos.
+      "Norska 4×4": fyra maxintervaller på 4 minuter mycket hårt (Z5), med
+      3 minuters vila. Lite längre intervaller än i 5 × 3 min men kortare
+      total tid, så benen blir mindre slitna. Ett bra mellanting, och
+      forskningen (Helgerud-protokollet) pekar ut det som den bästa dosen
+      för att höja syreupptagningen.
     setting: indoor
     requires_trainer: true
     erg_mode: true
@@ -152,7 +154,7 @@ workouts:
         zone: 5
         cadence_rpm: [90, 105]
         rest_sec: 180
-        description: "Nedre Z5 (≈110-115% FTP). HR ska upp i 90+% av max under sista minuten av varje rep."
+        description: "Mycket hårt (nedre Z5, ≈110–115 % av FTP). Pulsen ska upp över 90 % av din maxpuls under sista minuten av varje intervall."
       - segment: cooldown
         duration_pct: 0.15
         zone: 1
@@ -163,8 +165,8 @@ workouts:
     zone_refs: [Z1, Z5]
     equipment: [power_meter, hr_strap, trainer]
     abort_conditions:
-      - "HR ej över 90% max i rep 1-2 → uppvärmning otillräcklig eller systemiskt trött"
-      - "Watt rep 4 < 90% av rep 1 → bryt"
+      - "Pulsen kommer inte över 90 % av maxpulsen i intervall 1–2 → du är inte tillräckligt uppvärmd, eller trött i hela kroppen"
+      - "Fjärde intervallen blir klart svagare än den första (watt under 90 %) → avbryt"
     coach_notes: |
       Något lättare än AC1_bike_01 (4 min vs 3 min är paradoxalt mindre
       stressande pga längre vila). För adepter som AC1_bike_01 var för
@@ -187,10 +189,10 @@ workouts:
         range: [45, 70]
         description: "Pyramid 1+2+3+2+1 + vila 1+2+3+2 = 17 min fasta reps."
     intent: |
-      Stegrande/avtagande VO2-pyramid: 1, 2, 3, 2, 1 min i Z5 med vila
-      lika med rep-tiden. Pyramiden ger variation utan att tappa fokus;
-      3-min-toppen ligger där VO2 maxar. Lättare mental dos än 5×3 men
-      lika fysiskt effektiv.
+      Maxintervaller som en pyramid: 1, 2, 3, 2, 1 min mycket hårt (Z5), med
+      lika lång vila som intervallen. Växlingen gör det lättare att hålla
+      fokus, och toppen på 3 minuter är där kroppen tar upp mest syre.
+      Lättare i huvudet än 5 × 3 min, men ger lika mycket.
     setting: indoor
     requires_trainer: true
     erg_mode: true
@@ -233,7 +235,7 @@ workouts:
     zone_refs: [Z1, Z5]
     equipment: [power_meter, hr_strap, trainer]
     abort_conditions:
-      - "3-min-toppen ej genomförbar → reducera till 2 min och hoppa över sista 1-min-repet"
+      - "Du klarar inte toppen på 3 min → kör 2 min i stället och hoppa över den sista minutintervallen"
     coach_notes: |
       Total Z5-tid: 9 min — mindre än 5×3 men distribuerat över pyramiden.
       Bra introduktion till AC1 för adept som inte kört VO2-träning förut.
@@ -251,9 +253,10 @@ workouts:
         range: [40, 65]
         description: "2 pyramider med vila = ≈22 min fasta reps."
     intent: |
-      Kort-rep-pyramid: 30, 60, 90, 60, 30 sek med vila = rep-tid. Watt-target
-      högre än 3-min-pyramiden (≈120% FTP på 30-sek, ≈115% på 90-sek). HR
-      hinner aldrig stabilisera helt; effort_descriptor används.
+      Pyramid med korta intervaller: 30, 60, 90, 60, 30 sek, med lika lång
+      vila som intervallen. Hårdare tryck än i minutpyramiden (≈120 % av FTP
+      på 30 sek, ≈115 % på 90 sek). Pulsen hinner aldrig lägga sig, så styr
+      efter känslan.
     setting: indoor
     requires_trainer: true
     erg_mode: true
@@ -265,61 +268,61 @@ workouts:
       - segment: main
         duration_sec: 30
         zone: 5
-        effort_descriptor: "120% FTP, smooth"
+        effort_descriptor: "Mycket hårt, jämnt tramptag (120 % av FTP)"
         cadence_rpm: [100, 110]
         rest_sec: 30
       - segment: main
         duration_sec: 60
         zone: 5
-        effort_descriptor: "118% FTP"
+        effort_descriptor: "Mycket hårt (118 % av FTP)"
         cadence_rpm: [95, 105]
         rest_sec: 60
       - segment: main
         duration_sec: 90
         zone: 5
-        effort_descriptor: "115% FTP"
+        effort_descriptor: "Hårt men kontrollerat, du ska orka hela 90 sek (115 % av FTP)"
         cadence_rpm: [95, 105]
         rest_sec: 90
       - segment: main
         duration_sec: 60
         zone: 5
-        effort_descriptor: "118% FTP"
+        effort_descriptor: "Mycket hårt (118 % av FTP)"
         cadence_rpm: [95, 105]
         rest_sec: 60
       - segment: main
         duration_sec: 30
         zone: 5
-        effort_descriptor: "120% FTP, smooth"
+        effort_descriptor: "Mycket hårt, jämnt tramptag (120 % av FTP)"
         cadence_rpm: [100, 110]
         rest_sec: 60
       - segment: main
         duration_sec: 30
         zone: 5
-        effort_descriptor: "120% FTP — pyramid 2 börjar"
+        effort_descriptor: "Pyramid 2 börjar. Mycket hårt (120 % av FTP)"
         cadence_rpm: [100, 110]
         rest_sec: 30
       - segment: main
         duration_sec: 60
         zone: 5
-        effort_descriptor: "118% FTP"
+        effort_descriptor: "Mycket hårt (118 % av FTP)"
         cadence_rpm: [95, 105]
         rest_sec: 60
       - segment: main
         duration_sec: 90
         zone: 5
-        effort_descriptor: "115% FTP"
+        effort_descriptor: "Hårt men kontrollerat, du ska orka hela 90 sek (115 % av FTP)"
         cadence_rpm: [95, 105]
         rest_sec: 90
       - segment: main
         duration_sec: 60
         zone: 5
-        effort_descriptor: "118% FTP"
+        effort_descriptor: "Mycket hårt (118 % av FTP)"
         cadence_rpm: [95, 105]
         rest_sec: 60
       - segment: main
         duration_sec: 30
         zone: 5
-        effort_descriptor: "120% FTP, smooth"
+        effort_descriptor: "Mycket hårt, jämnt tramptag (120 % av FTP)"
         cadence_rpm: [100, 110]
       - segment: cooldown
         duration_pct: 0.20
@@ -331,7 +334,7 @@ workouts:
     zone_refs: [Z1, Z5]
     equipment: [power_meter, hr_strap, trainer]
     abort_conditions:
-      - "Watt-targets i pyramid 2 < 90% av pyramid 1 → bryt pyramid 2 efter 90-sek-repet"
+      - "Pyramid 2 blir klart svagare än den första (watt under 90 %) → avbryt den efter 90-sekundersintervallen"
     coach_notes: |
       Två pyramider i sekvens med 1 min vila mellan. Total Z5-tid: 11 min
       (vs 9 min i AC2_bike_01) men kortare reps gör det möjligt att hålla
@@ -354,10 +357,10 @@ workouts:
         range: [60, 90]
         description: "6 × 2 min + 5 × 4 min vila = 32 min fasta reps."
     intent: |
-      Korta hårda backe-intervaller. Hitta backe på 2 min (typiskt 500-700m,
-      6-10%). Watt-target Z5 (≈115-120% FTP). Kombinerar VO2-stress med
-      backe-belastning — adapt är specifik för IM-cykling med kuperade
-      partier eller motvind. Mycket hårt; kort dos.
+      Korta, hårda backintervaller. Hitta en backe som tar 2 minuter (oftast
+      500–700 m, 6–10 %). Kör mycket hårt (Z5, ≈115–120 % av FTP). Du tränar
+      både andningen och benen i backe — det du behöver på en Ironman med
+      backar eller motvind. Mycket hårt, men kort.
     setting: outdoor
     terrain: hilly
     outdoor_only: true
@@ -366,7 +369,7 @@ workouts:
       - segment: warmup
         duration_pct: 0.29
         zone: 1
-        description: "Inkludera 2 × 30 sek progressive i Z3-Z4 mot slutet"
+        description: "Mot slutet: 2 × 30 sek där du ökar gradvis från Z3 till Z4"
       - segment: main
         sets: 6
         duration_min: 2
@@ -374,8 +377,8 @@ workouts:
         cadence_rpm: [85, 100]
         rest_sec: 240
         description: |
-          Mitten Z5. Rull ned i återhämtning. 4 min vila är generös men
-          nödvändig för att kunna upprepa Z5 6 gånger.
+          Mycket hårt (mitt i Z5). Rulla lugnt ned i vilan. 4 minuter är gott
+          om vila, men du behöver den för att orka sex gånger.
       - segment: cooldown
         duration_pct: 0.14
         zone: 1
@@ -385,8 +388,8 @@ workouts:
     zone_refs: [Z1, Z5]
     equipment: [power_meter, hr_strap]
     abort_conditions:
-      - "Watt rep 6 < 90% av rep 1 → bryt"
-      - "Kadens under 80 trots växel-val → backen för brant, sänk watt-target"
+      - "Sjätte backen blir klart svagare än den första (watt under 90 %) → avbryt"
+      - "Trampfrekvensen under 80 varv/min fast du växlat ned → backen är för brant, ta i lite mindre"
     coach_notes: |
       Mer specifik för IM-cykling med vind/backar än indoor VO2. Kräver
       rätt backe — 2-4 min lång med jämn lutning (4-7 %). I peak-fas kan
@@ -405,10 +408,11 @@ workouts:
         range: [65, 95]
         description: "8 × 90 sek + 7 × 3 min vila = 33 min fasta reps."
     intent: |
-      Kortare och mer intensiva backe-intervaller. Backe på 90 sek (400-500m,
-      8-12%). Watt-target hög Z5 / nedre Z6 (≈120-125% FTP). 8 reps med
-      tillräcklig vila för att hålla wattan. Peak-fas-specifikt — bygger
-      "top end" inför tävling.
+      Kortare och ännu hårdare backintervaller. Hitta en backe som tar
+      90 sekunder (400–500 m, 8–12 %). Kör nästan fullt (hög Z5 till nedre Z6,
+      ≈120–125 % av FTP). Åtta gånger, med vila nog att orka hålla trycket.
+      Ett pass för toppningen inför tävlingen: det vässar förmågan att ta i
+      riktigt hårt.
     setting: outdoor
     terrain: hilly
     outdoor_only: true
@@ -421,10 +425,10 @@ workouts:
         sets: 8
         duration_sec: 90
         zone: 5
-        effort_descriptor: "Hög Z5 / nedre Z6 (≈120-125% FTP). Hård och smooth — inte all-out sprint."
+        effort_descriptor: "Mycket hårt men jämnt, inte en spurt för allt du har (hög Z5 till nedre Z6, ≈120–125 % av FTP)."
         cadence_rpm: [85, 100]
         rest_sec: 180
-        description: "Rull ned i återhämtning, lugn återgång till backens fot"
+        description: "Rulla lugnt ned till backens fot och hämta dig"
       - segment: cooldown
         duration_pct: 0.13
         zone: 1
@@ -434,8 +438,8 @@ workouts:
     zone_refs: [Z1, Z5]
     equipment: [power_meter, hr_strap]
     abort_conditions:
-      - "Watt i reps 6-8 < 90% av rep 1-2 → bryt"
-      - "Watt rep 1 omedelbart i Z6+ → for hårt, sänk"
+      - "Backe 6–8 blir klart svagare än de två första (watt under 90 %) → avbryt"
+      - "Första backen känns som en spurt (Z6 eller högre) direkt → för hårt, sänk"
     coach_notes: |
       Mer intensitet, mindre total tid än AC3_bike_01. Peak-fas-pass —
       sista hårdkörningarna 4-3 veckor innan A-race. Inte för build_1

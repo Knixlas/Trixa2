@@ -30,7 +30,7 @@ workouts:
     discipline: strength
     category: ST
     type_code: MS
-    name: "Max Strength — Helkropp A"
+    name: "Tung styrka — hela kroppen A"
     parametrized: true
     parameters:
       sets:
@@ -47,14 +47,15 @@ workouts:
         description: "Reps in reserve. Lägre = tyngre. Readiness-gate höjer RIR vid låg form"
     phase_appropriate: [base_1, base_2, base_3]
     intent: |
-      Tung helkroppsstyrka med fokus på knädominant ben och horisontell
-      drag/press. Maskinbias för låst bana och säker nära-failure-träning.
-      Kvalitet före vikt — RIR styr lasten, inte tvärtom. Bål sist.
+      Tung styrka för hela kroppen: ben, rodd och bröstpress. Mest
+      maskiner, så att du kan ta i nära gränsen utan risk. Kvalitet före
+      vikt — välj vikten efter hur många du ska orka till, inte tvärtom.
+      Bålen sist.
     main_set:
       - segment: warmup
         type: general
         duration_min: 8
-        description: "Lätt cykel/rodd + dynamisk höftböjarstretch + bird dog 2×8/sida"
+        description: "Lätt cykling eller rodd, dynamisk höftböjarstretch och diagonallyft på alla fyra, 2 omgångar à 8 per sida"
 
       - segment: strength_block
         order: 1
@@ -62,7 +63,7 @@ workouts:
         prescription: {sets: 3, reps: 6, rir: 2, rest_sec: 150}
         load_pct: "tung arbetsvikt"
         alt: goblet_squat
-        note: "Huvudlyft. Full ROM utan att svanken släpper."
+        note: "Passets viktigaste övning. Hela rörelsen, men inte så djupt att ländryggen släpper från dynan."
 
       - segment: strength_block
         order: 2
@@ -70,26 +71,26 @@ workouts:
         prescription: {sets: 3, reps: 8, rir: 2, rest_sec: 120}
         load_pct: "måttlig–tung"
         alt: chest_press_machine
-        note: "Neutralt grepp pga bicepssena. Vid aktiv flagga → swap till press."
+        note: "Handflatorna mot varandra, det skonar bicepssenan. Känns senan av: byt till bröstpress."
 
       - segment: strength_block
         order: 3
         exercise: chest_press_machine
         prescription: {sets: 3, reps: 8, rir: 2, rest_sec: 120}
         load_pct: "måttlig–tung"
-        note: "Sänk handtag/säte om axeln knottrar; vid aktiv axelflagga dras blocket (se abort)."
+        note: "Sänk handtagen eller sätet om det skaver i axeln. Har du ont i axeln: hoppa över övningen."
 
       - segment: strength_block
         order: 4
         exercise: pallof_press
         prescription: {sets: 2, reps: 10, rir: 3, rest_sec: 60}
         load_pct: "lätt–måttlig"
-        note: "Anti-rotation. 10 reps/sida."
+        note: "Håll bålen stilla när kabeln drar dig åt sidan. 10 per sida."
 
       - segment: cooldown
         type: mobility
         duration_min: 5
-        description: "Thoracic rotation 8/sida + lätt rörlighet"
+        description: "Bröstryggsrotation, 8 per sida, och lätt rörlighet"
 
     total_duration_min:
       estimated: 45
@@ -98,9 +99,9 @@ workouts:
     load_model: rir
     equipment: [leg_press, seated_row, chest_press, cable, dumbbell]
     abort_conditions:
-      - "Bicepssena/long head-känning → avbryt draget, swap till press."
-      - "Axelimpingement i pressen → sänk ROM eller hoppa blocket."
-      - "Readiness < 30 → kör RIR +1 eller dra block 3."
+      - "Känns det i bicepssenan: avbryt rodden och byt till bröstpress."
+      - "Nyper det i axeln i pressen: gå inte lika djupt, eller hoppa över övningen."
+      - "Låg dagsform (readiness under 30): välj så lätt vikt att du orkar en till utöver det som står, eller hoppa över bröstpressen."
     coach_notes: |
       I aktuell rebuild-vecka: kör övre delen av RIR-spannet (3–4) och
       2 set. Tyngsta MS-uttaget sparas till du är stabilt grön. Latsdrag
@@ -115,7 +116,7 @@ workouts:
     discipline: strength
     category: ST
     type_code: MS
-    name: "Max Strength — Helkropp B"
+    name: "Tung styrka — hela kroppen B"
     parametrized: true
     parameters:
       sets:
@@ -132,14 +133,14 @@ workouts:
         description: "Reps in reserve; readiness-gate höjer vid låg form"
     phase_appropriate: [base_1, base_2, base_3]
     intent: |
-      Komplement till A. Höftfällning (hamstrings/säte), enbensstyrka och
-      vertikaldrag. Posterior chain och sidobalans — direkt löpprevention.
-      Vertikaldraget gate:as bort vid aktiv bicepssena.
+      Kompletterar pass A. Baksida lår och säte, ett ben i taget och drag
+      uppifrån. Stark baksida och jämna sidor skyddar mot löpskador. Har
+      du besvär i bicepssenan byts latsdraget ut.
     main_set:
       - segment: warmup
         type: general
         duration_min: 8
-        description: "Lätt rodd + dynamisk höftböjarstretch + dead bug 2×8/sida"
+        description: "Lätt rodd, dynamisk höftböjarstretch och dead bug, 2 omgångar à 8 per sida"
 
       - segment: strength_block
         order: 1
@@ -147,7 +148,7 @@ workouts:
         prescription: {sets: 3, reps: 6, rir: 2, rest_sec: 150}
         load_pct: "tung arbetsvikt"
         alt: leg_curl_machine
-        note: "Huvudlyft. Vid rygg-/bröstryggsflagga → swap till leg curl."
+        note: "Passets viktigaste övning. Har du besvär i ryggen eller bröstryggen: byt till bencurl."
 
       - segment: strength_block
         order: 2
@@ -155,7 +156,7 @@ workouts:
         prescription: {sets: 3, reps: 8, rir: 2, rest_sec: 120}
         load_pct: "måttlig"
         alt: straight_arm_pulldown
-        note: "Bicepskänning → gate:as bort, swap till raka-arm-latsdrag (ingen bicepslast)."
+        note: "Känns det i bicepsen: byt till latsdrag med raka armar, som inte tar på bicepsen."
 
       - segment: strength_block
         order: 3
@@ -163,7 +164,7 @@ workouts:
         prescription: {sets: 3, reps: 8, rir: 3, rest_sec: 90}
         load_pct: "måttlig"
         alt: step_up
-        note: "8 reps/ben. Sidoskillnader adresseras här."
+        note: "8 per ben. Här jämnar du ut skillnader mellan sidorna."
 
       - segment: strength_block
         order: 4
@@ -171,12 +172,12 @@ workouts:
         prescription: {sets: 2, reps: 1, rir: 2, rest_sec: 45}
         load_pct: "kroppsvikt, isometrisk hålltid"
         alt: dead_bug
-        note: "Hålltid 20–40s/sida. Axelflagga → swap till dead bug."
+        note: "Håll 20–40 s per sida. Känns det i axeln: byt till dead bug."
 
       - segment: cooldown
         type: mobility
         duration_min: 5
-        description: "Thoracic rotation + höftböjarstretch"
+        description: "Bröstryggsrotation och höftböjarstretch"
 
     total_duration_min:
       estimated: 45
@@ -185,9 +186,9 @@ workouts:
     load_model: rir
     equipment: [barbell, dumbbell, leg_curl, lat_pulldown, bench]
     abort_conditions:
-      - "Ländrygg i RDL → swap till leg curl, ompröva teknik."
-      - "Bicepssena → swap latsdrag till rodd."
-      - "Readiness < 30 → RIR +1 eller dra block 3."
+      - "Känns det i ländryggen i marklyftet: byt till bencurl och se över tekniken."
+      - "Känns det i bicepssenan: byt latsdraget mot rodd."
+      - "Låg dagsform (readiness under 30): välj så lätt vikt att du orkar en till utöver det som står, eller hoppa över bulgarisk utfallsknäböj."
     coach_notes: |
       RDL är flaggad för ländrygg/bröstrygg — i din nuvarande thorakala
       situation, börja med leg curl-varianten tills naprapaten gett klartecken.

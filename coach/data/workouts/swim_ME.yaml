@@ -28,9 +28,10 @@ workouts:
         description: "Skala till veckans budget"
     phase_appropriate: [base_3, build_1, build_2]
     intent: |
-      Lång cruise — strax under CSS-fart, tillräckligt nära för att
-      det ska bita, tillräckligt under för att tre repetitioner går.
-      Bygger uthållighet på race-pace för halv- och hellång IM-simning.
+      Långa intervaller strax långsammare än din tröskelfart i simning
+      (CSS). Nära nog för att det ska kännas, lugnt nog för att du orkar
+      tre. Bygger uthållighet i den fart du vill hålla på simningen i en
+      halv eller hel Ironman.
     main_set:
       - segment: warmup
         duration_pct: 0.10
@@ -43,17 +44,17 @@ workouts:
         sets: {default: 4, range: [3, 6]}
         distance_m: 50
         rest_sec: 10
-        description: "Build från Z2 till Z4, väck race-pace-känslan"
+        description: "Öka farten under varje 50 m, från lugnt (Z2) till hårt (Z4). Väck tävlingskänslan."
       - segment: main
         sets: {default: 3, range: [2, 5]}
         distance_m: 800
         zone: 3
         rest_sec: 90
-        description: "Jämn pace — sista 800:an ska se ut som första. Negative split mot CSS om möjligt."
+        description: "Jämn fart, sista 800 m ska gå lika fort som första. Orkar du: simma andra halvan lite snabbare, upp mot tröskelfarten (CSS)."
       - segment: continuous
         duration_pct: 0.05
         zone: 1
-        description: "Aktiv recovery efter setet"
+        description: "Lugn simning efter intervallerna, låt pulsen gå ner"
       - segment: cooldown
         duration_pct: 0.10
         zone: 1
@@ -64,13 +65,13 @@ workouts:
     zone_refs: [Z1, Z2, Z3]
     equipment: []
     abort_conditions:
-      - "Om split-1 av 800-2 är >5s/100m långsammare än 800-1 → korta 800-3 till 500"
+      - "Går början av andra 800 m mer än 5 s per 100 m långsammare än första 800 m: korta den tredje till 500 m"
 
   - code: ME1_swim_02
     discipline: swim
     category: ME
     type_code: ME1
-    name: "4×500 i tröskelfart — håll splitsen"
+    name: "4 × 500 m i tröskelfart — håll farten jämn"
     parameterized: true
     parameters:
       duration_min:
@@ -79,9 +80,10 @@ workouts:
         description: "Skala till veckans budget"
     phase_appropriate: [build_1, build_2]
     intent: |
-      Fyra 500:or på CSS-fart är ett klassiskt 'CSS-test extended'-set.
-      Mätbart: pace ska ligga inom +/- 2s/100m på alla fyra.
-      Inkonsekvens betyder att CSS-värdet eller dagsformen ljuger.
+      Fyra 500 m i din tröskelfart i simning (CSS), hårt men jämnt.
+      Passet fungerar som ett längre test: tiden per 100 m ska ligga
+      inom ±2 s på alla fyra. Skiljer det mer stämmer antingen din
+      tröskelfart eller dagsformen inte.
     main_set:
       - segment: warmup
         duration_pct: 0.12
@@ -95,11 +97,11 @@ workouts:
         distance_m: 500
         zone: 3
         rest_sec: 45
-        description: "CSS-pace. Andas på 3 om möjligt."
+        description: "Tröskelfart (CSS). Andas på vart tredje tag om du kan."
       - segment: continuous
         duration_pct: 0.05
         zone: 1
-        description: "Aktiv recovery efter setet"
+        description: "Lugn simning efter intervallerna, låt pulsen gå ner"
       - segment: cooldown
         duration_pct: 0.08
         zone: 1
@@ -117,7 +119,7 @@ workouts:
     discipline: swim
     category: ME
     type_code: ME1
-    name: "2×1000 — den andra ska vara snabbare"
+    name: "2 × 1000 m — den andra ska gå fortare"
     parameterized: true
     parameters:
       duration_min:
@@ -126,8 +128,8 @@ workouts:
         description: "Skala till veckans budget — strukturen håller, men sista pieces blir längre vid större budget"
     phase_appropriate: [build_1, build_2, peak]
     intent: |
-      Två stora intervaller, andra snabbare än första. Mental och
-      fysisk träning på att 'ha kvar' när det redan kostat.
+      Två långa intervaller, den andra snabbare än den första. Du
+      tränar på att ha något kvar när det redan har börjat ta emot.
     main_set:
       - segment: warmup
         duration_pct: 0.12
@@ -141,17 +143,17 @@ workouts:
         distance_m: 1000
         zone: 2
         rest_sec: 90
-        description: "Övre Z2 / nedre Z3 — bygg upp till race-pace gradvis"
+        description: "Lugnt men bestämt (övre Z2 till nedre Z3). Öka gradvis mot tävlingsfart."
       - segment: main
         sets: 1
         distance_m: 1000
         zone: 3
         rest_sec: 0
-        description: "På CSS eller strax under — om möjligt negative split"
+        description: "På din tröskelfart (CSS) eller strax långsammare. Orkar du: simma andra halvan snabbare."
       - segment: continuous
         duration_pct: 0.22
         zone: 1
-        description: "Aktiv recovery efter setet"
+        description: "Lugn simning efter intervallerna, låt pulsen gå ner"
       - segment: cooldown
         duration_pct: 0.07
         zone: 1
@@ -170,7 +172,7 @@ workouts:
     discipline: swim
     category: ME
     type_code: ME2
-    name: "10×100 i tröskelfart — håll linjen"
+    name: "10 × 100 m i tröskelfart — håll linjen"
     parameterized: true
     parameters:
       duration_min:
@@ -179,9 +181,9 @@ workouts:
         description: "Skala till veckans budget"
     phase_appropriate: [base_3, build_1, build_2]
     intent: |
-      Klassiskt 100:or-set. Tio repetitioner på exakt CSS-pace.
-      Den korta vilan tillåter inte full återhämtning — du måste
-      räkna på pace-disciplin, inte på 'ladda om' mellan.
+      Tio 100 m precis i din tröskelfart i simning (CSS). Vilan är så
+      kort att du inte hinner hämta dig helt. Det är jämn fart som bär
+      dig, inte att du laddar om mellan.
     main_set:
       - segment: warmup
         duration_pct: 0.15
@@ -195,11 +197,11 @@ workouts:
         distance_m: 100
         zone: 3
         rest_sec: 15
-        description: "Strikt CSS-pace. Inte snabbare på första, inte långsammare på sista."
+        description: "Precis tröskelfart (CSS). Inte snabbare på den första, inte långsammare på den sista."
       - segment: continuous
         duration_pct: 0.25
         zone: 1
-        description: "Aktiv recovery efter setet"
+        description: "Lugn simning efter intervallerna, låt pulsen gå ner"
       - segment: cooldown
         duration_pct: 0.10
         zone: 1
@@ -214,7 +216,7 @@ workouts:
     discipline: swim
     category: ME
     type_code: ME2
-    name: "Växelfart — 15×100 i tre tempon"
+    name: "Växelfart — 15 × 100 m i tre farter"
     parameterized: true
     parameters:
       duration_min:
@@ -223,9 +225,9 @@ workouts:
         description: "Skala till veckans budget — fler cykler vid större budget"
     phase_appropriate: [build_1, build_2]
     intent: |
-      100:or i rotation: tre olika paces. Lär kroppen växla mellan
-      uthållighetsfart, tröskelfart och under-CSS. Användbart för
-      tävlingssimulering där fartvariation uppstår vid drafting, vågor.
+      100 m i tre farter som växlar: lugn uthållighetsfart, tröskelfart
+      och strax snabbare än tröskelfarten (CSS). Kroppen lär sig byta
+      fart, som på tävling när du ligger bakom någon eller möter vågor.
     main_set:
       - segment: warmup
         duration_pct: 0.13
@@ -240,25 +242,25 @@ workouts:
         rest_sec: 15
         zones_per_set: [2, 3, 4, 3, 2]
         pace_pattern: alternating
-        description: "Första cykeln: Z2-Z3-Z4-Z3-Z2"
+        description: "Första varvet: lugnt (Z2), tröskel (Z3), hårt (Z4), tröskel (Z3), lugnt (Z2)"
       - segment: main
         sets: {default: 5, range: [3, 8]}
         distance_m: 100
         rest_sec: 15
         zones_per_set: [2, 3, 4, 3, 2]
         pace_pattern: alternating
-        description: "Andra cykeln, samma mönster"
+        description: "Andra varvet, samma mönster"
       - segment: main
         sets: {default: 5, range: [3, 8]}
         distance_m: 100
         rest_sec: 15
         zones_per_set: [2, 3, 4, 3, 2]
         pace_pattern: alternating
-        description: "Tredje cykeln, samma mönster"
+        description: "Tredje varvet, samma mönster"
       - segment: continuous
         duration_pct: 0.21
         zone: 1
-        description: "Aktiv recovery efter setet"
+        description: "Lugn simning efter intervallerna, låt pulsen gå ner"
       - segment: cooldown
         duration_pct: 0.08
         zone: 1
@@ -273,7 +275,7 @@ workouts:
     discipline: swim
     category: ME
     type_code: ME2
-    name: "Storsetet — 20×100 i tröskelfart"
+    name: "Storpasset — 20 × 100 m i tröskelfart"
     parameterized: true
     parameters:
       duration_min:
@@ -282,9 +284,9 @@ workouts:
         description: "Skala till veckans budget — fler reps i main vid större budget"
     phase_appropriate: [build_1, build_2]
     intent: |
-      Stort 100:or-set. Den totala distansen i kvalitetsintervall
-      gör det till en indikator: kan du hålla CSS över 20×100, är
-      du på rätt nivå för halv-IM-distansen tävlingsmässigt.
+      Många 100 m i rad. Den långa sammanlagda sträckan gör passet till
+      ett test: orkar du hålla din tröskelfart i simning (CSS) i alla
+      20 är du redo för simningen på en halv Ironman.
     main_set:
       - segment: warmup
         duration_pct: 0.10
@@ -302,11 +304,11 @@ workouts:
         distance_m: 100
         zone: 3
         rest_sec: 10
-        description: "CSS-pace. När de börjar drifta — håll kvar mentalt, det är poängen."
+        description: "Tröskelfart (CSS). När tiderna börjar glida: håll i, det är det som är poängen."
       - segment: continuous
         duration_pct: 0.05
         zone: 1
-        description: "Aktiv recovery efter setet"
+        description: "Lugn simning efter intervallerna, låt pulsen gå ner"
       - segment: cooldown
         duration_pct: 0.08
         zone: 1
@@ -317,7 +319,7 @@ workouts:
     zone_refs: [Z1, Z3]
     equipment: []
     abort_conditions:
-      - "Om split drifter >5s/100m sämre än start och inte återhämtar sig 2 intervaller → kör resterande i Z2"
+      - "Går tiden mer än 5 s per 100 m långsammare än i början och kommer inte tillbaka på två intervaller: simma resten lugnt (Z2)"
     coach_notes: |
       Bra peak-fas-check 4-6 veckor innan IM. Resultatet säger
       om race-pace är realistisk eller behöver justeras.
@@ -339,8 +341,9 @@ workouts:
         description: "Skala till veckans budget"
     phase_appropriate: [build_1, build_2]
     intent: |
-      Klassisk tröskel-set. 300:orna är längre än 100:or men kortare
-      än 500:or — säkrar att du jobbar på tröskel utan att tappa pace.
+      Intervaller på 300 m i din tröskelfart i simning (CSS), hårt men
+      jämnt. Längre än 100 m men kortare än 500 m, så du hinner jobba
+      vid tröskeln utan att tappa farten.
     main_set:
       - segment: warmup
         duration_pct: 0.13
@@ -358,11 +361,11 @@ workouts:
         distance_m: 300
         zone: 3
         rest_sec: 30
-        description: "Exakt CSS-pace, andas på 3"
+        description: "Precis tröskelfart (CSS). Andas på vart tredje tag."
       - segment: continuous
         duration_pct: 0.07
         zone: 1
-        description: "Aktiv recovery efter setet"
+        description: "Lugn simning efter intervallerna, låt pulsen gå ner"
       - segment: cooldown
         duration_pct: 0.10
         zone: 1
@@ -377,7 +380,7 @@ workouts:
     discipline: swim
     category: ME
     type_code: ME3
-    name: "8×200 strax över tröskeln — det ska kosta"
+    name: "8 × 200 m strax över tröskeln — det ska kosta"
     parameterized: true
     parameters:
       duration_min:
@@ -386,9 +389,9 @@ workouts:
         description: "Skala till veckans budget"
     phase_appropriate: [build_1, build_2, peak]
     intent: |
-      Strax SNABBARE än CSS — sub-threshold kvalitetsarbete.
-      8×200 är gränsen där det går, just och just. Tränar
-      mjölksyra-tolerans och pace över CSS.
+      Strax snabbare än din tröskelfart i simning (CSS). Åtta 200 m är
+      precis vad som går, med nöd och näppe. Du vänjer dig vid att
+      hålla farten fast armarna och andningen protesterar.
     main_set:
       - segment: warmup
         duration_pct: 0.13
@@ -402,11 +405,11 @@ workouts:
         distance_m: 200
         zone: 4
         rest_sec: 30
-        description: "2-3s/100m under CSS — det här ska kosta"
+        description: "Strax snabbare än tröskelfarten (CSS − 2–3 s per 100 m). Det här ska kosta."
       - segment: continuous
         duration_pct: 0.08
         zone: 1
-        description: "Aktiv recovery efter setet"
+        description: "Lugn simning efter intervallerna, låt pulsen gå ner"
       - segment: cooldown
         duration_pct: 0.12
         zone: 1
@@ -417,7 +420,7 @@ workouts:
     zone_refs: [Z1, Z4]
     equipment: []
     abort_conditions:
-      - "När pace på en 200 drifter över CSS → stop, sista intervallen i Z2 som cooldown-extra"
+      - "Blir en 200 m långsammare än din tröskelfart (CSS): sluta med intervallerna och simma den sista lugnt (Z2) som extra nedvarvning"
 
   - code: ME3_swim_03
     discipline: swim
@@ -432,8 +435,9 @@ workouts:
         description: "Skala till veckans budget — fler rounds vid stor budget"
     phase_appropriate: [build_1, build_2]
     intent: |
-      Tröskelintervaller med en 200 i Z1 mellan varje — den lugna
-      delen tillåter teknisk reflektion: 'vad bröts? vad ska tillbaka?'
+      Tröskelintervaller med 200 m mycket lugn simning (Z1) mellan.
+      Under den lugna delen tänker du på tekniken: vad föll isär, och
+      vad ska tillbaka?
     main_set:
       - segment: warmup
         duration_pct: 0.13
@@ -447,17 +451,17 @@ workouts:
         distance_m: 400
         zone: 3
         rest_sec: 30
-        description: "Tröskel. Andas på 3. Notera vad som bryts under fart."
+        description: "Tröskelfart (CSS), hårt men jämnt. Andas på vart tredje tag. Lägg märke till vad i tekniken som faller isär när det går fort."
       - segment: main
         sets: {default: 2, range: [1, 4]}
         distance_m: 200
         zone: 1
         rest_sec: 0
-        description: "Lugn fri mellan — analysera vad som bröts i 400:an. Antalet matchar antal kvalitets-400:or - 1."
+        description: "Lugn frisim mellan 400:orna. Tänk igenom vad som föll isär. En 200 m efter varje 400 m utom den sista."
       - segment: continuous
         duration_pct: 0.21
         zone: 1
-        description: "Aktiv recovery efter setet"
+        description: "Lugn simning efter intervallerna, låt pulsen gå ner"
       - segment: cooldown
         duration_pct: 0.08
         zone: 1

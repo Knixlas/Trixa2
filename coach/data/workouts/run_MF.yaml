@@ -23,10 +23,10 @@ workouts:
         range: [45, 60]
         description: "Stridor + main = ~24 min FAST"
     intent: |
-      Korta backsprintar — explosiv kraft, hög rekrytering. Fokus
-      ligger på STEGET, inte på pulsen: kort markkontakt, kraftig
-      avstamp, hög knäresning. Pausvilan är full — vi tränar kraft,
-      inte tröskel.
+      Korta backsprintar med all kraft du har. Tänk på STEGET, inte på
+      pulsen: kort tid i marken, kraftigt frånskjut, höga knän. Vila
+      tills du är helt återhämtad — det är kraft du tränar, inte att
+      hålla ut.
     main_set:
       - segment: warmup
         duration_pct: 0.60
@@ -35,16 +35,16 @@ workouts:
         sets: 4
         duration_sec: 20
         zone: 4
-        effort_descriptor: "stridor — bygg upp tempot, väck steget"
+        effort_descriptor: "stegringar — öka farten, väck benen"
         rest_sec: 40
       - segment: main
         sets: 8
         duration_sec: 30
         zone: 5
-        effort_descriptor: "MAX-kraft uppför 5-8% lutning. Korta steg, hög frekvens, eller långa kraftiga steg — välj en stil per pass."
+        effort_descriptor: "All kraft uppför en backe med 5–8 % lutning. Korta, snabba steg eller långa, kraftiga steg — välj ett sätt per pass."
         pace_unreliable: true
         rest_sec: 120
-        description: "Aktiv vila: gå tillbaka i lugnt tempo. Full återhämtning är poängen."
+        description: "Vila: gå lugnt tillbaka ner. Poängen är att du hinner återhämta dig helt."
       - segment: cooldown
         duration_pct: 0.40
         zone: 1
@@ -56,8 +56,8 @@ workouts:
     surface: road
     equipment: []
     abort_conditions:
-      - "Om kraften märkbart faller efter 5-6 reps → avsluta. Vi vill ha kvalitet, inte mängd."
-      - "Vid akut smärta i akilles, knä eller höft → avbryt."
+      - "Om kraften tydligt sjunker efter 5–6 gånger → avsluta. Kvalitet är viktigare än antal."
+      - "Plötslig smärta i hälsenan, knät eller höften → avbryt."
     coach_notes: |
       Hitta en backe på 5-8% lutning där 30 sek tar dig ca 100-150m.
 
@@ -74,8 +74,8 @@ workouts:
         range: [40, 55]
         description: "Stridor + main = ~21 min FAST"
     intent: |
-      Mycket korta backreps med hög frekvens. Bygger explosiv reaktiv
-      kraft i vader och hamstrings — relevant för T2 till löpning.
+      Mycket korta, snabba ruscher uppför en backe. Ger spänst i vader
+      och baksida lår — bra när du ska springa direkt efter cykeln.
     main_set:
       - segment: warmup
         duration_pct: 0.60
@@ -84,13 +84,13 @@ workouts:
         sets: 4
         duration_sec: 15
         zone: 4
-        effort_descriptor: "lättare stridor"
+        effort_descriptor: "lättare stegringar"
         rest_sec: 30
       - segment: main
         sets: 12
         duration_sec: 15
         zone: 5
-        effort_descriptor: "snabb frekvens uppför ~6% — som om underlaget brände, kort markkontakt"
+        effort_descriptor: "snabba steg uppför cirka 6 % lutning — som om marken brände, korta markkontakter"
         pace_unreliable: true
         rest_sec: 75
       - segment: cooldown
@@ -121,9 +121,9 @@ workouts:
         range: [50, 70]
         description: "Hela passet skalar — terrängen bestämmer struktur"
     intent: |
-      Fartlek på kuperad slinga, intensitet styrd av terrängen:
-      backe upp = hård, krön = bibehåll, nerförsbacke = aktiv återhämtning.
-      Pulsen blir ojämn av naturen — det är poängen.
+      Fartlek på en backig runda där terrängen bestämmer farten: hårt
+      uppför, håll farten över krönet, återhämta dig i lugn löpning
+      nedför. Pulsen blir ojämn — det är meningen.
     main_set:
       - segment: warmup
         duration_pct: 0.17
@@ -132,9 +132,9 @@ workouts:
       - segment: continuous
         duration_pct: 0.66
         zone: 3
-        effort_descriptor: "Z2 på platta partier, Z3-Z4 i backuppgångar, Z1-Z2 i nedförsbackar. Inga intervalltider — terrängen bestämmer."
+        effort_descriptor: "Lugnt (Z2) på platten, jobbigt (Z3–Z4) uppför, mycket lugnt (Z1–Z2) nedför. Inga intervalltider — terrängen bestämmer."
         pace_unreliable: true
-        description: "Hitta slinga med 4-8 backar, kör 2-3 varv. Eller punkt-till-punkt med varierande lutning."
+        description: "Hitta en runda med 4–8 backar och spring 2–3 varv. Eller spring från en plats till en annan i backig terräng."
       - segment: cooldown
         duration_pct: 0.17
         zone: 1
@@ -159,7 +159,7 @@ workouts:
     discipline: run
     category: MF
     type_code: MF3
-    name: "Backrepor — kraft i stegen, 6×90 sek"
+    name: "Backintervaller — kraft i stegen, 6×90 sek"
     phase_appropriate: [base_3, build_1, build_2]
     parameterized: true
     parameters:
@@ -168,9 +168,10 @@ workouts:
         range: [55, 70]
         description: "Stridor + main = ~35 min FAST"
     intent: |
-      Längre backreps. Kraft möter uthållighet — kombinationen som
-      saknas i platta tempopass. Bygger benstyrka och tröskel-tolerans
-      samtidigt.
+      Längre backintervaller. Du får både kraft och uthållighet — något
+      platta tempopass inte ger. Benen blir starkare, och du vänjer dig
+      vid att springa nära tröskeln, den fart du orkar hålla i ungefär
+      en timme.
     main_set:
       - segment: warmup
         duration_pct: 0.60
@@ -179,7 +180,7 @@ workouts:
         sets: 3
         duration_sec: 20
         zone: 4
-        effort_descriptor: "stridor"
+        effort_descriptor: "stegringar"
         rest_sec: 60
       - segment: main
         sets: 6
@@ -187,7 +188,7 @@ workouts:
         zone: 4
         pace_unreliable: true
         rest_sec: 150
-        description: "Z4-puls uppför 4-6% lutning. Aktiv vila: gå tillbaka."
+        description: "Jobbigt (puls i Z4) uppför 4–6 % lutning. Vila: gå tillbaka ner."
       - segment: cooldown
         duration_pct: 0.40
         zone: 1
@@ -199,14 +200,14 @@ workouts:
     surface: road
     equipment: []
     abort_conditions:
-      - "Om HR inte når Z4 ens på rep 1 → backen är för flack, byt"
-      - "Om HR redan i rep 3 ligger i Z5 → ta extra 60 sek vila eller avsluta"
+      - "Om pulsen inte når Z4 ens första gången → backen är för flack, byt backe"
+      - "Om pulsen redan tredje gången ligger i Z5 → vila 60 s extra eller avsluta"
 
   - code: MF3_run_02
     discipline: run
     category: MF
     type_code: MF3
-    name: "Långa backrepor — 5×3 min"
+    name: "Långa backintervaller — 5×3 min"
     phase_appropriate: [build_1, build_2]
     parameterized: true
     parameters:
@@ -215,9 +216,9 @@ workouts:
         range: [60, 75]
         description: "Stridor + main = ~42 min FAST"
     intent: |
-      Långa hill repeats. Här blir det också aerob kapacitet — 3 min
-      uppför pressar både muskelstyrka och VO2-systemet. Tunga reps
-      mentalt, blir lättare med upprepning.
+      Långa backintervaller. 3 min uppför tar både på musklerna och på
+      flåset — du blir starkare och orkar mer. De känns tunga i huvudet,
+      men blir lättare för varje gång du gör passet.
     main_set:
       - segment: warmup
         duration_pct: 0.60
@@ -226,7 +227,7 @@ workouts:
         sets: 4
         duration_sec: 20
         zone: 4
-        effort_descriptor: "stridor"
+        effort_descriptor: "stegringar"
         rest_sec: 60
       - segment: main
         sets: 5
@@ -234,7 +235,7 @@ workouts:
         zone: 4
         pace_unreliable: true
         rest_sec: 180
-        description: "Övre Z4. Gå/jogga tillbaka. Vid kortare backe: kör 3 min med Garmin oavsett om det betyder att backen tar slut."
+        description: "Övre Z4. Gå eller jogga tillbaka. Är backen kortare: spring 3 min efter klockan ändå, även om backen tar slut."
       - segment: cooldown
         duration_pct: 0.40
         zone: 1

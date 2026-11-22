@@ -17,7 +17,7 @@ workouts:
     discipline: swim
     category: AC
     type_code: AC1
-    name: "16×50 stenhårt — pulsen i taket"
+    name: "16 × 50 m stenhårt — pulsen i taket"
     parameterized: true
     parameters:
       duration_min:
@@ -26,9 +26,9 @@ workouts:
         description: "Skala till veckans budget"
     phase_appropriate: [build_1, build_2, peak]
     intent: |
-      Klassiskt VO2max-set. 50:or är kort nog för att man kan
-      pressa Z5, lång nog för att hjärtat hinner upp ordentligt.
-      Den korta vilan håller pulsen hög genom hela setet.
+      Maxintervaller. 50 m är kort nog för att du kan ta i så hårt det
+      går (Z5) och lång nog för att pulsen hinner upp ordentligt. Den
+      korta vilan håller pulsen hög genom alla intervaller.
     main_set:
       - segment: warmup
         duration_pct: 0.15
@@ -41,17 +41,17 @@ workouts:
         sets: {default: 4, range: [3, 6]}
         distance_m: 50
         rest_sec: 15
-        description: "Build från Z2 till Z4 — väck systemet"
+        description: "Öka farten under varje 50 m, från lugnt (Z2) till hårt (Z4). Väck kroppen."
       - segment: sprint
         sets: {default: 16, range: [10, 24]}
         distance_m: 50
         zone: 5
         rest_sec: 20
-        description: "Z5-pace, snabbare än 200-tävlingstempo. Andas så lite som möjligt."
+        description: "Mycket hårt (Z5), fortare än du skulle simma 200 m på tävling. Andas så sällan du kan."
       - segment: continuous
         duration_pct: 0.10
         zone: 1
-        description: "Aktiv recovery — lugn Z1 fri som låter pulsen sjunka"
+        description: "Mycket lugn frisim (Z1), låt pulsen sjunka"
       - segment: cooldown
         duration_pct: 0.15
         zone: 1
@@ -62,7 +62,7 @@ workouts:
     zone_refs: [Z1, Z2, Z4, Z5]
     equipment: []
     abort_conditions:
-      - "När pace på en 50 är >3s/100m långsammare än snabbaste → kör resten i Z3, det är inte VO2-arbete längre"
+      - "Går en 50 m mer än 3 s per 100 m långsammare än din snabbaste: simma resten lugnare (Z3). Då är det inte maxintervaller längre."
 
   - code: AC1_swim_02
     discipline: swim
@@ -77,8 +77,9 @@ workouts:
         description: "Skala till veckans budget"
     phase_appropriate: [build_2, peak]
     intent: |
-      75:or är 'half-grymma' — längre än 50, kort nog för att Z5
-      går att hålla genomgående. Bygger uthålligheten i VO2-zonen.
+      75 m är halvgrymt: längre än 50 m men kort nog för att du orkar
+      hålla mycket hårt (Z5) hela vägen. Du bygger förmågan att orka
+      nära max lite längre.
     main_set:
       - segment: warmup
         duration_pct: 0.15
@@ -96,11 +97,11 @@ workouts:
         distance_m: 75
         zone: 5
         rest_sec: 30
-        description: "Z5 — sista 25 ska kosta. Andas på 5 första 50, sedan på 3."
+        description: "Mycket hårt (Z5), de sista 25 m ska kosta. Andas på vart femte tag de första 50 m, sedan på vart tredje."
       - segment: continuous
         duration_pct: 0.08
         zone: 1
-        description: "Aktiv recovery efter setet"
+        description: "Lugn simning efter intervallerna, låt pulsen gå ner"
       - segment: cooldown
         duration_pct: 0.12
         zone: 1
@@ -124,9 +125,9 @@ workouts:
         description: "Smal range — protokollet med två set + mellanvila är hjärtat i passet"
     phase_appropriate: [build_2, peak]
     intent: |
-      Mycket korta, mycket hårda intervaller. Inte ren Tabata
-      (4-min-format funkar inte i bassäng) — men anda av tabata:
-      maximal effekt per intervall, väldigt kort vila.
+      Mycket korta, mycket hårda intervaller. Inte riktig Tabata (det
+      fyra minuter långa upplägget fungerar inte i bassäng), men samma
+      tanke: allt du har i varje intervall och väldigt kort vila.
     main_set:
       - segment: warmup
         duration_pct: 0.18
@@ -140,19 +141,19 @@ workouts:
         distance_m: 25
         zone: 5
         rest_sec: 15
-        description: "MAX-tempo, 15s vila. Bara 8 — det räcker."
+        description: "Allt du har, 15 s vila. Bara 8, det räcker."
       - segment: main
         sets: 1
         distance_m: 200
         zone: 1
         rest_sec: 90
-        description: "Vila-block — pulsen ska ner före nästa set"
+        description: "Mycket lugnt, som vila. Pulsen ska ner innan nästa omgång."
       - segment: sprint
         sets: {default: 8, range: [6, 10]}
         distance_m: 25
         zone: 5
         rest_sec: 15
-        description: "Set 2 — samma intensitet trots tröttheten"
+        description: "Omgång 2: lika hårt fast du är trött"
       - segment: cooldown
         duration_pct: 0.20
         zone: 1
@@ -163,7 +164,7 @@ workouts:
     zone_refs: [Z1, Z5]
     equipment: []
     abort_conditions:
-      - "Om set 2 öppning är >2s/100m långsammare än set 1 öppning → hoppa över set 2"
+      - "Går början av omgång 2 mer än 2 s per 100 m långsammare än början av omgång 1: hoppa över omgång 2"
 
   # ─────────────────────────────────────────────────────────────
   # AC2 — Aerobic Capacity Intervals
@@ -173,7 +174,7 @@ workouts:
     discipline: swim
     category: AC
     type_code: AC2
-    name: "8×100 max — vila lika länge som du simmar"
+    name: "8 × 100 m max — vila lika länge som du simmar"
     parameterized: true
     parameters:
       duration_min:
@@ -182,9 +183,9 @@ workouts:
         description: "Skala till veckans budget"
     phase_appropriate: [build_1, build_2, peak]
     intent: |
-      Klassisk VO2-långa-intervaller: 100:or med lika lång vila som
-      arbetsperiod. Den långa vilan tillåter Z5-pace på alla åtta —
-      annars bröts setet på 4-5.
+      Längre maxintervaller: 100 m med lika lång vila som det tar att
+      simma dem. Den långa vilan gör att du orkar mycket hårt (Z5) på
+      alla åtta. Med kortare vila skulle det spricka efter fyra–fem.
     main_set:
       - segment: warmup
         duration_pct: 0.13
@@ -202,11 +203,11 @@ workouts:
         distance_m: 100
         zone: 5
         rest_sec: 90
-        description: "Z5 — pace runt 400m-tävlingstempo. Lika vila."
+        description: "Mycket hårt (Z5), ungefär den fart du skulle simma 400 m på tävling. Vila lika länge som du simmar."
       - segment: continuous
         duration_pct: 0.08
         zone: 1
-        description: "Aktiv recovery efter setet"
+        description: "Lugn simning efter intervallerna, låt pulsen gå ner"
       - segment: cooldown
         duration_pct: 0.12
         zone: 1
@@ -221,7 +222,7 @@ workouts:
     discipline: swim
     category: AC
     type_code: AC2
-    name: "6×150 — långa hårda, precis på gränsen"
+    name: "6 × 150 m — långa hårda, precis på gränsen"
     parameterized: true
     parameters:
       duration_min:
@@ -230,9 +231,9 @@ workouts:
         description: "Skala till veckans budget"
     phase_appropriate: [build_2, peak]
     intent: |
-      Längre VO2-intervaller. 150 är gränsen där Z5 går att hålla
-      med träning — kortare och man underutnyttjar setet,
-      längre och man halkar till Z4.
+      Längre maxintervaller. 150 m är ungefär så långt du kan hålla
+      mycket hårt (Z5) när du är tränad. Kortare och du får inte ut
+      allt av passet, längre och du halkar ner i Z4.
     main_set:
       - segment: warmup
         duration_pct: 0.13
@@ -253,7 +254,7 @@ workouts:
       - segment: continuous
         duration_pct: 0.08
         zone: 1
-        description: "Aktiv recovery efter setet"
+        description: "Lugn simning efter intervallerna, låt pulsen gå ner"
       - segment: cooldown
         duration_pct: 0.12
         zone: 1
@@ -268,7 +269,7 @@ workouts:
     discipline: swim
     category: AC
     type_code: AC2
-    name: "10×100 i två block — hårt, sen hårdare"
+    name: "10 × 100 m i två block — hårt, sen hårdare"
     parameterized: true
     parameters:
       duration_min:
@@ -277,9 +278,9 @@ workouts:
         description: "Skala till veckans budget"
     phase_appropriate: [build_1, build_2]
     intent: |
-      Descending från Z4 till Z5. Lär nervsystemet att stega upp
-      kontrollerat — viktigt för pace-disciplin i tävling där det
-      finns frestelse att skena tidigt.
+      Från hårt (Z4) till mycket hårt (Z5). Du lär dig öka farten
+      kontrollerat. Det hjälper på tävling, där det är lätt att gå ut
+      för hårt.
     main_set:
       - segment: warmup
         duration_pct: 0.13
@@ -293,17 +294,17 @@ workouts:
         distance_m: 100
         rest_sec: 30
         zones_per_set: [4, 4, 4, 4, 4]
-        description: "Block 1: alla i Z4"
+        description: "Block 1: alla hårt (Z4)"
       - segment: main
         sets: {default: 5, range: [3, 7]}
         distance_m: 100
         rest_sec: 45
         zones_per_set: [5, 5, 5, 5, 5]
-        description: "Block 2: alla i Z5 — märk skillnaden mot block 1"
+        description: "Block 2: alla mycket hårt (Z5). Känn skillnaden mot block 1."
       - segment: continuous
         duration_pct: 0.20
         zone: 1
-        description: "Aktiv recovery efter setet"
+        description: "Lugn simning efter intervallerna, låt pulsen gå ner"
       - segment: cooldown
         duration_pct: 0.15
         zone: 1

@@ -33,25 +33,25 @@ workouts:
         range: [45, 90]
         description: "Aktiv vila (lugn jogg eller gång) mellan strides"
     intent: |
-      Strides är korta, kontrollerade fartökningar — inte sprintar.
-      Tempot är "smooth fast" — ~90% av maxfart med PERFEKT teknik:
-      lång stegfrekvens, mjuka knän, avslappnade axlar.
+      Stegringar är korta, kontrollerade fartökningar — inte spurter.
+      Farten är snabb men avspänd, cirka 90 % av maxfart, med fin
+      teknik: lätta steg, mjuka knän, avslappnade axlar.
       
-      Syftet är neuromuskulärt: hålla snabbhetskvalitet vid liv,
-      öva på rätt teknik vid hög fart, väcka kroppen. Inga
-      uthållighets-effekter, ingen träningsstress värd att räkna.
+      Syftet är att hålla benen vana vid fart, öva rätt teknik när det
+      går fort och väcka kroppen. De bygger inte uthållighet och gör
+      inte veckan tyngre.
     main_set:
       - segment: warmup
         duration_min: 15
         zone: 1
-        description: "Lugn jogg eller direkt efter ett AE2-pass"
+        description: "Lugn jogg, eller gör stegringarna direkt efter ett lugnt distanspass"
       - segment: main
         sets: 6
         duration_sec: 20
         zone: 5
-        effort_descriptor: "smooth fast — ~90% maxfart, kontrollerad form, ingen anaerob press"
+        effort_descriptor: "snabbt men avspänt — cirka 90 % av maxfart, kontrollerade steg, inte så hårt att du blir andfådd"
         rest_sec: 60
-        description: "Aktiv vila: lugn jogg tillbaka eller gå"
+        description: "Vila: jogga lugnt tillbaka eller gå"
       - segment: cooldown
         duration_min: 5
         zone: 1
@@ -63,7 +63,7 @@ workouts:
     surface: road
     equipment: []
     abort_conditions:
-      - "Om tekniken brister (sneda axlar, fötter slår i marken) → avbryt resterande reps"
+      - "Om tekniken släpper (sneda axlar, fötterna slår i marken) → hoppa över resten av stegringarna"
     coach_notes: |
       Bästa appliceringen: påsläpp i slutet av ett AE2-pass, eller
       som fristående mikro-pass när dagsformen inte räcker till
@@ -93,13 +93,13 @@ workouts:
         default: 30
         range: [20, 45]
     intent: |
-      Pickups är gradvisa fartökningar inbakade i en kontinuerlig
-      löprunda. Skillnad mot strides: pickup går från Z2 till
-      Z3-Z4 över 20-45 sek (inte explosiv från start), och de
-      avbryts av Z2-segment, inte aktiv vila.
-      
-      Bygger förmågan att lyfta tempot på beställning — race-relevant
-      när du behöver svara på en attack eller ta dig förbi en grupp.
+      Fartökningar mitt i en vanlig löprunda. Du ökar farten gradvis,
+      från lugnt (Z2) till ganska jobbigt (Z3–Z4), under 20–45 s —
+      ingen rivstart. Sedan springer du lugnt (Z2) igen, utan att
+      stanna eller gå.
+
+      Du lär dig lyfta tempot när du vill — bra på tävling när du
+      behöver svara på en attack eller ta dig förbi en grupp.
     main_set:
       - segment: warmup
         duration_min: 10
@@ -107,7 +107,7 @@ workouts:
       - segment: continuous
         duration_min: 35
         zone: 2
-        description: "Stadig Z2 som baspass — pickups bryter in jämnt fördelade"
+        description: "Jämn, lugn löpning (Z2) — fartökningarna kommer jämnt utspridda"
         embedded_pickups:
           count: 8
           duration_sec: 30

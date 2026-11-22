@@ -22,21 +22,21 @@ workouts:
         range: [60, 120]
         description: "Längd och intensitet styrs av gruppen"
     intent: |
-      Grupplöpning där farten styrs av sällskapet. Karaktären
-      är oförutsägbar — Z2-perioder bryts av Z3-Z4-stigningar
-      när någon drar på. Räkna det som AC-pass om gruppen är
-      snabbare än din komfortzon.
+      Löpning i grupp där sällskapet bestämmer farten. Du vet inte
+      riktigt vad du får — lugna partier (Z2) bryts av jobbigare
+      (Z3–Z4) när någon drar på. Räkna det som ett hårt pass om
+      gruppen springer fortare än du är van vid.
     main_set:
       - segment: warmup
         duration_pct: 0.125
         zone: 1
-        description: "Före gruppen samlas"
+        description: "Innan gruppen samlas"
       - segment: continuous
         duration_pct: 0.75
         zone: 3
-        effort_descriptor: "Z2 som baseline, Z3-Z4 i pickup-segment som gruppen genererar. Var den som backar om HR sticker till Z5."
+        effort_descriptor: "Mest lugnt (Z2), jobbigare (Z3–Z4) när gruppen ökar. Släpp gruppen om pulsen går upp i Z5."
         pace_unreliable: true
-        description: "Längd och intensitet bestäms av gruppen — vanligast 60-90 min med 2-4 'hårda partier'."
+        description: "Gruppen bestämmer hur långt och hur hårt — oftast 60–90 min med 2–4 hårda partier."
       - segment: cooldown
         duration_pct: 0.125
         zone: 1
@@ -69,10 +69,9 @@ workouts:
         range: [65, 80]
         description: "Stridor + main = ~38 min FAST"
     intent: |
-      Klassiska VO2max-reps. 3 minuter är den optimala längden för
-      att maxa tid-i-Z5 över passet — kortare reps ger för lite tid
-      i syreupptagstoppen, längre reps gör att sista minuten
-      faller in i ren glykolys.
+      Klassiska maxintervaller. 3 minuter är en bra längd för att få
+      mycket tid i Z5 — kortare intervaller ger för lite tid nära max,
+      längre gör att du tar slut innan den sista minuten är över.
     main_set:
       - segment: warmup
         duration_pct: 0.60
@@ -81,14 +80,14 @@ workouts:
         sets: 4
         duration_sec: 30
         zone: 4
-        effort_descriptor: "stridor, sista i nedre Z4"
+        effort_descriptor: "stegringar, den sista i nedre Z4"
         rest_sec: 60
       - segment: main
         sets: 6
         duration_min: 3
         zone: 5
         rest_sec: 180
-        description: "Z5. Pace ska vara 'hård men hållbar i exakt 3 minuter'. Aktiv vila: jogg eller gång."
+        description: "Mycket hårt (Z5). Farten ska vara hård men gå att hålla i precis 3 minuter. Vila med jogg eller gång."
       - segment: cooldown
         duration_pct: 0.40
         zone: 1
@@ -100,8 +99,8 @@ workouts:
     surface: track
     equipment: []
     abort_conditions:
-      - "Om rep 1-2 är genuint anaerob (kan inte tala alls efter) → pace för hård, sänk 10-15 sek/km"
-      - "Om pace faller >15 sek/km mellan rep 1 och rep 4 → kör rep 5-6 i Z4 eller avbryt"
+      - "Om du inte kan prata alls efter första eller andra intervallen → farten är för hård, sakta in 10–15 s per km"
+      - "Om du är mer än 15 s per km långsammare i fjärde intervallen än i första → spring femte och sjätte i Z4, eller avbryt"
     coach_notes: |
       Mest neuromuskulärt och fysiologiskt krävande av alla
       löppass i banken. Schemalägg minst 48h Z1 efter. Aldrig
@@ -120,9 +119,9 @@ workouts:
         range: [60, 75]
         description: "Stridor + main = ~38 min FAST (12×400m + viltimmar)"
     intent: |
-      Kortare VO2-reps med kort vila. Hög samlad tid-i-Z5 trots
-      kortare individuella block — kort vila förhindrar att HR
-      faller helt mellan reps.
+      Kortare maxintervaller med kort vila. Du får mycket tid i Z5 fast
+      varje intervall är kort — vilan är så kort att pulsen inte hinner
+      gå ner helt.
     main_set:
       - segment: warmup
         duration_pct: 0.60
@@ -131,14 +130,14 @@ workouts:
         sets: 4
         duration_sec: 30
         zone: 5
-        effort_descriptor: "stridor"
+        effort_descriptor: "stegringar"
         rest_sec: 60
       - segment: main
         sets: 12
         distance_m: 400
         zone: 5
         rest_sec: 90
-        description: "Z5. Jogga 200m vila."
+        description: "Mycket hårt (Z5). Vila: jogga 200 m."
       - segment: cooldown
         duration_pct: 0.40
         zone: 1
@@ -163,9 +162,10 @@ workouts:
         range: [70, 85]
         description: "Stridor + pyramid = ~50 min FAST"
     intent: |
-      Pyramid-format. Varje distans i Z5 med proportionerlig vila.
-      Den mentala variationen gör det lättare än 5 likadana reps,
-      pace-utmaningen är att hålla samma fart trots växlande distans.
+      Pyramid: varje sträcka mycket hårt (Z5), med längre vila efter
+      längre sträckor. Växlingen gör det lättare för huvudet än 5
+      likadana intervaller. Utmaningen är att hålla samma fart fast
+      sträckan ändras.
     main_set:
       - segment: warmup
         duration_pct: 0.60
@@ -174,7 +174,7 @@ workouts:
         sets: 4
         duration_sec: 30
         zone: 5
-        effort_descriptor: "stridor"
+        effort_descriptor: "stegringar"
         rest_sec: 60
       - segment: main
         sets: 1
@@ -228,9 +228,9 @@ workouts:
         range: [60, 75]
         description: "Stridor + main = ~33 min FAST"
     intent: |
-      VO2max-reps uppför. Backen tar bort en del av excentrisk
-      stöt-belastning och tvingar fram kraft i steget. Pulsen
-      når Z5 utan att pace behöver vara halsbrytande.
+      Maxintervaller uppför. Backen tar bort en del av stötarna mot
+      benen och tvingar fram kraft i steget. Pulsen når Z5 utan att
+      farten behöver vara halsbrytande.
     main_set:
       - segment: warmup
         duration_pct: 0.60
@@ -239,7 +239,7 @@ workouts:
         sets: 3
         duration_sec: 20
         zone: 5
-        effort_descriptor: "stridor"
+        effort_descriptor: "stegringar"
         rest_sec: 60
       - segment: main
         sets: 8
@@ -247,7 +247,7 @@ workouts:
         zone: 5
         pace_unreliable: true
         rest_sec: 150
-        description: "Z5 uppför 4-6%. Aktiv vila: gå tillbaka."
+        description: "Mycket hårt (Z5) uppför 4–6 % lutning. Vila: gå tillbaka ner."
       - segment: cooldown
         duration_pct: 0.40
         zone: 1
@@ -259,8 +259,8 @@ workouts:
     surface: road
     equipment: []
     abort_conditions:
-      - "Om HR inte når Z5 ens på rep 1 → backen är för flack"
-      - "Vid akut smärta — bryt direkt"
+      - "Om pulsen inte når Z5 ens första gången → backen är för flack"
+      - "Plötslig smärta → sluta direkt"
     coach_notes: |
       Skonsammare alternativ till AC2 för adept med skadehistorik,
       särskilt akilles eller hamstrings — uppförslöpning är mjukare

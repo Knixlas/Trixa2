@@ -31,11 +31,11 @@ workouts:
       - segment: warmup
         duration_pct: 0.20
         zone: 1
-        description: "Lugnt igång, valfri stil"
+        description: "Lugnt igång, valfritt simsätt"
       - segment: continuous
         duration_pct: 0.60
         zone: 1
-        description: "Stadig, lätt fart. Andas avslappnat. Byt stil var 200m om det känns bra."
+        description: "Stadig, lätt fart. Andas avslappnat. Byt simsätt var 200 m om det känns bra."
       - segment: cooldown
         duration_pct: 0.20
         zone: 1
@@ -52,7 +52,7 @@ workouts:
     discipline: swim
     category: AE
     type_code: AE1
-    name: "Teknikvila — driller i lugnt tempo"
+    name: "Teknikvila — lugna teknikövningar"
     parameterized: true
     parameters:
       duration_min:
@@ -61,29 +61,29 @@ workouts:
         description: "Skala till veckans budget"
     phase_appropriate: [prep, base_1, base_2, recovery]
     intent: |
-      Återhämtningspass med tydligt teknikfokus. Driller roterar genom
-      tre grundtekniker. Pulsen stannar låg — det är hjärnan som jobbar.
+      Lugnt pass med fokus på teknik. Du växlar mellan tre grundläggande
+      teknikövningar. Pulsen stannar låg — det är hjärnan som jobbar.
     main_set:
       - segment: warmup
         duration_pct: 0.20
         zone: 1
-        description: "Valfri stil, känn in vattnet"
+        description: "Valfritt simsätt, känn in vattnet"
       - segment: drills
         sets: {default: 6, range: [4, 10]}
         distance_m: 50
         rest_sec: 20
         drills: [single_arm, six_kick_switch, fingertip_drag]
-        description: "Rotera: 2×single-arm, 2×6-kick-switch, 2×fingertip drag"
+        description: "Växla: 2 × enarmssim, 2 × sex sparkar och byt, 2 × fingrarna längs ytan"
       - segment: main
         sets: {default: 4, range: [3, 8]}
         distance_m: 100
         zone: 1
         rest_sec: 15
-        description: "Lugn fri, fokus på det som drillen lärt"
+        description: "Lugn frisim. Använd det du just övat på."
       - segment: continuous
         duration_pct: 0.28
         zone: 1
-        description: "Fortsätt lugnt — växla teknik var 100m om budget tillåter mer"
+        description: "Fortsätt lugnt och byt teknikfokus var 100 m, om du har tid kvar"
       - segment: cooldown
         duration_pct: 0.15
         zone: 1
@@ -98,7 +98,7 @@ workouts:
     discipline: swim
     category: AE
     type_code: AE1
-    name: "Kick och glid — lätta ben, långt glid"
+    name: "Benspark och glid — lätta ben, långt glid"
     parameterized: true
     parameters:
       duration_min:
@@ -107,8 +107,9 @@ workouts:
         description: "Skala till veckans budget"
     phase_appropriate: [prep, base_1, base_2, recovery]
     intent: |
-      Lätt pass med kickfokus och glid-set. Bygger kicktolerans utan
-      att stressa armar/axlar. Bra dagen efter ett tungt cykel- eller löppass.
+      Lätt pass med fokus på benspark och glid. Benen vänjer sig vid att
+      sparka utan att armar och axlar belastas. Bra dagen efter ett tungt
+      cykel- eller löppass.
     main_set:
       - segment: warmup
         duration_pct: 0.15
@@ -119,23 +120,23 @@ workouts:
         rest_sec: 20
         equipment: [kickboard]
         zone: 1
-        description: "Långsam, kraftfull kick. Nyckel: smal sparkamplitud."
+        description: "Långsam, kraftfull benspark. Håll sparkarna små och smala."
       - segment: drills
         sets: {default: 4, range: [3, 6]}
         distance_m: 50
         rest_sec: 15
         drills: [superman_glide, side_kick]
-        description: "Glid-fokus: tre andetag mellan varje vänster/höger sida"
+        description: "Fokus på glidet: tre andetag på ena sidan innan du byter till den andra"
       - segment: main
         sets: {default: 3, range: [2, 6]}
         distance_m: 200
         zone: 1
         rest_sec: 20
-        description: "Lång fri, känn glidet från drillerna"
+        description: "Frisim med långa tag. Känn glidet från teknikövningarna."
       - segment: continuous
         duration_pct: 0.15
         zone: 1
-        description: "Extra lugn fri om budget tillåter"
+        description: "Extra lugn frisim om du har tid kvar"
       - segment: cooldown
         duration_pct: 0.10
         zone: 1
@@ -160,17 +161,17 @@ workouts:
       duration_min: { min: 30, max: 90, default: 60 }
     phase_appropriate: [base_1, base_2, base_3, build_1]
     intent: |
-      Aerob bas i Zon 2. Stadig fart, ingen kvalitet, ingen jakt.
-      Bygger uthållighet utan att kosta nervsystemet.
+      Lugn uthållighet (Z2). Stadig fart, inget hårt, ingen jakt på tid.
+      Bygger uthållighet utan att slita på dig.
     main_set:
       - segment: warmup
         duration_pct: 0.15
         zone: 1
-        description: "Gradvis upp, sista 100m i nedre Z2"
+        description: "Öka farten gradvis. De sista 100 m i lugn fart (nedre Z2)."
       - segment: continuous
         duration_pct: 0.70
         zone: 2
-        description: "Stadig Z2. Bryt aldrig ut hårdare. Andas på 3 eller 5."
+        description: "Stadigt och lugnt (Z2). Öka aldrig till hårdare. Andas på vart tredje eller femte armtag."
       - segment: cooldown
         duration_pct: 0.15
         zone: 1
@@ -187,7 +188,7 @@ workouts:
     discipline: swim
     category: AE
     type_code: AE2
-    name: "Klassiska 400-or"
+    name: "Klassiska 400 m i lugn fart"
     parameterized: true
     parameters:
       duration_min:
@@ -196,8 +197,8 @@ workouts:
         description: "Skala till veckans budget"
     phase_appropriate: [base_1, base_2, base_3, build_1]
     intent: |
-      Aerob bas genom långa intervaller i Zon 2. Strukturen ger
-      naturliga pauser för andning och rytm-reset utan att tappa pace.
+      Lugn uthållighet (Z2) i långa intervaller. De korta vilorna ger dig
+      tid att andas och hitta rytmen igen, utan att farten sjunker.
     main_set:
       - segment: warmup
         duration_pct: 0.15
@@ -212,11 +213,11 @@ workouts:
         distance_m: 400
         zone: 2
         rest_sec: 20
-        description: "Stadig pace över alla repetitioner. Andas på 3."
+        description: "Samma lugna fart på alla 400 m. Andas på vart tredje armtag."
       - segment: continuous
         duration_pct: 0.20
         zone: 2
-        description: "Fortsätt aerobt om budget finns kvar"
+        description: "Fortsätt i samma lugna fart om du har tid kvar"
       - segment: cooldown
         duration_pct: 0.07
         zone: 1
@@ -227,7 +228,7 @@ workouts:
     zone_refs: [Z1, Z2]
     equipment: []
     abort_conditions:
-      - "Om pace faller >5s/100m på sista interval före slutet → kör nästa i nedre Z2 eller hoppa över"
+      - "Tappar du mer än 5 s per 100 m mot slutet: simma nästa intervall lugnare (nedre Z2) eller hoppa över den"
     coach_notes: |
       Funkar i alla base-perioder. Skala till 3×400 vid lägre volymveckor,
       5-7×400 vid högre.
@@ -236,7 +237,7 @@ workouts:
     discipline: swim
     category: AE
     type_code: AE2
-    name: "8×200 — korta pauser, jämnt flyt"
+    name: "8 × 200 m — korta pauser, jämnt flyt"
     parameterized: true
     parameters:
       duration_min:
@@ -245,9 +246,9 @@ workouts:
         description: "Skala till veckans budget"
     phase_appropriate: [base_2, base_3, build_1]
     intent: |
-      Längre AE2 där den korta vilan håller intensiteten mer
-      kontinuerligt jämfört med 400-orna. Bygger förmågan att hålla
-      Z2 över längre samlad tid.
+      Längre lugnt uthållighetspass. Vilan är kortare än i passet med
+      400 m, så det känns mer som att simma utan stopp. Du vänjer dig
+      vid att hålla lugn fart (Z2) länge.
     main_set:
       - segment: warmup
         duration_pct: 0.15
@@ -262,11 +263,11 @@ workouts:
         distance_m: 200
         zone: 2
         rest_sec: 15
-        description: "Kort vila — tanken är att summan ska kännas som ett långt pass"
+        description: "Kort vila — det hela ska kännas som ett enda långt pass"
       - segment: continuous
         duration_pct: 0.18
         zone: 2
-        description: "Fortsätt aerobt om budget tillåter"
+        description: "Fortsätt i samma lugna fart om du har tid kvar"
       - segment: cooldown
         duration_pct: 0.07
         zone: 1
@@ -290,10 +291,10 @@ workouts:
         description: "Skala till veckans budget — vid stora budgetar blir det 3000m+ kontinuerligt"
     phase_appropriate: [base_2, base_3, build_1, build_2]
     intent: |
-      Kontinuerlig långsim i Z2. Förbereder kropp och huvud på
-      uthållig fri utan stopp — viktigt för IM-distansen och för
-      mental tolerans av långa simset. Default-budget ger ~1500m
-      kontinuerligt; en 3h-budget ger 3-4 km.
+      Lång simning utan stopp i lugn fart (Z2). Kropp och huvud vänjer
+      sig vid att simma länge utan att stanna — viktigt för
+      Ironmandistansen och för att orka långa pass i huvudet. Normalt blir det
+      ungefär 1500 m utan stopp; har du 3 timmar blir det 3–4 km.
     main_set:
       - segment: warmup
         duration_pct: 0.13
@@ -306,7 +307,7 @@ workouts:
       - segment: continuous
         duration_pct: 0.68
         zone: 2
-        description: "Kontinuerligt. Bryt rytmen genom att variera andningssida var 500m."
+        description: "Utan stopp. Byt sida du andas åt var 500 m, så bryts enformigheten."
       - segment: cooldown
         duration_pct: 0.10
         zone: 1
@@ -317,13 +318,13 @@ workouts:
     zone_refs: [Z1, Z2]
     equipment: []
     abort_conditions:
-      - "Om pace börjar drifta uppåt (slowdown) — sänk till Z1 och avsluta i förtid"
+      - "Om du blir allt långsammare fast du tar i lika mycket: sänk till mycket lugnt (Z1) och avsluta i förtid"
 
   - code: AE2_swim_04
     discipline: swim
     category: AE
     type_code: AE2
-    name: "Pyramiden — 100 upp till 500 och ner"
+    name: "Pyramiden — 100 m upp till 500 m och ner"
     parameterized: true
     parameters:
       duration_min:
@@ -332,9 +333,9 @@ workouts:
         description: "Pyramidens struktur är fixerad — bara warmup/cooldown skalar"
     phase_appropriate: [base_2, base_3, build_1]
     intent: |
-      AE2-volym med varierad intervallängd. Pyramiden ger mental
-      variation och naturlig pacing-utmaning — kortare intervall i
-      slutet ska kännas lika lugna som de korta i början.
+      Lugn uthållighet (Z2) i intervaller av olika längd. Pyramiden ger
+      omväxling och lär dig hålla farten: de korta intervallerna i slutet
+      ska kännas lika lugna som de korta i början.
     main_set:
       - segment: warmup
         duration_pct: 0.12
@@ -398,40 +399,41 @@ workouts:
     discipline: swim
     category: AE
     type_code: AE2
-    name: "Öppet vatten — sikta, drafta, vänd"
+    name: "Öppet vatten — sikta, ligg i rygg, vänd"
     phase_appropriate: [base_3, build_1, build_2, peak]
     parameterized: false
     intent: |
-      Färdighetspasset som gör poolsimmaren till havssimmare. Sighting
-      utan att tappa rytm, rak simning utan linje i botten, vändning
-      runt boj/märke och (med sällskap) drafting på fötter och höft.
-      Ingen intensitet att jaga — färdigheterna ÄR passet. En simmare
-      som siktar dåligt simmar 200-400 m extra på en IM.
+      Passet som gör dig från bassängsimmare till simmare i öppet vatten.
+      Du övar på att titta framåt utan att tappa rytmen, simma rakt utan
+      linje på botten, vända runt en boj och (med sällskap) ligga i rygg
+      på någon, bakom fötterna eller vid höften. Ingen fart att jaga —
+      färdigheterna ÄR passet. Den som siktar dåligt simmar 200–400 m
+      extra på en Ironman.
     main_set:
       - segment: warmup
         duration_min: 10
         zone: 1
-        description: "Simma in längs strand/kant, vänj dig vid vattnet och temperaturen"
+        description: "Simma in längs stranden eller kanten, vänj dig vid vattnet och temperaturen"
       - segment: main
         sets: 4
         duration_min: 6
         rest_sec: 60
         zone: 2
         description: |
-          Sighting-block: lyft blicken var 6-9:e tag ("krokodilögon" —
-          bara ögonen över ytan, andas åt sidan efteråt). Välj ett
-          fast landmärke per block. Kolla efter blocket: hamnade du
-          där du siktade?
+          Titta framåt: lyft blicken var 6–9:e armtag ("krokodilögon" —
+          bara ögonen över ytan, andas åt sidan efteråt). Välj ett fast
+          landmärke för varje block. Kolla efteråt: hamnade du där du
+          siktade?
       - segment: main
         sets: 4
         duration_min: 3
         rest_sec: 45
         zone: 2
         description: |
-          Boj-vändningar: simma mot märket, vänd tätt runt (armen
-          närmast bojen kort tag, öka bentakten ur vändningen).
-          Med sällskap: ligg på fötter/höft varannan vändning — känn
-          hur draftingen sparar kraft.
+          Vändningar runt boj: simma mot märket och vänd tätt runt (korta
+          tag med armen närmast bojen, sparka snabbare ut ur vändningen).
+          Med sällskap: ligg bakom fötterna eller vid höften på den andra
+          varannan vändning — känn hur mycket kraft det sparar.
       - segment: cooldown
         duration_min: 5
         zone: 1
@@ -443,9 +445,9 @@ workouts:
     zone_refs: [Z1, Z2]
     equipment: [open_water]
     abort_conditions:
-      - "Aldrig ensam i öppet vatten — ingen partner/livräddare = passet utgår"
-      - "Kallt nog att påverka motoriken (domnande händer/fötter) → upp direkt"
-      - "Axelsymtom av våtdräktens motstånd → av med dräkten eller avbryt, rapportera"
+      - "Simma aldrig ensam i öppet vatten — ingen kompis eller livräddare med = passet ställs in"
+      - "Så kallt att händer eller fötter domnar eller rörelserna blir klumpiga: upp direkt"
+      - "Ont i axeln av våtdräktens motstånd: ta av dräkten eller avbryt, och rapportera det"
     coach_notes: |
       Kör i våtdräkt om tävlingen är wetsuit-legal — dräkten ändrar
       vattenläge och armtagsmotstånd och måste vara invand, inte ny på
@@ -457,30 +459,31 @@ workouts:
     discipline: swim
     category: AE
     type_code: AE2
-    name: "3×1000 i tävlingsfart — loppet i bitar"
+    name: "3 × 1000 m i tävlingsfart — loppet i bitar"
     phase_appropriate: [build_2, peak]
     parameterized: false
     intent: |
-      Tävlingssimulering av 3,8 km i hanterbara bitar: tre gånger tusen
-      meter på ditt IM-race-pace med kort paus. Race-pace i simning är
-      LUGNARE än CSS — några sekunder per hundring långsammare, farten
-      du kan hålla i över en timme med sighting och trängsel. Passet
-      kalibrerar känslan: efter sista tusningen ska du känna att en
-      till hade gått.
+      Ironman-simningen på 3,8 km i hanterbara bitar: 3 × 1000 m i den
+      fart du ska simma på tävlingen, med kort paus. Tävlingsfarten är
+      LUGNARE än din tröskelfart i simning (CSS) — några sekunder
+      långsammare per 100 m, en fart du kan hålla i över en timme medan
+      du tittar framåt och simmar i trängsel. Passet ställer in känslan:
+      efter sista 1000 m ska det kännas som att en till hade gått.
     main_set:
       - segment: warmup
         duration_min: 10
         zone: 1
-        description: "Inkl. 4×50 med stegring till race-känsla"
+        description: "Med 4 × 50 m där du ökar upp till tävlingsfart"
       - segment: main
         sets: 3
         distance_m: 1000
         rest_sec: 90
-        effort_descriptor: "IM-race-pace: CSS + 4-6 s/100m — kontrollerat, andas 2/3 efter behov"
+        effort_descriptor: "Kontrollerad tävlingsfart för Ironman (din tröskelfart i simning, CSS, plus 4–6 s per 100 m). Andas på vartannat eller vart tredje armtag efter behov."
         description: |
-          I öppet vatten: sikta var 8:e tag. I pool: minimera väggfrånskjuten
-          (mjuk vändning, ingen undervattensfas) så farten liknar OW.
-          Våtdräkt om tävlingen är wetsuit-legal.
+          I öppet vatten: titta framåt var 8:e armtag. I bassäng: skjut
+          ifrån väggen så lite som möjligt (mjuk vändning, ingen glidning
+          under vattnet), så att farten liknar den i öppet vatten.
+          Simma i våtdräkt om den är tillåten på tävlingen.
       - segment: cooldown
         duration_min: 5
         zone: 1
@@ -491,9 +494,9 @@ workouts:
     zone_refs: [Z1, Z2]
     equipment: []
     abort_conditions:
-      - "Pace faller > 5 s/100m i set 3 → avsluta setet lugnt; race-pacet är för ambitiöst satt"
-      - "Axelsymtom (särskilt i våtdräkt) → avbryt, rapportera"
-      - "I öppet vatten: aldrig ensam"
+      - "Tappar du mer än 5 s per 100 m på tredje 1000 m: simma klart lugnt. Tävlingsfarten är satt för högt"
+      - "Ont i axeln (särskilt i våtdräkt): avbryt och rapportera det"
+      - "I öppet vatten: simma aldrig ensam"
     coach_notes: |
       Bankens race-kalibrator för sim. Snittpacet per tusning + hur set 3
       kändes är direkt input till race-planens simsplit. Körs 2-3 gånger

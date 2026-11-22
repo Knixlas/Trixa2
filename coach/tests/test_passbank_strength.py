@@ -24,6 +24,9 @@ def test_strength_workout_renders_exercise_prescription():
 
     rendered = render_workout(resolved, AthleteProfile(), exercise_map=exercises)
 
-    assert "Anatomical Adaptation" in rendered
-    assert "RIR" in rendered
+    # Namn och RIR skrivs på svenska för adepten sedan docs/PASSBANK_SPRAK.md:
+    # "orka 2 till" i stället för "RIR 2".
+    assert workout["name"] in rendered
+    assert "orka " in rendered and " till" in rendered
+    assert "RIR" not in rendered
     assert "Knäböj med kroppsvikt" in rendered

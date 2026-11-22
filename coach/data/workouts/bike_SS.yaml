@@ -17,7 +17,7 @@ workouts:
     discipline: bike
     category: SS
     type_code: SS1
-    name: "Kadenslek — snabba ben"
+    name: "Snabba ben — lek med trampfrekvensen"
     phase_appropriate: [prep, base_1, base_2, base_3, build_1, build_2, peak]
     parameterized: true
     parameters:
@@ -36,11 +36,11 @@ workouts:
         range: [40, 90]
         description: "Totalt pass-tid; resten utfylls med Z1-Z2"
     intent: |
-      Spin-ups bygger neuromuskulär kapacitet — förmågan att tramp snabbt
-      och smooth utan att hoppa i sadeln. Kadensen är target, watt får
-      drifta upp till Z3 men ska inte vara hög. Om du börjar hoppa i sadeln
-      eller bouncar pelvis: kadensen är för hög, dra ner. Bättre 110 rpm
-      smooth än 120 rpm hackigt.
+      Snabbtrampningar lär benen att trampa snabbt och mjukt utan att du
+      studsar i sadeln. Det är trampfrekvensen som räknas: ansträngningen
+      får stiga till Z3 men ska inte bli hög. Börjar du studsa i sadeln
+      eller gunga med höften är trampfrekvensen för hög — sänk. Bättre 110
+      varv/min mjukt än 120 varv/min hackigt.
     setting: either
     terrain: flat
     erg_mode: false
@@ -48,7 +48,7 @@ workouts:
       - segment: warmup
         duration_min: 15
         zone: 1
-        description: "Avsluta med 2-3 progressiva 30-sek pickups upp till 100 rpm"
+        description: "Avsluta med 2-3 ökningar på 30 sek där trampfrekvensen gradvis går upp till 100 varv/min"
       - segment: continuous
         duration_min: "({duration_min_total} - 35) / 2"
         zone: 2
@@ -57,10 +57,10 @@ workouts:
         sets: "{sets}"
         duration_min: 1
         zone: 2
-        effort_descriptor: "Bygg från naturlig kadens till {target_cadence} rpm över 30 sek, håll resten av minuten. Watt drifter upp till nedre-mitten Z3 men det är inte fokus."
+        effort_descriptor: "Öka under 30 sek från din vanliga trampfrekvens till {target_cadence} varv/min och håll den resten av minuten. Ansträngningen får stiga till nedre-mitten av Z3, men det är inte den du jagar."
         cadence_rpm: [105, "{target_cadence}"]
         rest_sec: 120
-        description: "Aktiv vila i Z1-Z2 med naturlig kadens"
+        description: "Cykla lätt (Z1-Z2) i den takt som känns naturlig"
       - segment: continuous
         duration_min: "({duration_min_total} - 35) / 2"
         zone: 2
@@ -74,8 +74,8 @@ workouts:
     zone_refs: [Z1, Z2, Z3]
     equipment: [power_meter, hr_strap, cadence_sensor]
     abort_conditions:
-      - "Pelvis bouncar / sadel-hopp → kadensen är för hög, sänk"
-      - "Knäsmärta vid hög kadens → avbryt, evaluera bike fit"
+      - "Du studsar i sadeln eller gungar med höften → trampfrekvensen är för hög, sänk"
+      - "Knäsmärta när du trampar snabbt → avbryt och få cykelns inställning kontrollerad"
     coach_notes: |
       Det parametriserade fältet på sets gör samma mall användbar genom
       hela året — 4 sets i prep som introduktion, 12 sets i peak som
@@ -107,11 +107,11 @@ workouts:
         range: [40, 70]
         description: "Totalt pass-tid; resten utfylls med Z1-Z2"
     intent: |
-      Isolated leg avslöjar dödläge i pedaltrampet — du måste själv driva
-      hela 360° med ett ben. Klassisk teknik-övning. Det blir tydligt vart
-      "dröjet" sker (typiskt mellan kl 11 och 1 på pedalcykeln). Watten är
-      låg, fokus är på rundhet. Det andra benets pedal ska vara avlastad
-      men vila på pedalen — inte ut till sidan.
+      Med ett ben i taget märks det var trampet tappar kraft — benet måste
+      själv driva pedalen hela varvet runt. En klassisk teknikövning. Det
+      blir tydligt var det hackar (oftast högst upp, mellan klockan 11 och
+      1). Motståndet är lågt, det är rundheten som räknas. Det andra benet
+      vilar avlastat på sin pedal — sätt det inte ut åt sidan.
     setting: indoor
     requires_trainer: true
     erg_mode: false
@@ -119,7 +119,7 @@ workouts:
       - segment: warmup
         duration_min: 15
         zone: 1
-        description: "Avsluta med 2 min båda ben på Z2 med jämn rund tramp"
+        description: "Avsluta med 2 min lugnt (Z2) med båda benen, jämnt och runt"
       - segment: continuous
         duration_min: 5
         zone: 2
@@ -128,22 +128,22 @@ workouts:
         sets: "{sets_per_leg}"
         duration_sec: "{rep_duration_sec}"
         zone: 1
-        effort_descriptor: "Höger ben tramp ensamt vid 80-90 rpm. Lågt motstånd — Z1-watt. Fokus: rund cirkel, inget dödläge upptill, inget hack vid nedslag."
+        effort_descriptor: "Trampa med bara höger ben, 80-90 varv/min. Lätt motstånd (Z1). Trampa runt: inget stopp högst upp, inget ryck när pedalen börjar gå nedåt."
         cadence_rpm: [80, 90]
         rest_sec: 30
-        description: "Vila: byt fot, 30 sek innan vänster-rep"
+        description: "Vila: byt ben, 30 sek innan det är vänster bens tur"
       - segment: main
         sets: "{sets_per_leg}"
         duration_sec: "{rep_duration_sec}"
         zone: 1
-        effort_descriptor: "Vänster ben tramp ensamt vid 80-90 rpm. Samma fokus."
+        effort_descriptor: "Trampa med bara vänster ben, 80-90 varv/min. Samma fokus."
         cadence_rpm: [80, 90]
         rest_sec: 60
       - segment: continuous
         duration_min: "{duration_min_total} - 25 - ({sets_per_leg} * {rep_duration_sec} / 30)"
         zone: 2
         cadence_rpm: [85, 95]
-        description: "Aktiv återhämtning med båda ben, fokus på smooth tramp"
+        description: "Lugn cykling med båda benen, tänk på att trampa mjukt och runt"
       - segment: cooldown
         duration_min: 5
         zone: 1
@@ -153,8 +153,8 @@ workouts:
     zone_refs: [Z1, Z2]
     equipment: [power_meter, hr_strap, trainer]
     abort_conditions:
-      - "Knäsmärta i höft- eller knäled → avbryt, det är inte värt"
-      - "Du kan inte hålla 80 rpm på ett ben utan kompenserande rörelse → sänk kadens till 70-75 eller hoppa över"
+      - "Smärta i höft eller knä → avbryt, det är inte värt det"
+      - "Du klarar inte 80 varv/min på ett ben utan att kroppen hjälper till → sänk till 70-75 varv/min eller hoppa över övningen"
     coach_notes: |
       Kräver trainer — utomhus försvinner avlastade benet snabbt (lutar
       ut, tappar pedalen). Vissa adepter klarar bara 30-sek-reps i början;
