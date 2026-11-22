@@ -142,22 +142,16 @@ def get_athlete(scope: AgentScope = Depends(resolve_agent_scope)) -> dict:
 
 
 def _worst_impact(concerns: list) -> dict[str, str]:
-    """Värsta impact per disciplin över alla aktiva besvär.
+    """Värsta påverkan per gren över alla aktiva besvär.
 
-    Två besvär kan träffa samma gren olika hårt — planeringen måste följa det
-    strängaste. Okända värden räknas som ``none`` (fältet är fritext i jsonb).
+    Samma bedömning som planeraren (coach/trixa/injuries.py): uttryckligt
+    valt värde gäller, saknat eller "auto" bedöms ur kroppsdel och grad.
+    Förut såg coachen "none" för ett ont knä utan ifylld påverkan medan
+    motorn — nu — begränsar löpningen.
     """
-    worst = {s: "none" for s in _ALL_SPORTS}
-    for concern in concerns or []:
-        if not isinstance(concern, dict):
-            continue
-        impacts = concern.get("impact_per_discipline") or {}
-        for sport, level in impacts.items():
-            if sport not in worst:
-                continue
-            if _IMPACT_RANK.get(level, 0) > _IMPACT_RANK.get(worst[sport], 0):
-                worst[sport] = level
-    return worst
+    from coach.trixa import injuries
+
+    return injuries.effective_impacts(concerns)
 
 
 @router.get("/constraints")

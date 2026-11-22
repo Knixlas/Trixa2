@@ -484,8 +484,10 @@ samma pass som en van löpare, och full volym veckan före loppet.
 - Passbankens adepttext följer `docs/PASSBANK_SPRAK.md`; lint-testet
   `test_passbank_sprak.py` stoppar fackord i nya pass. Tränarnoter får
   vara fackspråk.
-- Kvar: besvär utan `impact_per_discipline`, fasnamnet för ramp-nivåerna
-  (står i prep hela säsongen).
+- Besvär: `coach/trixa/injuries.py` är enda vägen till påverkan per gren.
+  Uttryckligt none/partial/full gäller; saknat eller "auto" bedöms ur
+  kroppsdel och grad (`data/injury_impact.yaml`). Besvär håller rampen still.
+- Kvar: fasnamnet för ramp-nivåerna (står i prep hela säsongen).
 
 **Yoga som gren + pass som går att markera gjorda (2026-09-02):**
 Skarp användning av en andra adept (Sarah, `acb82415-…`): hon lade in

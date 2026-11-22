@@ -232,8 +232,7 @@ svar; varje pass görs till 85–95 % av tiden):
 
 ## Kvar
 
-- **Besvär** utan `impact_per_discipline` påverkar fortfarande inte planen
-  (knät med grad 2).
+- ~~Besvär utan `impact_per_discipline`~~ — gjort i steg 4 nedan.
 - ~~Passbankens prosa~~ — gjort i steg 3 nedan.
 - **Varför blev passet inte gjort?** (ChatGPT:s förslag) Rampen ser bara
   tiden. En adept som gör två av tre pass står still utan att få veta varför.
@@ -258,6 +257,28 @@ svar; varje pass görs till 85–95 % av tiden):
 - Tio styrkeövningar bytte namn; loggar under de gamla namnen hittas via
   `_FORMER_CATALOG_NAMES` i `strength_progression.py`. Prosatolken läser
   både "RIR 2"/"3×10" och "orka 2 till"/"3 omgångar à 10".
+
+## Steg 4: besvär påverkar planen (grenen `besvar-paverkar`)
+
+- `coach/data/injury_impact.yaml` + `coach/trixa/injuries.py`: saknad eller
+  "auto"-påverkan bedöms ur kroppsdel och grad. Löpning belastar knä, höft,
+  vad, hälsena, fot hårt; simning och styrka axel och armar; ländrygg är
+  medel för de flesta. Grad 2 på en hårt belastad kroppsdel → bara lugna
+  pass i grenen; grad 4 → grenen vilar. Uttryckligt val gäller alltid.
+- Planeraren, rampen och MCP (`get_constraints`) använder samma bedömning.
+  För nybörjare och medel står budgeten och gå/jogg-stegen still så länge
+  besväret påverkar en aktiv gren.
+- Adepten får en mening om vad besväret gör ("Du har angett ont i knät
+  (grad 2). Trixa ger bara lugna pass i löpning och ökar inte mängden förrän
+  det är bättre."). Övriga skadevarningar är omskrivna från "impact=full".
+- Hälsosidan: förvalet är "Låt Trixa bedöma"; svenska ord i stället för
+  none/partial/full och "Severity".
+- **Befintliga besvär** som sparats via hälsosidan med "none" i alla grenar
+  lämnas som de är — det går inte att skilja ett val från det gamla
+  förvalet. Besvär från onboardingen (`{}`) bedöms nu automatiskt; det kan
+  ändra planen för befintliga adepter med sådana besvär.
+- 62-åringen med knä grad 2 i simuleringen: ligger kvar på 1,2 h med gå/jogg
+  i stället för att växa till 2,3 h.
 
 ## Vad som inte är verifierat
 

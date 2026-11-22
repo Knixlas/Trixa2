@@ -1,0 +1,44 @@
+# Besvär → påverkan per gren, när adepten inte valt den själv.
+#
+# Bakgrund (docs/13): ett besvär från onboardingen fick impact_per_discipline
+# = {} och hälsosidan förvalde "none" i alla grenar. Ett ont knä med grad 2
+# ändrade därför ingenting — en 62-åring med knäbesvär fick 5,7 h löpning
+# vecka 1. Här bedöms påverkan ur kroppsdel och grad.
+#
+# Det adepten (eller coachen) uttryckligen valt — none, partial, full — gäller
+# alltid. Bara saknat värde eller "auto" bedöms härifrån.
+#
+#   partial = bara lugna pass i grenen (inga trösklar, intervaller, fart)
+#   full    = ingen träning i grenen tills besväret är bättre
+#
+# Inga adeptvärden här — bara generell filosofi.
+
+# Hur mycket grenen belastar kroppsdelen: high / mid / low (saknas = ingen).
+# Nyckeln är kroppsdelen utan _left/_right.
+load_by_location:
+  knee:       {run: high, bike: mid,  swim: low,  strength: mid}
+  hip:        {run: high, bike: mid,  swim: low,  strength: mid}
+  quad:       {run: high, bike: mid,               strength: mid}
+  hamstring:  {run: high, bike: mid,               strength: mid}
+  glute:      {run: high, bike: mid,               strength: mid}
+  calf:       {run: high, bike: low,  swim: low,  strength: low}
+  achilles:   {run: high, bike: low,  swim: low,  strength: low}
+  ankle:      {run: high, bike: low,  swim: low,  strength: low}
+  foot:       {run: high, bike: low,  swim: low,  strength: low}
+  lower_back: {run: mid,  bike: mid,  swim: low,  strength: high}
+  upper_back: {run: low,  bike: low,  swim: mid,  strength: mid}
+  neck:       {run: low,  bike: mid,  swim: mid,  strength: mid}
+  shoulder:   {           bike: low,  swim: high, strength: high}
+  elbow:      {           bike: low,  swim: mid,  strength: high}
+  wrist:      {           bike: mid,  swim: mid,  strength: high}
+  biceps:     {                       swim: mid,  strength: high}
+  chest:      {run: low,              swim: mid,  strength: high}
+  abs:        {run: low,  bike: low,  swim: low,  strength: mid}
+  # Hela kroppen (feber, utmattning): allt lugnt från grad 2, inget från grad 4.
+  systemic:   {run: high, bike: high, swim: high, strength: high}
+
+# Grad (1–5) × belastning → påverkan.
+impact_by_severity:
+  high: {1: none, 2: partial, 3: partial, 4: full,    5: full}
+  mid:  {1: none, 2: none,    3: partial, 4: partial, 5: full}
+  low:  {1: none, 2: none,    3: none,    4: partial, 5: partial}
