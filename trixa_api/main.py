@@ -148,6 +148,71 @@ async def auth_gate(request: Request, call_next):
     return response
 
 
+# ---------- Flyttad adress ----------
+
+
+def _moved_location(request: Request) -> str | None:
+    """Nya adressen för ett webbanrop mot en gammal adress, annars None.
+
+    TRIXA_REDIRECT_HOSTS (kommaseparerade värdnamn) pekar ut de gamla
+    adresserna och TRIXA_REDIRECT_TARGET den nya. Saknas någon av dem händer
+    ingenting.
+
+    Bara webben flyttas: GET/HEAD mot / och /ui. Maskinvägarna (/mcp, /oauth,
+    /.well-known, /agent, /api, /health) svarar kvar på den gamla adressen.
+    En MCP-nyckel är bunden till adressen den utfärdades för, så en
+    vidarebefordran där hade bara slagit ut kopplingen utan att flytta den.
+    Ett formulär som skickas från en redan öppen sida går också fram, så att
+    det adepten just fyllde i inte tappas.
+    """
+    target = os.environ.get("TRIXA_REDIRECT_TARGET", "").strip().rstrip("/")
+    old_hosts = {
+        host.strip().lower()
+        for host in os.environ.get("TRIXA_REDIRECT_HOSTS", "").split(",")
+        if host.strip()
+    }
+    if not target or not old_hosts:
+        return None
+    if request.method not in ("GET", "HEAD"):
+        return None
+    path = request.url.path
+    if path != "/" and path != "/ui" and not path.startswith("/ui/"):
+        return None
+    host = (
+        request.headers.get("x-forwarded-host")
+        or request.headers.get("host")
+        or ""
+    )
+    host = host.split(",")[0].strip().lower().split(":")[0]
+    if host not in old_hosts:
+        return None
+    # Inloggningen mitt i ett OAuth-flöde hör till maskinvägen: klienten
+    # väntar på svar från den adress den började på.
+    if path == "/ui/login" and request.query_params.get("next", "").startswith(
+        "/oauth/"
+    ):
+        return None
+    location = f"{target}{path}"
+    if request.url.query:
+        location = f"{location}?{request.url.query}"
+    return location
+
+
+# Registreras efter auth_gate och körs därför före den: ingen sessionskoll
+# mot Supabase för ett anrop som ändå ska vidare.
+@app.middleware("http")
+async def moved_address(request: Request, call_next):
+    """Skickar webbläsare på en gammal adress till den nya (se _moved_location).
+
+    307 och inte 308: en permanent vidarebefordran sparas i webbläsaren och går
+    inte att ta tillbaka genom att plocka bort variablerna.
+    """
+    location = _moved_location(request)
+    if location:
+        return RedirectResponse(url=location, status_code=307)
+    return await call_next(request)
+
+
 @app.get("/")
 def root_redirect() -> Any:
     """Root pekar mot dashboard."""
