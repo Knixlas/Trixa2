@@ -47,8 +47,8 @@ def _fmt_zone_target(zone: int, zr: ZoneRange | None, discipline: str) -> str:
     """Formatera en zon med sina målvärden för en given disciplin.
 
     Sim: "Z2 (1:38.0–1:40.0/100m)"
-    Bike: "Z2 (110–145 W, 132–142 bpm)"
-    Run: "Z2 (5:30–6:00/km, 138–148 bpm)"
+    Bike: "Z2 (110–145 W, 132–142 slag/min)"
+    Run: "Z2 (5:30–6:00/km, 138–148 slag/min)"
 
     Om värden saknas (ingen profildata): "Z2 – lugnt, du kan prata i hela
     meningar". Nybörjaren ser aldrig testvärdesfälten och har ofta ingen
@@ -68,14 +68,14 @@ def _fmt_zone_target(zone: int, zr: ZoneRange | None, discipline: str) -> str:
         if zr.watts:
             parts.append(f"{zr.watts[0]}–{zr.watts[1]} W")
         if zr.hr_bpm:
-            parts.append(f"{zr.hr_bpm[0]}–{zr.hr_bpm[1]} bpm")
+            parts.append(f"{zr.hr_bpm[0]}–{zr.hr_bpm[1]} slag/min")
 
     if discipline == "run":
         if zr.pace_sec_per_km:
             lo, hi = zr.pace_sec_per_km
             parts.append(_fmt_pace_range_run(lo, hi))
         if zr.hr_bpm:
-            parts.append(f"{zr.hr_bpm[0]}–{zr.hr_bpm[1]} bpm")
+            parts.append(f"{zr.hr_bpm[0]}–{zr.hr_bpm[1]} slag/min")
 
     if not parts:
         return _zone_feel(zone)

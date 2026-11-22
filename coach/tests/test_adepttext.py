@@ -66,7 +66,7 @@ def test_hela_passbanken_renderas_utan_fackord():
 def test_zoner_med_testvarden_visar_puls():
     profile = AthleteProfile(at_hr_run_bpm=170, max_hr_bpm=190)
     md = render_workout(_pass("AE2_run_template"), profile)
-    assert "bpm" in md
+    assert "slag/min" in md and "bpm" not in md
 
 
 def test_loggar_under_gamla_ovningsnamn_hittas_efter_namnbytet():
