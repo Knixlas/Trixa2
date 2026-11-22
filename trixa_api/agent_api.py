@@ -30,7 +30,7 @@ from coach.trixa.exercise_plan import (
 )
 from coach.trixa.strength_progression import apply_suggestions
 from coach.trixa.training_log import dedup_cross_source
-from trixa_api import agent_passbank
+from trixa_api import agent_passbank, agent_proposals
 from trixa_api.agent_auth import AgentScope, resolve_agent_scope
 
 
@@ -291,6 +291,12 @@ def _week_plan(client, user_id: str, monday: date_type) -> dict:
         }
         for w in rows   # cancelled bortfiltrerade ovan (docs/12 F4)
     ]
+    # Adeptens svar på "Vill du göra passet igen?" (migration 014).
+    feedback = agent_proposals.feedback_by_session(
+        client, user_id, [str(s["id"]) for s in sessions if s.get("id")]
+    )
+    for s in sessions:
+        s["feedback_again"] = feedback.get(str(s["id"]))
     return {"week_start": monday.isoformat(), "sessions": sessions}
 
 
@@ -430,6 +436,54 @@ def list_passbank(
     """Passbanken filtrerad på gren, kategori, fas och adeptens nivå."""
     athlete = _athlete_row(get_postgrest(), scope.user_id)
     return agent_passbank.passbank_list(athlete, sport, category, phase)
+
+
+# ---------- passkänsla och förslag till passbanken ----------
+
+
+@router.get("/feedback")
+def get_session_feedback(
+    days: int = Query(90, ge=7, le=365),
+    scope: AgentScope = Depends(resolve_agent_scope),
+) -> dict:
+    """Adeptens svar på "Vill du göra passet igen?" med ansträngning, per pass och typ."""
+    return agent_proposals.session_feedback_summary(get_postgrest(), scope.user_id, days)
+
+
+class ProposalIn(BaseModel):
+    sport: str
+    category: str
+    name: str
+    intent: str
+    main_set: list[dict]
+    duration_min: dict | int
+    abort_conditions: list[str] = Field(default_factory=list)
+    equipment: list[str] = Field(default_factory=list)
+    phases: list[str] = Field(default_factory=list)
+    type_code: str = ""
+    rationale: str = ""
+    source_session_ids: list[str] = Field(default_factory=list)
+
+
+@router.post("/proposals")
+def propose_workout(
+    body: ProposalIn, scope: AgentScope = Depends(resolve_agent_scope)
+) -> dict:
+    """Föreslå ett nytt pass till passbanken. Granskas innan det används."""
+    client = get_postgrest()
+    try:
+        athlete = _athlete_row(client, scope.user_id)
+    except HTTPException:
+        athlete = {}
+    return agent_proposals.propose_workout(
+        client, athlete, scope.user_id, scope.token_id, scope.name, body.model_dump(),
+    )
+
+
+@router.get("/proposals")
+def list_proposals(scope: AgentScope = Depends(resolve_agent_scope)) -> dict:
+    """Förslag som gäller den här adepten, med granskningens utfall."""
+    return agent_proposals.list_proposals(get_postgrest(), scope.user_id)
 
 
 # ---------- skriva: plan (Nils vinner) ----------

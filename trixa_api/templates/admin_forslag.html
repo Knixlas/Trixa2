@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}Passförslag — Trixa{% endblock %}
+{% block content %}
+
+<h1>Passförslag</h1>
+
+<p>AI-coacher föreslår pass till passbanken, byggda på pass deras adepter
+gjort och gillat. Inget här når någon adept förrän du godkänt det och det
+lagts in i passbanken med <code>python -m coach.trixa.import_proposals --apply</code>.
+Underlaget är räknat av Trixa ur loggen, inte av coachen.</p>
+
+{% if not proposals %}
+<p><em>Inga förslag än.</em></p>
+{% endif %}
+
+{% for p in proposals %}
+<article style="margin-bottom: 20px;">
+  <header>
+    <strong>{{ p.name }}</strong>
+    <span class="badge info">{{ p.sport | sport_sv }} · {{ category_labels.get(p.category, p.category) }}</span>
+    <span class="badge">{{ status_labels.get(p.status, p.status) }}</span>
+    <div style="font-size: 0.875rem; color: var(--ink-3);">
+      Från {{ p.proposer_name or "okänd coach" }}, {{ (p.created_at or "")[:10] }}
+      {% if p.imported_code %} · i passbanken som <code>{{ p.imported_code }}</code>{% endif %}
+    </div>
+  </header>
+
+  {% set ev = p.evidence or {} %}
+  {% set again = ev.again or {} %}
+  <p style="margin-bottom: 6px;">
+    <strong>Underlag:</strong>
+    {{ ev.done or 0 }} av {{ ev.sessions or 0 }} källpass gjorda ·
+    vill göra igen: ja {{ again.yes or 0 }}, kanske {{ again.maybe or 0 }}, nej {{ again.no or 0 }}
+    {% if ev.avg_rpe %} · snittansträngning {{ ev.avg_rpe }} av 10{% endif %}
+  </p>
+  {% if ev.sources %}
+  <ul style="font-size: 0.875rem; margin-top: 0;">
+    {% for s in ev.sources %}<li>{{ s.date }} — {{ s.title }}{% if s.workout_code %} (<code>{{ s.workout_code }}</code>){% endif %}</li>{% endfor %}
+  </ul>
+  {% endif %}
+  {% if p.rationale %}<p><strong>Coachens motivering:</strong> {{ p.rationale }}</p>{% endif %}
+
+  <details {% if p.status == "pending" %}open{% endif %}>
+    <summary>Så här ser adepten passet</summary>
+    <div class="session-text">{{ p.preview | session_markdown }}</div>
+  </details>
+
+  {% if p.status == "pending" %}
+  <form method="post" action="/ui/admin/forslag/{{ p.id }}" style="margin-top: 10px;">
+    <label>Kommentar till coachen (valfri)
+      <textarea name="note" rows="2"></textarea>
+    </label>
+    <div style="display: flex; gap: 8px;">
+      <button type="submit" name="decision" value="accepted">Godkänn</button>
+      <button type="submit" name="decision" value="rejected" class="outline">Avböj</button>
+    </div>
+  </form>
+  {% elif p.review_note %}
+  <p style="font-size: 0.875rem;"><strong>Din kommentar:</strong> {{ p.review_note }}</p>
+  {% endif %}
+</article>
+{% endfor %}
+
+{% endblock %}

@@ -26,7 +26,7 @@ from coach.trixa import clock
 from coach.engine.overtraining import acwr_thresholds
 from coach.trixa import origins, sports
 from coach.engine.numbers import to_float, to_int
-from coach.trixa.config import default_user_id
+from coach.trixa.config import default_user_id, passbank_reviewers
 from coach.trixa.db import get_postgrest
 from coach.trixa.exercise_plan import (
     exercises_from_logs,
@@ -713,6 +713,7 @@ def log_session(
     rpe: int | None = Form(None),
     title: str = Form(""),
     planned_session_id: str = Form(""),
+    again: str = Form(""),
 ) -> Any:
     """Logga ett utfört uthållighetspass manuellt. Förifyllt från planen i UI:t.
 
@@ -744,11 +745,13 @@ def log_session(
         # Formulärfältet är klientstyrt: länka bara mot ett pass som faktiskt
         # är adeptens eget, annars lämnas loggen olänkad.
         own = (
-            client.table("planned_sessions").select("id")
+            client.table("planned_sessions").select("id, date, workout_code")
             .eq("id", planned_session_id).eq("user_id", uid).limit(1).execute()
         )
         if own.data:
             row["planned_session_id"] = planned_session_id
+            if again:
+                save_session_feedback(client, uid, own.data[0], again)
     # Finns redan en synkad rad (TP/Strava) för samma planerade pass är det
     # samma fysiska pass. En ny manuell rad gav förut ett dubbelt kort
     # ("Genomförd" + "Oplanerat") och dubbel volym — manuell sim loggar total
@@ -880,6 +883,15 @@ def _prefetch_dashboard(client, user_id: str | None, athlete_id: str | None,
             .order("date").execute()
         ).data or []
     except Exception:  # noqa: BLE001
+        pass
+    try:
+        # Svaren på "Vill du göra passet igen?" (migration 014).
+        pre["feedback"] = (
+            client.table("session_feedback")
+            .select("planned_session_id, again")
+            .eq("user_id", user_id).gte("session_date", far_back).execute()
+        ).data or []
+    except Exception:  # noqa: BLE001 — tabellen saknas före migration 014
         pass
     try:
         ex_from = (this_monday - timedelta(days=_PROGRESSION_DAYS)).isoformat()
@@ -1911,7 +1923,60 @@ def _fetch_current_week_data(
     week["session_count"] = len(week["workouts"]) - week["rest_day_count"]
 
     _attach_strength_logs(client, week, user_id, pre)
+    _attach_feedback(client, week, user_id, pre)
     return week
+
+
+def _attach_feedback(client, week: dict, user_id: str, pre: dict | None = None) -> None:
+    """Adeptens svar på "Vill du göra passet igen?" på veckans pass.
+
+    Läser ur dashboardens förhämtning när den finns. Saknas tabellen
+    (migration 014 ej körd) visas frågan ändå, utan svar.
+    """
+    ids = [w["id"] for w in week["workouts"] if w.get("id")]
+    if not user_id or not ids:
+        return
+    if pre is not None and "feedback" in pre:
+        rows = pre["feedback"]
+    else:
+        try:
+            rows = (
+                client.table("session_feedback").select("planned_session_id, again")
+                .eq("user_id", user_id).in_("planned_session_id", ids).execute()
+            ).data or []
+        except Exception:  # noqa: BLE001
+            logger.warning("Kunde inte läsa session_feedback", exc_info=True)
+            return
+    by_id = {str(r.get("planned_session_id")): r.get("again") for r in rows}
+    for w in week["workouts"]:
+        if w.get("id"):
+            w["feedback_again"] = by_id.get(str(w["id"]))
+
+
+def save_session_feedback(client, user_id: str, planned: dict, again: str) -> None:
+    """Spara svaret på "Vill du göra passet igen?" — ett per (adept, pass)."""
+    if again not in ("yes", "maybe", "no"):
+        return
+    row = {
+        "user_id": user_id,
+        "planned_session_id": planned["id"],
+        "workout_code": planned.get("workout_code") or None,
+        "session_date": str(planned.get("date") or "")[:10] or None,
+        "again": again,
+        "updated_at": datetime.now(timezone.utc).isoformat(),
+    }
+    try:
+        existing = (
+            client.table("session_feedback").select("id")
+            .eq("user_id", user_id).eq("planned_session_id", planned["id"])
+            .limit(1).execute()
+        ).data
+        if existing:
+            client.table("session_feedback").update(row).eq("id", existing[0]["id"]).execute()
+        else:
+            client.table("session_feedback").insert(row).execute()
+    except Exception:  # noqa: BLE001 — loggningen av passet får inte falla på svaret
+        logger.warning("Kunde inte spara session_feedback", exc_info=True)
 
 
 # ---------- Plan-preview ----------
@@ -2027,6 +2092,67 @@ def admin_view(request: Request) -> HTMLResponse:
             "result": None,
             "result_json": None,
         })
+
+
+# ---------- Passförslag från AI-coacher (granskning) ----------
+
+
+def _require_reviewer(request: Request) -> str:
+    uid = _current_user_id(request)
+    if not uid:
+        raise HTTPException(401, "Inte inloggad")
+    if uid not in passbank_reviewers():
+        raise HTTPException(403, "Bara granskare (TRIXA_PASSBANK_REVIEWERS) ser passförslagen.")
+    return uid
+
+
+@router.get("/admin/forslag", response_class=HTMLResponse)
+def proposals_view(request: Request) -> HTMLResponse:
+    """Väntande och nyligen granskade passförslag, med adeptens förhandsvisning."""
+    from coach.engine.loader import AthleteProfile, load_drills, load_strength_exercises
+    from coach.engine.renderer import render_workout
+    from coach.engine.templates import resolve_template
+    from trixa_api.agent_passbank import CATEGORY_LABELS
+
+    _require_reviewer(request)
+    client = get_postgrest()
+    try:
+        rows = (
+            client.table("workout_proposals").select("*")
+            .order("created_at", desc=True).limit(100).execute()
+        ).data or []
+    except Exception:  # noqa: BLE001 — tabellen saknas före migration 014
+        logger.exception("Kunde inte läsa workout_proposals")
+        rows = []
+    drills = {d["code"]: d for d in load_drills()}
+    exercises = {e["code"]: e for e in load_strength_exercises()}
+    for row in rows:
+        try:
+            row["preview"] = render_workout(
+                resolve_template(row["workout"]), AthleteProfile(), drills, exercises
+            )
+        except Exception:  # noqa: BLE001
+            row["preview"] = "(Passet gick inte att rendera.)"
+    rows.sort(key=lambda r: (r.get("status") != "pending", str(r.get("created_at") or "")), reverse=False)
+    return _render("admin_forslag.html", {
+        "request": request,
+        "proposals": rows,
+        "category_labels": CATEGORY_LABELS,
+        "status_labels": {"pending": "Väntar", "accepted": "Godkänt — ej inlagt än",
+                          "rejected": "Avböjt", "imported": "I passbanken"},
+    })
+
+
+@router.post("/admin/forslag/{proposal_id}")
+def proposals_review(
+    request: Request, proposal_id: str,
+    decision: str = Form(...), note: str = Form(""),
+) -> Any:
+    from trixa_api.agent_proposals import review
+
+    reviewer = _require_reviewer(request)
+    review(get_postgrest(), proposal_id, reviewer, decision, note)
+    return RedirectResponse("/ui/admin/forslag", status_code=303)
 
 
 _DAY_LABELS = [

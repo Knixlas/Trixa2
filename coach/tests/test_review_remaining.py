@@ -113,7 +113,8 @@ def test_prefetch_sparar_databasanrop():
     ui._fetch_current_week_data(b, "81b667bc", iso[0], iso[1], today, UID)
     ui._build_season_context(b, athlete, today, monday)
 
-    assert sum(a.calls.values()) <= 4                       # en per tabell
+    # en per tabell; session_feedback (migration 014) är den femte
+    assert sum(a.calls.values()) <= 5
     assert sum(b.calls.values()) > sum(a.calls.values()) + 4
 
 

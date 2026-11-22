@@ -77,6 +77,9 @@ proxy- och webbläsarloggar och går inte att få tillbaka.
 | `get_recovery` | läs | RHR, HRV mot baseline, sömn, readiness, belastningskvot. `has_data=false` + note när klocka saknas |
 | `get_engine_week` | läs | Motorns förslag för veckan, torrkört: fas, tillåtna passtyper, nivågränser (längsta pass, antal pass, budget), nedtrappning, loppdag, pass med `workout_code` |
 | `list_workouts` | läs | Passbanken filtrerad på gren, passtyp, fas och adeptens nivå |
+| `get_session_feedback` | läs | Adeptens svar på "Vill du göra passet igen?" (ja/kanske/nej) med ansträngning, per pass och passtyp |
+| `propose_workout` | skriv | Föreslå ett nytt pass till passbanken, byggt på adeptens gjorda pass. Prövas mot form, språk och integritet; sparas som väntande förslag |
+| `list_proposals` | läs | Coachens förslag för adepten och granskningens utfall |
 | `plan_session` | skriv | Lägg/ändra ett pass — upsert på (datum, gren). Med `workout_code` hämtas text, steg och övningar ur passbanken; okänd kod avvisas. Pass prövas mot nivån och ger `warnings` |
 | `delete_planned_session` | skriv | Ta bort ett pass |
 | `log_override` | skriv | Dokumentera avsteg från motorns rekommendation |
@@ -96,6 +99,19 @@ Nu läser coachen motorns vecka och passbanken, skriver pass med
 över veckobudgeten eller fler konditionspass än nivån tillåter. Varning,
 inte avslag — avsteg dokumenteras med `log_override`. Styrkepass med
 coachens egen övningslista räknas inte som avsteg.
+
+**Förslag till passbanken (migration 014).** Loggformuläret frågar "Vill du
+göra passet igen?" (`session_feedback`). Coachen ser svaren och kan föreslå
+nya pass med `propose_workout`. Förslaget:
+- måste bygga på adeptens egna, loggade pass (`source_session_ids`);
+  underlaget (gjorda pass, ja/kanske/nej, snittansträngning) räknas av
+  servern,
+- prövas mot passbankens form (validatorn), språk (`coach/engine/sprak.py`)
+  och får inte bära adeptens namn eller hälsouppgifter,
+- sparas i `workout_proposals` som `pending` och når ingen adept förrän det
+  godkänts i `/ui/admin/forslag` (bara användare i
+  `TRIXA_PASSBANK_REVIEWERS`) och lagts in i YAML med
+  `python -m coach.trixa.import_proposals --apply`, följt av tester och PR.
 
 ## OAuth-kedjan
 
