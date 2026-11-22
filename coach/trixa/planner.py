@@ -61,7 +61,7 @@ from coach.engine.workouts import (
     select_workout_types,
 )
 from coach.engine.workouts import workout_type_decisions
-from coach.trixa import levels, origins, sports
+from coach.trixa import injuries, levels, origins, sports
 from coach.trixa.db import get_supabase
 from coach.trixa.exercise_plan import exercises_from_steps
 from coach.trixa.training_log import dedup_cross_source
@@ -463,22 +463,15 @@ def _has_significant_injury(athlete: dict) -> bool:
 
 
 def _injury_impacts_per_discipline(athlete: dict) -> dict[str, str]:
-    """Aggregera impact_per_discipline över alla active_concerns.
+    """Strängaste påverkan per gren över alla active_concerns.
 
     Returns:
         Dict {swim/bike/run/strength: full/partial/none}.
-        "full" vinner över "partial" som vinner över "none".
-        Concerns utan impact_per_discipline-fält → 'none' för alla (backward compat).
+        Uttryckligt valt värde gäller; saknat eller "auto" bedöms ur kroppsdel
+        och grad (coach/trixa/injuries.py, data/injury_impact.yaml). Förut gav
+        ett besvär utan impact_per_discipline 'none' för allt (docs/13).
     """
-    rank = {"none": 0, "partial": 1, "full": 2}
-    result: dict[str, str] = {"swim": "none", "bike": "none", "run": "none", "strength": "none"}
-    for concern in athlete.get("active_concerns") or []:
-        impacts = concern.get("impact_per_discipline") or {}
-        for sport, level in impacts.items():
-            if sport in result and level in rank:
-                if rank[level] > rank[result[sport]]:
-                    result[sport] = level
-    return result
+    return injuries.effective_impacts(athlete.get("active_concerns"))
 
 
 def _profile_sports(athlete: dict) -> list[str]:
@@ -2199,7 +2192,8 @@ def _select_week_workouts(
     warnings: list[str] = []
     for disc in blocked_by_injury:
         warnings.append(
-            f"{disc} skippad denna vecka — skada med impact=full"
+            f"Ingen {sports.sv(disc).lower()} den här veckan — ditt besvär gör "
+            "att grenen vilar. Uppdatera under Hälsa när det blir bättre."
         )
     for cat in categories:
         # I disciplin med partial impact: skippa hårda kategorier, behåll bara AE
@@ -2243,7 +2237,8 @@ def _select_week_workouts(
             if ae_pass:
                 selected.append(ae_pass)
                 warnings.append(
-                    f"{disc}: hårda pass utbytta mot AE pga partial skadeimpact"
+                    f"{sports.sv(disc)}: bara lugna pass den här veckan på grund "
+                    "av ditt besvär."
                 )
 
     strength_workout = None
@@ -2267,7 +2262,10 @@ def _select_week_workouts(
                 f"Inget styrkepass matchar protokoll {protocol} + {phase_filter}"
             )
     elif "strength" in raw_sports and impacts.get("strength") == "full":
-        warnings.append("strength skippad denna vecka — skada med impact=full")
+        warnings.append(
+            "Ingen styrka den här veckan — ditt besvär gör att den vilar. "
+            "Uppdatera under Hälsa när det blir bättre."
+        )
     return SimpleNamespace(
         selected=selected, strength_workout=strength_workout, warnings=warnings,
         drills=drills, strength_exercises=strength_exercises,
@@ -2287,6 +2285,9 @@ def _level_budget(
         week_start - timedelta(days=7), week_start - timedelta(days=1),
     )
     declared = athlete.get("weekly_hours")
+    # Ett besvär som påverkar en aktiv gren håller budgeten och gå/jogg-stegen
+    # där de är: ingen ökning förrän det är bättre (docs/13).
+    hurting = injuries.affecting(athlete.get("active_concerns"), _profile_sports(athlete))
     return levels.weekly_budget(
         level_profile,
         (athlete.get("phase_state") or {}).get("ramp"),
@@ -2294,6 +2295,10 @@ def _level_budget(
         float(declared) if declared not in (None, "") else None,
         last_week_actual,
         actual_weekly_hours,
+        hold_reason=(
+            f"Besvär ({', '.join(h['name'] for h in hurting)}) — ingen ökning"
+            if hurting else None
+        ),
     )
 
 
@@ -2412,6 +2417,19 @@ def _fit_week_for_level(
     nedtrappning, transition) — då kortas passen, antalet står kvar.
     Förut påverkade faktorn bara långpassets tak.
     """
+    for hurt in injuries.affecting(athlete.get("active_concerns"), _profile_sports(athlete)):
+        calm = [sports.sv(k).lower() for k, v in hurt["impacts"].items() if v == "partial"]
+        rest = [sports.sv(k).lower() for k, v in hurt["impacts"].items() if v == "full"]
+        parts = []
+        if calm:
+            parts.append(f"bara lugna pass i {' och '.join(calm)}")
+        if rest:
+            parts.append(f"ingen {' och '.join(rest)}")
+        more = " och ökar inte mängden förrän det är bättre" if lvl.ramp is not None else ""
+        warnings.append(
+            f"Du har angett {hurt['name'].lower()} (grad {hurt['severity']}). "
+            f"Trixa ger {', '.join(parts)}{more}. Uppdatera under Hälsa när det ändras."
+        )
     race_day = _place_race_day(scheduled, lvl.race, week_start)
     if race_day:
         decisions["race_day"] = race_day

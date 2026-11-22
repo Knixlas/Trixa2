@@ -22,7 +22,7 @@ Partial impact byter hårda pass mot lugna AE-pass i den disciplinen.</p>
   <div style="display: flex; align-items: center; gap: 9px; flex-wrap: wrap;">
     <strong style="font-size: 15.5px;">{{ c.name or "(utan namn)" }}</strong>
     <span class="badge {{ 'critical' if c.severity >= 4 else 'warning' if c.severity >= 2 else 'info' }}">
-      severity {{ c.severity or "—" }}/5
+      stör {{ c.severity or "—" }} av 5
     </span>
     {% if c.needs_followup %}<span class="badge warning"><i data-lucide="flag"></i>behöver follow-up</span>{% endif %}
   </div>
@@ -34,12 +34,16 @@ Partial impact byter hårda pass mot lugna AE-pass i den disciplinen.</p>
     {% if c.follow_up_by %} &nbsp;·&nbsp; <strong>Följs upp av:</strong> {{ c.follow_up_by }}{% endif %}
   </p>
 
-  {% set impacts = c.impact_per_discipline or {} %}
+  {# Effektiv påverkan: det som valts, annars Trixas bedömning ur kroppsdel
+     och grad (coach/trixa/injuries.py). "auto" visas som "(bedömt)". #}
+  {% set effective = concern_impacts(c) %}
   <div style="display: flex; gap: 16px; flex-wrap: wrap; margin-top: 10px;">
     {% for key, meta in disc.items() %}
+    {% set info = effective.get(key, {"impact": "none", "source": "auto"}) %}
     <span style="display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px;">
       <i data-lucide="{{ meta[0] }}" style="width: 14px; height: 14px; color: {{ meta[1] }};"></i>
-      <span style="font-weight: 700; color: {{ impcolor.get(impacts.get(key, 'none'), 'var(--ink-3)') }};">{{ impacts.get(key) or "none" }}</span>
+      <span style="font-weight: 700; color: {{ impcolor.get(info.impact, 'var(--ink-3)') }};">{{ impact_labels.get(info.impact, info.impact) }}</span>
+      {% if info.source == "auto" %}<span style="color: var(--ink-3);">(bedömt)</span>{% endif %}
     </span>
     {% endfor %}
   </div>
@@ -70,7 +74,7 @@ Partial impact byter hårda pass mot lugna AE-pass i den disciplinen.</p>
           </select>
         </div>
         <div>
-          <label for="sev-{{ loop.index0 }}">Severity (1-5)</label>
+          <label for="sev-{{ loop.index0 }}">Hur mycket stör det? (1–5)</label>
           <select id="sev-{{ loop.index0 }}" name="severity">
             {% for lvl, txt in [(1, '1 — knappt märkbar'), (2, '2 — irriterande'),
                                 (3, '3 — påverkar träning'), (4, '4 — kraftigt begränsande'),
@@ -85,14 +89,14 @@ Partial impact byter hårda pass mot lugna AE-pass i den disciplinen.</p>
       <input type="date" id="since-{{ loop.index0 }}" name="since_date" value="{{ c.since_date or '' }}">
 
       <fieldset>
-        <legend>Impact per disciplin</legend>
+        <legend>Hur påverkar det träningen?</legend>
         {% for d, label in disciplines %}
         <div class="rating-row">
           <strong style="min-width: 120px; display: inline-flex; align-items: center; gap: 7px;">
             <i data-lucide="{{ disc[d][0] }}" style="width: 16px; height: 16px; color: {{ disc[d][1] }};"></i>{{ label }}</strong>
-          {% for value in ['none', 'partial', 'full'] %}
+          {% for value in ['auto', 'none', 'partial', 'full'] %}
           <label><input type="radio" name="impact_{{ d }}" value="{{ value }}"
-            {% if (imp.get(d) or 'none') == value %}checked{% endif %}> {{ value }}</label>
+            {% if (imp.get(d) if imp.get(d) in ['none', 'partial', 'full'] else 'auto') == value %}checked{% endif %}> {{ impact_choice_labels[value] }}</label>
           {% endfor %}
         </div>
         {% endfor %}
@@ -144,7 +148,7 @@ Partial impact byter hårda pass mot lugna AE-pass i den disciplinen.</p>
         </select>
       </div>
       <div>
-        <label for="severity">Severity (1-5)</label>
+        <label for="severity">Hur mycket stör det? (1–5)</label>
         <select id="severity" name="severity">
           <option value="1">1 — knappt märkbar</option>
           <option value="2" selected>2 — irriterande</option>
@@ -160,19 +164,20 @@ Partial impact byter hårda pass mot lugna AE-pass i den disciplinen.</p>
   </fieldset>
 
   <fieldset>
-    <legend>Impact per disciplin</legend>
+    <legend>Hur påverkar det träningen?</legend>
     <p style="font-size: 0.875rem; color: var(--ink-3); margin-top: 0;">
-      <code>full</code> = Trixa skippar disciplinen helt denna vecka.<br>
-      <code>partial</code> = Trixa byter hårda pass mot lugna AE-pass i den disciplinen.<br>
-      <code>none</code> = ingen påverkan på passval.
+      <strong>Låt Trixa bedöma</strong> = utifrån kroppsdel och hur mycket det stör.<br>
+      <strong>Bara lugna pass</strong> = inga hårda pass i grenen.<br>
+      <strong>Vilar helt</strong> = ingen träning i grenen tills det är bättre.<br>
+      <strong>Påverkar inte</strong> = träna som vanligt.
     </p>
     {% for d, label in disciplines %}
     <div class="rating-row">
       <strong style="min-width: 120px; display: inline-flex; align-items: center; gap: 7px;">
         <i data-lucide="{{ disc[d][0] }}" style="width: 16px; height: 16px; color: {{ disc[d][1] }};"></i>{{ label }}</strong>
-      <label><input type="radio" name="impact_{{ d }}" value="none" checked> none</label>
-      <label><input type="radio" name="impact_{{ d }}" value="partial"> partial</label>
-      <label><input type="radio" name="impact_{{ d }}" value="full"> full</label>
+      {% for value in ['auto', 'none', 'partial', 'full'] %}
+      <label><input type="radio" name="impact_{{ d }}" value="{{ value }}" {% if value == 'auto' %}checked{% endif %}> {{ impact_choice_labels[value] }}</label>
+      {% endfor %}
     </div>
     {% endfor %}
   </fieldset>

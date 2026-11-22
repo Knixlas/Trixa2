@@ -78,6 +78,17 @@ _jinja_env = Environment(
 # Passbeskrivningar är markdown i fritext (både motorns och coachens). Filtret
 # escapar indata innan det formaterar — se markdown_lite.
 _jinja_env.filters["session_markdown"] = markdown_lite.render
+# Besvärens påverkan: valt värde eller Trixas bedömning (coach/trixa/injuries.py).
+from coach.trixa import injuries as _injuries  # noqa: E402
+
+_jinja_env.globals["concern_impacts"] = _injuries.concern_impacts
+_jinja_env.globals["impact_labels"] = {
+    "none": "påverkar inte", "partial": "bara lugna pass", "full": "vilar helt",
+}
+_jinja_env.globals["impact_choice_labels"] = {
+    "auto": "Låt Trixa bedöma", "none": "Påverkar inte",
+    "partial": "Bara lugna pass", "full": "Vilar helt",
+}
 # Grenen på svenska i adeptvyn ("Löpning", inte "RUN"); okänd → Övrigt.
 _jinja_env.filters["sport_sv"] = lambda key: sports.sv(sports.canon(key) or key)
 
@@ -3130,10 +3141,10 @@ def health_add(
     locations: list[str] = Form(default=[]),
     severity: int = Form(2),
     since_date: str = Form(""),
-    impact_swim: str = Form("none"),
-    impact_bike: str = Form("none"),
-    impact_run: str = Form("none"),
-    impact_strength: str = Form("none"),
+    impact_swim: str = Form("auto"),
+    impact_bike: str = Form("auto"),
+    impact_run: str = Form("auto"),
+    impact_strength: str = Form("auto"),
     needs_followup: str | None = Form(None),
     follow_up_by: str = Form(""),
     notes: str = Form(""),
@@ -3215,10 +3226,10 @@ def health_update(
     locations: list[str] = Form(default=[]),
     severity: int = Form(2),
     since_date: str = Form(""),
-    impact_swim: str = Form("none"),
-    impact_bike: str = Form("none"),
-    impact_run: str = Form("none"),
-    impact_strength: str = Form("none"),
+    impact_swim: str = Form("auto"),
+    impact_bike: str = Form("auto"),
+    impact_run: str = Form("auto"),
+    impact_strength: str = Form("auto"),
     needs_followup: str | None = Form(None),
     follow_up_by: str = Form(""),
     notes: str = Form(""),

@@ -146,6 +146,7 @@ def weekly_budget(
     declared_hours: float | None,
     last_week_actual_min: float | None,
     actual_avg_hours: float | None,
+    hold_reason: str | None = None,
 ) -> dict[str, Any]:
     """Veckobudget i minuter för en ramp-nivå, och nytt rampläge.
 
@@ -203,6 +204,9 @@ def weekly_budget(
             completion = float(last_week_actual_min) / float(prev_sched)
         if completion is None:
             budget, reason = prev, "Ingen logg förra veckan — samma budget"
+        elif completion >= hold and hold_reason:
+            # Besvär: veckan blev gjord, men varken mängd eller steg ökar.
+            budget, reason = prev, hold_reason
         elif completion >= hold:
             budget = prev if prev_recovery else prev * (1 + inc)
             progress += 1
