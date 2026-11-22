@@ -473,6 +473,9 @@ samma pass som en van löpare, och full volym veckan före loppet.
   gå/jogg-stegen är slut. Pass med `levels` väljs bara för sin nivå.
 - `render_workout(for_coach=False)` är adeptens text: ingen passkod, inga
   tränarnoter, zoner i känsla när testvärden saknas.
+- MCP-coachen planerar inom läran: `get_engine_week`, `list_workouts`,
+  `plan_session(workout_code)` ur passbanken, nivåvarningar i
+  `trixa_api/agent_passbank.py` (docs/11).
 - Passbankens adepttext följer `docs/PASSBANK_SPRAK.md`; lint-testet
   `test_passbank_sprak.py` stoppar fackord i nya pass. Tränarnoter får
   vara fackspråk.

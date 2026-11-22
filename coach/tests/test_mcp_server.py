@@ -119,7 +119,8 @@ def test_tools_list_shape():
     names = {t["name"] for t in tools}
     assert {"whoami", "get_athlete", "get_constraints", "get_week",
             "get_training_log", "get_recovery", "plan_session",
-            "delete_planned_session", "log_override"} == names, names
+            "delete_planned_session", "log_override",
+            "get_engine_week", "list_workouts"} == names, names
     for t in tools:
         assert t["description"].strip(), t["name"]
         assert t["inputSchema"]["type"] == "object", t["name"]

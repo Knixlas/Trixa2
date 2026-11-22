@@ -265,7 +265,11 @@ def test_lopning_varnar_aldrig_om_ovningar():
     r = c.post("/agent/plan/session", headers=_with_token(st, aa), json={
         "date": "2026-09-04", "sport": "run", "title": "Distans 60 min",
     })
-    assert r.json()["warnings"] == []
+    # Sedan MCP:n kopplades till passbanken varnar ett löppass utan
+    # workout_code för det — men aldrig om övningar.
+    warnings = r.json()["warnings"]
+    assert not any("exercises" in w or "övning" in w.lower() for w in warnings)
+    assert any("passbanken" in w for w in warnings)
 
 
 def _run(name, fn):

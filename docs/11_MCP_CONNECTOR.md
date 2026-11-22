@@ -75,7 +75,9 @@ proxy- och webbläsarloggar och går inte att få tillbaka.
 | `get_week` | läs | Planerade pass (default: innevarande vecka) |
 | `get_training_log` | läs | Genomförda pass, alla källor |
 | `get_recovery` | läs | RHR, HRV mot baseline, sömn, readiness, belastningskvot. `has_data=false` + note när klocka saknas |
-| `plan_session` | skriv | Lägg/ändra ett pass — upsert på (datum, gren). Styrkepass bär `exercises[]` som förifyller adeptens logg |
+| `get_engine_week` | läs | Motorns förslag för veckan, torrkört: fas, tillåtna passtyper, nivågränser (längsta pass, antal pass, budget), nedtrappning, loppdag, pass med `workout_code` |
+| `list_workouts` | läs | Passbanken filtrerad på gren, passtyp, fas och adeptens nivå |
+| `plan_session` | skriv | Lägg/ändra ett pass — upsert på (datum, gren). Med `workout_code` hämtas text, steg och övningar ur passbanken; okänd kod avvisas. Pass prövas mot nivån och ger `warnings` |
 | `delete_planned_session` | skriv | Ta bort ett pass |
 | `log_override` | skriv | Dokumentera avsteg från motorns rekommendation |
 
@@ -84,6 +86,16 @@ Läsvägarna normaliserar sport till engelska (`bike`/`run`/`swim`/`strength`/
 
 Pass som skrivs via `plan_session` får `origin='nils'` och är **skyddade** —
 motorn genererar aldrig över en dag som redan har en mänskligt skapad rad.
+
+**Träningsläran gäller även coachen (2026-11-22, docs/13).** Förut kunde
+coachen bara skriva fri text, och eftersom coachens pass vinner kunde en
+nybörjare få fem långa pass trots att motorn höll sig till tre korta.
+Nu läser coachen motorns vecka och passbanken, skriver pass med
+`workout_code` och får varningar när ett pass bryter mot nivån: längre
+än nivåns tak, en passtyp nivån inte har (t.ex. tröskel för en nybörjare),
+över veckobudgeten eller fler konditionspass än nivån tillåter. Varning,
+inte avslag — avsteg dokumenteras med `log_override`. Styrkepass med
+coachens egen övningslista räknas inte som avsteg.
 
 ## OAuth-kedjan
 

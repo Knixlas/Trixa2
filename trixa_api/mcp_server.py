@@ -99,6 +99,22 @@ def _tool_get_recovery(scope: AgentScope, args: dict) -> Any:
     return agent_api.get_recovery(days=max(1, min(days, 90)), scope=scope)
 
 
+def _tool_get_engine_week(scope: AgentScope, args: dict) -> Any:
+    monday = (args.get("monday") or "").strip()
+    return agent_api.get_engine_week(
+        monday=_parse_date(monday, "monday") if monday else None, scope=scope,
+    )
+
+
+def _tool_list_workouts(scope: AgentScope, args: dict) -> Any:
+    return agent_api.list_passbank(
+        sport=(args.get("sport") or "").strip() or None,
+        category=(args.get("category") or "").strip() or None,
+        phase=(args.get("phase") or "").strip() or None,
+        scope=scope,
+    )
+
+
 def _tool_plan_session(scope: AgentScope, args: dict) -> Any:
     body = agent_api.PlanSessionIn(
         date=_parse_date(args.get("date", ""), "date"),
@@ -225,14 +241,61 @@ _TOOLS: list[tuple[str, str, dict, Callable[[AgentScope, dict], Any]]] = [
         _tool_get_recovery,
     ),
     (
+        "get_engine_week",
+        "Motorns förslag för en vecka enligt Trixas träningslära, torrkört (sparas "
+        "inte): fas, tillåtna passtyper, adeptens nivågränser (längsta pass per "
+        "gren, antal pass, veckobudget i minuter), nedtrappning, loppdag och "
+        "förslagen pass med workout_code. Läs den INNAN du planerar en vecka — "
+        "den är utgångsläget. Dagar som redan har coachens pass står i "
+        "coached_dates.",
+        {
+            "type": "object",
+            "properties": {
+                "monday": {
+                    "type": "string",
+                    "description": "Veckans måndag, YYYY-MM-DD. Utelämna för innevarande vecka.",
+                }
+            },
+        },
+        _tool_get_engine_week,
+    ),
+    (
+        "list_workouts",
+        "Passbanken: Trixas färdiga pass, filtrerade på adeptens nivå. Varje pass "
+        "har workout_code, gren, passtyp, längdspann, faser och om passtypen "
+        "är tillåten för nivån. Välj härifrån i stället för att skriva egna pass.",
+        {
+            "type": "object",
+            "properties": {
+                "sport": {"type": "string", "enum": ["swim", "bike", "run", "strength", "brick"]},
+                "category": {
+                    "type": "string",
+                    "description": (
+                        "Passtyp: AE lugn uthållighet, SS snabbhet, TE tempo, ME tröskel, "
+                        "MF kraft, AC intervaller, T test, BW kombinationspass, ST styrka."
+                    ),
+                },
+                "phase": {
+                    "type": "string",
+                    "description": "Fas: prep, base, build, peak, race, recovery.",
+                },
+            },
+        },
+        _tool_list_workouts,
+    ),
+    (
         "plan_session",
         "Skriv ett pass i adeptens plan. Upsert på (datum, gren): samma dag och "
         "gren skrivs över så du kan korrigera utan att skapa dubbletter. Pass du "
         "skriver är skyddade — motorn genererar aldrig över dem. "
-        "STYRKEPASS: skicka alltid 'exercises'. Övningar bara som prosa i "
-        "'details' ger adepten ett tomt loggformulär, och utan loggad vikt kan "
-        "lastprogressionen inte räkna nästa pass. Svaret innehåller 'warnings' "
-        "när något saknas — läs det.",
+        "Skicka workout_code ur list_workouts eller get_engine_week: då hämtas "
+        "passets text (på adeptens språk, med adeptens zoner), steg och "
+        "övningar ur passbanken, och duration_min väljs inom passets spann. "
+        "Din 'details' läggs då till som en kommentar från coachen. "
+        "Okänd kod avvisas. Passet prövas mot adeptens nivå: för långt, fel "
+        "passtyp eller över veckobudgeten ger 'warnings' — avviker du medvetet, "
+        "dokumentera med log_override. "
+        "STYRKEPASS utan workout_code: skicka alltid 'exercises'.",
         {
             "type": "object",
             "properties": {
@@ -256,7 +319,10 @@ _TOOLS: list[tuple[str, str, dict, Callable[[AgentScope, dict], Any]]] = [
                 },
                 "workout_code": {
                     "type": "string",
-                    "description": "Passbankskod om passet kommer därifrån, t.ex. 'AE2_bike_04'.",
+                    "description": (
+                        "Passbankskod ur list_workouts/get_engine_week, t.ex. "
+                        "'AE1_run_gajogg'. Ger passets text, steg och övningar."
+                    ),
                 },
                 "exercises": {
                     "type": "array",
@@ -451,7 +517,16 @@ def _dispatch(scope: AgentScope, message: dict) -> dict | None:
                 "instructions": (
                     "Trixa är en deterministisk träningsmotor. Verktygen läser och "
                     "skriver EN adepts data — den som token:en tillhör.\n\n"
-                    "Innan du planerar: läs get_constraints (vad som går att lägga "
+                    "Planera inom Trixas träningslära, inte utanför den. Börja med "
+                    "get_engine_week: motorns förslag med fas, tillåtna passtyper och "
+                    "adeptens nivågränser (längsta pass, antal pass, veckobudget). "
+                    "Välj pass ur passbanken (list_workouts) och skriv dem med "
+                    "workout_code — då får adepten passbankens text på vanlig "
+                    "svenska. Egna pass utan kod, längre pass eller hårdare "
+                    "passtyper än nivån tillåter är avsteg: säg varför med "
+                    "log_override. En nybörjare ska aldrig få fler eller längre "
+                    "pass än motorns förslag utan ett uttalat skäl.\n\n"
+                    "Innan du planerar: läs också get_constraints (vad som går att lägga "
                     "alls) och get_athlete (mål, nivå, tröskelvärden). "
                     "get_constraints är bindande — planera aldrig i en gren som "
                     "ligger i inactive_sports eller blocked_sports, och lägg aldrig "
