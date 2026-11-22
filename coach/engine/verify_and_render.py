@@ -103,7 +103,7 @@ def _render_examples(
                 continue
             # Resolva templates innan rendering så konkreta värden visas
             resolved = resolve_template(w) if w.get("parameterized") else w
-            out.append(render_workout(resolved, profile, drill_map))
+            out.append(render_workout(resolved, profile, drill_map, for_coach=True))
             out.append("---")
             out.append("")
 

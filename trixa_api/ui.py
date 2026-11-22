@@ -78,6 +78,8 @@ _jinja_env = Environment(
 # Passbeskrivningar är markdown i fritext (både motorns och coachens). Filtret
 # escapar indata innan det formaterar — se markdown_lite.
 _jinja_env.filters["session_markdown"] = markdown_lite.render
+# Grenen på svenska i adeptvyn ("Löpning", inte "RUN"); okänd → Övrigt.
+_jinja_env.filters["sport_sv"] = lambda key: sports.sv(sports.canon(key) or key)
 
 
 def _render(template_name: str, context: dict, status_code: int = 200) -> HTMLResponse:
