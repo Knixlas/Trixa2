@@ -162,7 +162,7 @@ lopp. Kort sammanfattning:
 - **Zonerna i känsla** (samtalstestet), samma idé som nu ligger i
   renderaren.
 
-## Gjort på grenen `nyborjare-resa` (inte mergat, inte publicerat)
+## Steg 1: passtexten (PR #57, mergad 2026-11-22)
 
 - `render_workout` visar inte längre passkod, kategori, fasnamn, mallens
   spann eller "Tränarens noter" för adepten (`for_coach=False` är
@@ -176,14 +176,78 @@ lopp. Kort sammanfattning:
   under Veckans träning."
 - Dashboarden visar grenen på svenska (`sport_sv`-filtret).
 
-Kvar och kräver beslut: nivåprofiler och startdos, golvet på 5 h,
-nedtrappningen inför loppet, passlängd efter loppets längd, besvär som
-påverkar planen, och omskrivningen av passbankens prosa (pickups, strides,
-"HR driftar" och liknande står kvar i 124 pass).
+## Steg 2: planeraren efter nivå (grenen `planeraren-niva`)
+
+Databasen visade att kollegan faktiskt valt **Nybörjare** och angett
+**0,5 h/vecka**. Hon fick ändå fem pass i veckan: golvet på 5 h och regeln
+"minst fem pass" körde över både nivå och tid.
+
+**Nivåprofiler** i `coach/data/levels.yaml`, läses av `coach/trixa/levels.py`:
+
+| Nivå | Modell | Start | Pass/vecka | Längsta pass (löp) | Kategorier |
+|---|---|---|---|---|---|
+| Nybörjare | ramp | 75 min | högst 3 | 75 min | bara AE; SS efter 8 gjorda veckor |
+| Medel | ramp | 150 min (eller loggens snitt) | högst 4 | 120 min | alla |
+| Avancerad, elit | declared (som förut) | — | minst 5 | fasens tak | alla |
+
+- **Ramp:** budgeten växer 10 % när förra veckan blev gjord (≥ 75 % av
+  schemalagd tid), står still vid 50–75 % och sjunker 10 % under 50 %. Den
+  växer från det som faktiskt schemalades, inte från en budget passtaken
+  aldrig lät veckan nå. Lugna veckor flyttar inte basen. **Angivna timmar
+  är ett tak**; ligger taket under nivåns startdos säger planen det till
+  adepten. Läget sparas i `phase_state.ramp`.
+- **Gå och jogga** (`AE1_run_gajogg`, bara nybörjare): nybörjarens enda
+  löppass tills `run_walk_steps` är slut. 1 min jogg / 1,5 min gång i
+  början, ett steg upp varannan gjord vecka, upp till 10 / 1.
+- **Längsta pass** för ramp-nivåerna: nivåns tak och loppets
+  (`race_long_cap_min`, t.ex. 90 min för 10 km).
+- **Budgetanpassningen** (`_fit_week_to_budget`): för många pass → det
+  minst värdefulla blir vila (långpasset och grenens enda pass sist);
+  mallpass med tidsparameter skalas mot budgeten. Styrkan räknas in i
+  budgeten för ramp-nivåerna och går först om den inte ryms.
+- **Advanced/elit:** volymen beräknas som förut. Nytt är att vilovecka,
+  topp, nedtrappning och transition faktiskt kortar passen. Förut påverkade
+  faktorn bara långpassets tak. Antalet pass står kvar.
+- **Loppet** (alla nivåer): fasen `race` (≤ 2 v kvar) trappar ner till 80,
+  60 och 45 % (`race_taper`). Loppet läggs in på sin dag ("Loppet: …",
+  kategori RACE) med vila dagen före och dagen efter. Dagar coachen har
+  reserverat rörs inte.
+- **Registreringen:** nivån har inget förval före första sparningen, och
+  tidsfrågan lyder "Hur mycket tid kan du som mest lägga …", med en mening
+  om att det är ett tak. Belastningscykeln skrivs i ord.
+
+Simuleringen efter ändringen (samma sju personer plus kollegans verkliga
+svar; varje pass görs till 85–95 % av tiden):
+
+| Person | Vecka 1 | Längsta pass | Loppveckan |
+|---|---|---|---|
+| Kollegans svar (nybörjare, 0,5 h, löp+styrka) | 1 × 30 min gå/jogg | 30 min | 30 min + loppet |
+| Nybörjare, 6 h förifyllt | 3 × 20–30 min gå/jogg (1,2 h) | 75 min | 30 + 60 min + loppet |
+| Nybörjare, 3 h | samma; når taket 3 h vecka 17 | 75 min | 30 + 50 min + loppet |
+| 62-åring, hälsa | 3 × gå/jogg (1,2 h) | 70 min | — |
+| Comeback, medel, 4 h | 4 pass, 2,4 h | 75 min | 30 + 40 + 40 min + loppet |
+| Van löpare, avancerad | 6,0 h som förut | — | 30 + 25 + 25 min + loppet |
+| Triathlonnybörjare | 1,3 h: sim 20, cykel 45, gå/jogg 15 | 100 min (loppet) | — |
+| Motionscyklist, medel | 2,5 h → 6 h (taket) | 240 min | 65 + 65 + 30 min + loppet |
+
+## Kvar
+
+- **Besvär** utan `impact_per_discipline` påverkar fortfarande inte planen
+  (knät med grad 2).
+- **Passbankens prosa** (pickups, strides, "HR driftar", "IM-maratonstrategi")
+  i 124 pass. Nybörjaren möter den först efter gå/jogg-perioden.
+- **Varför blev passet inte gjort?** (ChatGPT:s förslag) Rampen ser bara
+  tiden. En adept som gör två av tre pass står still utan att få veta varför.
+- **Fasnamnet:** ramp-nivåerna ligger i "Förberedelse" hela säsongen,
+  eftersom fasgränserna räknas i timmar (5 h för bas). Planen fungerar, men
+  ordet säger fel sak.
+- **Simpassen** för triathlonnybörjaren har fortfarande drills och "25:or".
 
 ## Vad som inte är verifierat
 
 - Simuleringen kördes mot testfejken, inte mot skarp data, och utan TP- eller
   Strava-data. Med en klocka kan återhämtningssignalerna sänka volymen något.
-- Kollegans faktiska profil har inte lästs. Fynden gäller den väg hon
-  beskrivit.
+- Torrkörningen mot skarp data (`python -m coach.trixa.planner
+  --athlete-user-id … --week-start …` utan `--apply`) är inte gjord för steg 2.
+- Kollegans pass har inte lästs. Nivå och angiven tid kommer ur
+  `athlete_profiles`.

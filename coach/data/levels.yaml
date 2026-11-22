@@ -1,0 +1,86 @@
+# Nivåprofiler — hur mycket och vad planeraren ger per erfarenhetsnivå.
+#
+# Bakgrund (docs/13): experience_level sparades men lästes aldrig. En
+# nybörjare som angav 0,5 h/vecka fick fem pass och 5–6 h, eftersom
+# planeraren hade ett golv på 5 h och minst fem pass i veckan för alla.
+#
+# Två modeller:
+#   declared — dagens logik: faktisk volym (fyra veckor) vinner över angiven,
+#              golv på min_weekly_hours, minst min_sessions pass. För den som
+#              redan tränar strukturerat.
+#   ramp     — veckobudget i minuter som börjar lågt och växer med högst
+#              max_weekly_increase när förra veckan blev gjord. Angivna timmar
+#              är ett tak, aldrig ett golv.
+#
+# Inga adeptvärden här — bara generell filosofi.
+
+levels:
+  beginner:
+    model: ramp
+    # Tre pass i veckan med en vilodag mellan: 3 × 25 min.
+    start_minutes_per_week: 75
+    max_sessions: 3
+    min_session_min: 15
+    max_weekly_increase: 0.10
+    # Förra veckans gjorda andel → nästa veckas budget.
+    hold_if_completion_below: 0.75
+    reduce_if_completion_below: 0.50
+    reduce_factor: 0.90
+    # Längsta pass per gren, oavsett lopp.
+    max_session_min: {run: 75, bike: 120, swim: 45, brick: 90, strength: 30}
+    # Bara lugn uthållighet tills grunden finns; korta fartökningar (SS) efter
+    # åtta veckor som blivit gjorda. Inga test, trösklar eller intervaller.
+    allowed_categories: [AE]
+    speed_after_progress_weeks: 8
+    # Gå/jogg: [jogg, gång] i minuter. Ett steg upp varannan gjord vecka.
+    # Efter sista steget får adepten vanliga lugna löppass.
+    run_walk_steps: [[1, 1.5], [2, 1.5], [3, 1], [4, 1], [6, 1], [8, 1], [10, 1]]
+    progress_weeks_per_step: 2
+
+  intermediate:
+    model: ramp
+    start_minutes_per_week: 150
+    max_sessions: 4
+    min_session_min: 20
+    max_weekly_increase: 0.10
+    hold_if_completion_below: 0.75
+    reduce_if_completion_below: 0.50
+    reduce_factor: 0.90
+    max_session_min: {run: 120, bike: 240, swim: 75, brick: 180, strength: 45}
+    allowed_categories: null   # alla kategorier som fasen tillåter
+    speed_after_progress_weeks: 0
+
+  advanced:
+    model: declared
+    min_weekly_hours: 5.0
+    min_sessions: 5
+
+  elite:
+    model: declared
+    min_weekly_hours: 5.0
+    min_sessions: 5
+
+# Längsta pass i loppets gren, för ramp-nivåerna. Ett långpass behöver inte
+# vara mycket längre än loppet: för 10 km räcker 75–90 min.
+race_long_cap_min:
+  5k: 60
+  10k: 90
+  half_marathon: 130
+  marathon: 180
+  ultra: 240
+  obstacle_sprint: 75
+  obstacle_standard: 110
+  obstacle_ultra: 180
+  sprint: 90
+  olympic: 150
+  gran_fondo: 300
+  time_trial: 90
+  open_water: 60
+  swim_meet: 45
+
+# Nedtrappning inför loppet, för alla nivåer: andel av veckans budget när
+# loppet är så här många veckor bort (fasen "race" börjar två veckor före).
+race_taper:
+  2: 0.80
+  1: 0.60
+  0: 0.45

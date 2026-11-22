@@ -58,6 +58,68 @@ workouts:
       tröttveckor. Bytbar mot vilodag om sömn-/HRV-signaler säger så.
 
   # ─────────────────────────────────────────────────────────────
+  # AE1 — Gå och jogga (bara nybörjare, docs/13)
+  # Planeraren sätter jog_min/walk_min ur levels.yaml::run_walk_steps
+  # och flyttar upp ett steg varannan gjord vecka. Texten är skriven
+  # för den som aldrig sprungit: inga zoner, ingen pulsklocka.
+  # ─────────────────────────────────────────────────────────────
+
+  - code: AE1_run_gajogg
+    discipline: run
+    category: AE
+    type_code: AE1
+    levels: [beginner]
+    name: "Gå och jogga"
+    phase_appropriate: [prep, base_1, base_2, base_3, build_1, build_2, peak, race, recovery]
+    parameterized: true
+    parameters:
+      duration_min:
+        default: 25
+        range: [15, 60]
+        description: "Total tid inklusive gång"
+      jog_min:
+        default: "1"
+        description: "Minuter jogg per varv (text, sätts av planeraren)"
+      walk_min:
+        default: "1,5"
+        description: "Minuter gång per varv (text, sätts av planeraren)"
+    intent: |
+      Du bygger vanan att röra dig och lär kroppen att tåla löpning lite i
+      taget. Jogga så lugnt att du kan prata hela tiden. Det ska kännas
+      för lätt — det är meningen. Gången är en del av passet, inte ett
+      misslyckande.
+    main_set:
+      - segment: warmup
+        duration_pct: 0.20
+        zone: 1
+        effort_descriptor: "rask promenad"
+      - segment: continuous
+        duration_pct: 0.65
+        zone: 2
+        effort_descriptor: "{jog_min} min lugn jogg, {walk_min} min gång — och om igen"
+        description: |
+          Börja om från jogg efter varje gång. Orkar du inte hela
+          joggminuten: gå tidigare. Det räknas ändå.
+      - segment: cooldown
+        duration_pct: 0.15
+        zone: 1
+        effort_descriptor: "lugn promenad hem"
+    total_duration_min:
+      estimated: "{duration_min}"
+      flexible_range: [15, 60]
+    zone_refs: [Z1, Z2]
+    terrain: flat
+    surface: any
+    equipment: []
+    abort_conditions:
+      - "Ont i knä, fot eller höft som gör att du haltar → gå hem och vila till nästa pass"
+      - "Svimfärdig, ont i bröstet eller mycket andfådd när du går → avbryt"
+    coach_notes: |
+      Nybörjarens enda löppass tills run_walk_steps är slut (cirka 14
+      gjorda veckor). Ersätter 9/1-passet, som var för långt och för
+      tätt för den som aldrig sprungit.
+
+  # ─────────────────────────────────────────────────────────────
   # AE2 — Aerobic Endurance (parametriserad mall)
   # ─────────────────────────────────────────────────────────────
 

@@ -73,8 +73,9 @@ sön för löpning, mån som vila).</p>
     <fieldset>
       <legend>Träningsvolym &amp; erfarenhet</legend>
       <div class="grid">
-        <label>Timmar per vecka
-          <input type="number" name="weekly_hours" min="0" step="0.5" value="{{ athlete.weekly_hours or '' }}">
+        <label>Mest tid per vecka (timmar)
+          <input type="number" name="weekly_hours" min="0.5" step="0.5" value="{{ athlete.weekly_hours or '' }}"
+            title="Ett tak. Nybörjare och medel börjar lägre och ökar när passen blir gjorda.">
         </label>
         <label>Träningsdagar per vecka
           <input type="number" name="weekly_days" min="1" max="7" step="1" value="{{ athlete.weekly_days or '' }}">
